@@ -5,6 +5,7 @@ Brancher allows design and train differentiable Bayesian models using stochastic
 ## Example code: Autoregressive modeling ##
 
 ### Probabilistic model ###
+Probabilistic models are defined symbolically:
 
 ```python
 T = 20
@@ -28,11 +29,15 @@ AR_model = ProbabilisticModel(x + y)
 
 
 ### Observe data ###
+Once the probabilistic model is define, we can decide which variable is observed:
+
 ```python
 [yt.observe(data[yt][:, 0, :]) for yt in y]
 ```
 
 ### Autoregressive variational distribution ###
+The variational distribution can have an arbitrary structure:
+
 ```python
 Qb = LogitNormalVariable(0.5, 0.5, "b", learnable=True)
 logit_b_post = DeterministicVariable(0., 'logit_b_post', learnable=True)
@@ -42,8 +47,12 @@ for t in range(1, T):
     Qx_mean.append(DeterministicVariable(0., x_names[t] + "_mean", learnable=True))
     Qx.append(NormalVariable(BF.sigmoid(logit_b_post)*Qx[t-1] + Qx_mean[t], 1., x_names[t], learnable=True))
 variational_posterior = ProbabilisticModel([Qb] + Qx)
+```
 
 ### Inference ###
+Now that the models are spicified we can perform approximate inference using stochastic gradient descent:
+
+```python
 loss_list = inference.stochastic_variational_inference(AR_model, variational_posterior,
                                                        number_iterations=100,
                                                        number_samples=300,
