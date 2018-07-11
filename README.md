@@ -2,7 +2,7 @@
 
 Brancher allows design and train differentiable Bayesian models using stochastic variational inference. Brancher is based on the deep learning framework Chainer. 
 
-## Example code: Autoregressive modeling ##
+## Example: Autoregressive modeling ##
 
 ### Probabilistic model ###
 Probabilistic models are defined symbolically:
