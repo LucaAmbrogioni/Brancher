@@ -16,7 +16,7 @@ class VariableConstructor(RandomVariable):
     Parameters
     ----------
     """
-    def __init__(self, name, learnable, ranges, **kwargs):
+    def __init__(self, name, learnable, ranges, is_observed=False, **kwargs):
 
         class VarLink(chainer.ChainList):
 
@@ -31,16 +31,16 @@ class VariableConstructor(RandomVariable):
                 return {k: var2link(x).fn(values) for k, x in self.kwargs.items()}
 
         self.name = name
+        self._evaluated = False
+        self._observed = is_observed
+        self._observed_value = None
+        self._current_value = None
         self.construct_deterministic_parents(learnable, ranges, kwargs)
         self.parents = join_sets_list([var2link(x).vars for x in kwargs.values()])
         self.link = VarLink()
         self.samples = []
         self.ranges = {}
 
-        self._evaluated = False
-        self._observed = False
-        self._observed_value = None
-        self._current_value = None
 
     def construct_deterministic_parents(self, learnable, ranges, kwargs):
         for parameter_name, value in kwargs.items():
@@ -50,10 +50,24 @@ class VariableConstructor(RandomVariable):
                 elif isinstance(value, numbers.Number):
                     dim = 1
                 else:
-                    raise TypeError("The input value should be either a number or a np.ndarray")
+                    raise TypeError("The input value should be either a boolean, a number or a np.ndarray")
                 deterministic_parent = DeterministicVariable(ranges[parameter_name].inverse_transform(value, dim),
-                                                             self.name + "_" + parameter_name, learnable)
+                                                             self.name + "_" + parameter_name, learnable, is_observed=self._observed)
                 kwargs.update({parameter_name: ranges[parameter_name].forward_transform(deterministic_parent, dim)})
+
+
+class EmpiricalVariable(VariableConstructor):
+    """
+    Summary
+
+    Parameters
+    ----------
+    """
+    def __init__(self, dataset, batch_size, is_observed, name):
+        ranges = {"dataset": geometric_ranges.UnboundedRange(), "batch_size": geometric_ranges.UnboundedRange()}
+        super().__init__(name, dataset=dataset, learnable=False, ranges=ranges, is_observed=is_observed)
+        self.distribution = distributions.EmpiricalDistribution()
+        self.distribution.batch_size = batch_size
 
 
 class NormalVariable(VariableConstructor):

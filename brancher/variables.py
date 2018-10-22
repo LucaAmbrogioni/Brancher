@@ -263,7 +263,7 @@ class RandomVariable(Variable):
         if self.samples and not resample:
             return {self: self.samples[-1]}
         parents_samples_dict = join_dicts_list([parent.get_sample(number_samples, resample) for parent in self.parents])
-        input_dict = {parent: parents_samples_dict[parent] for parent in self.parents} #TODO: The logic of the sampling can be improved, don't pass everything around
+        input_dict = {parent: parents_samples_dict[parent] for parent in self.parents}
         parameters_dict = self.apply_link(input_dict)
         sample = self.distribution.get_sample(**parameters_dict, number_samples=number_samples)
         self.samples.append(sample)
@@ -288,6 +288,29 @@ class RandomVariable(Variable):
 
     def flatten(self):
         return flatten_list([parent.flatten() for parent in self.parents]) + [self]
+
+
+class ImplicitVariable(RandomVariable): #TODO: stuff to fix here
+    """
+    Summary
+
+    Parameters
+    ----------
+    distribution : brancher.Distribution
+    Summary
+    name : str
+    Summary
+    parents : tuple of brancher variables
+    Summary
+    link : callable
+    Summary
+    """
+
+    def __init__(self, distribution, name, parents, link):
+        super().__init__(self, distribution, name, parents, link)
+
+    def calculate_log_probability(self, values, reevaluate=True):
+        raise NotImplementedError("The probability of implicit variables cannot be computed")
 
 
 class ProbabilisticModel(BrancherClass):

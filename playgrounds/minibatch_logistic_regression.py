@@ -3,11 +3,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from brancher.variables import DeterministicVariable, ProbabilisticModel
-from brancher.standard_variables import NormalVariable, BinomialVariable
+from brancher.standard_variables import NormalVariable, BinomialVariable, EmpiricalVariable
 from brancher import inference
 import brancher.functions as BF
 
-# Data
+# Data #TODO!!!
 number_regressors = 2
 number_samples = 50
 x1_input_variable = np.random.normal(1.5, 1.5, (int(number_samples/2), number_regressors, 1))
@@ -19,16 +19,16 @@ labels = np.concatenate((x1_labels, x2_labels), axis=0)
 
 # Probabilistic model
 weights = NormalVariable(np.zeros((1, number_regressors)), 0.5*np.ones((1, number_regressors)), "weights")
-x = DeterministicVariable(input_variable, "x", is_observed=True)
+x = EmpiricalVariable(input_variable, batch_size=5, name="x", is_observed=True)
 logit_p = BF.matmul(weights, x)
-k = BinomialVariable(1, logit_p=logit_p, name="k")
+k = BinomialVariable(1, logit_p=logit_p, name="k") #TODO
 model = ProbabilisticModel([k])
 
 samples = model.get_sample(300)
 model.calculate_log_probability(samples)
 
 # Observations
-k.observe(labels)
+k.observe(labels, synchronize=x) #TODO: implement the binding method (save index from x and pass to k)
 
 # Variational Model
 Qweights = NormalVariable(np.zeros((1, number_regressors)),

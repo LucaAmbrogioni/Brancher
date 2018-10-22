@@ -16,11 +16,17 @@ def flatten_list(lst):
 
 
 def join_dicts_list(dicts_list):
-    return reduce(lambda d1,d2: {**d1, **d2}, dicts_list)
+    if dicts_list:
+        return reduce(lambda d1,d2: {**d1, **d2}, dicts_list)
+    else:
+        return {}
 
 
 def join_sets_list(sets_list):
-    return reduce(lambda d1, d2: d1.union(d2), sets_list)
+    if sets_list:
+        return reduce(lambda d1, d2: d1.union(d2), sets_list)
+    else:
+        return set()
 
 
 def sum_data_dimensions(var):

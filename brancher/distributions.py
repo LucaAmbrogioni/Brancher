@@ -28,6 +28,35 @@ class Distribution(ABC):
         pass
 
 
+## Implicit distributions ##
+class ImplicitDistribution(Distribution):
+
+    def calculate_log_probability(self, *parameters):
+        raise NotImplementedError("The probability of implicit variables cannot be computed")
+
+
+class EmpiricalDistribution(ImplicitDistribution):
+    """
+    Summary
+    """
+    def get_sample(self, dataset, number_samples):
+        """
+        One line description
+
+        Parameters
+        ----------
+        Returns
+        -------
+        Without replacement
+        """
+        dataset_size = dataset.shape[1]
+        if dataset_size < number_samples:
+            raise ValueError("It is impossible to have more samples than the size of the dataset without replacement")
+        sample_indices = np.random.choice(range(dataset_size), size=self.batch_size, replace=False)
+        sample = dataset[:, sample_indices, :] #TODO: fix for non-observed variables
+        return sample
+
+
 ## Univariate distributions ##
 class UnivariateDistribution(Distribution):
     pass
@@ -237,6 +266,7 @@ class LogitBinomialDistribution(UnivariateDistribution):
         n, z = broadcast_and_squeeze(n, z)
         binomial_sample = np.random.binomial(n.data, F.sigmoid(z).data) #TODO: Not reparametrizable (Gumbel?)
         return chainer.Variable(binomial_sample.astype("int32"))
+
 
 ## Multivariate distributions ##
 class MultivariateDistribution(Distribution):
