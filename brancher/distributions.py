@@ -39,7 +39,7 @@ class EmpiricalDistribution(ImplicitDistribution):
     """
     Summary
     """
-    def get_sample(self, dataset, number_samples):
+    def get_sample(self, dataset, indices, number_samples):
         """
         One line description
 
@@ -49,11 +49,18 @@ class EmpiricalDistribution(ImplicitDistribution):
         -------
         Without replacement
         """
-        dataset_size = dataset.shape[1]
-        if dataset_size < number_samples:
-            raise ValueError("It is impossible to have more samples than the size of the dataset without replacement")
-        sample_indices = np.random.choice(range(dataset_size), size=self.batch_size, replace=False)
-        sample = dataset[:, sample_indices, :] #TODO: fix for non-observed variables
+        if not indices:
+            if isinstance(dataset, chainer.Variable):
+                dataset_size = dataset.shape[1]
+            else:
+                dataset_size = len(dataset)
+            if dataset_size < number_samples:
+                raise ValueError("It is impossible to have more samples than the size of the dataset without replacement")
+            indices = np.random.choice(range(dataset_size), size=self.batch_size, replace=False)
+        if isinstance(dataset, chainer.Variable):
+            sample = dataset[:, indices, :]
+        else:
+            sample = list(np.array(dataset)[indices]) #TODO: clean up
         return sample
 
 

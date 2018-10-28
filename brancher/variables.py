@@ -17,6 +17,8 @@ from brancher.utilities import join_dicts_list, join_sets_list
 from brancher.utilities import flatten_list
 from brancher.utilities import partial_broadcast
 from brancher.utilities import coerce_to_dtype
+from brancher.utilities import broadcast_parent_values
+from brancher.utilities import split_dict
 
 
 class BrancherClass(ABC):
@@ -166,9 +168,12 @@ class DeterministicVariable(Variable):
         return self._observed
 
     def get_sample(self, number_samples, resample=False):
-        value_shape = self.value.shape
-        reps = tuple([number_samples] + [1]*len(value_shape[1:]))
-        return {self: F.tile(self.value, reps=reps)}
+        if isinstance(self.value, chainer.Variable):
+            value_shape = self.value.shape
+            reps = tuple([number_samples] + [1]*len(value_shape[1:]))
+            return {self: F.tile(self.value, reps=reps)}
+        else:
+            return {self: self.value} #TODO: This is for allowing discrete data, temporary?
 
     def reset(self):
         pass
@@ -218,18 +223,17 @@ class RandomVariable(Variable):
     def is_observed(self):
         return self._observed
 
-    def apply_link(self, parents_values):
-        keys_list, values_list = zip(*[(key, value) for key, value in parents_values.items()])
-        broadcasted_values = partial_broadcast(*values_list)
-        original_shapes = [val.shape for val in broadcasted_values]
-        data_shapes = [s[2:] for s in original_shapes]
-        number_samples, number_datapoints = original_shapes[0][0:2]
-        newshapes = [tuple([number_samples*number_datapoints]) + s
-                     for s in data_shapes]
-        reshaped_values = [F.reshape(val, shape=s) for val, s in zip(broadcasted_values, newshapes)]
-        reshaped_dict = {key: value for key, value in zip(keys_list, reshaped_values)}
+    def apply_link(self, parents_values):  #TODO: This is for allowing discrete data, temporary?
+        cont_values, discrete_values = split_dict(parents_values,
+                                                  condition=lambda key,val: isinstance(val, chainer.Variable))
+        if cont_values:
+            reshaped_dict, number_samples, number_datapoints = broadcast_parent_values(cont_values)
+            reshaped_dict.update(discrete_values)
+        else:
+            reshaped_dict = discrete_values
         reshaped_output = self.link(reshaped_dict)
         output = {key: F.reshape(val, (number_samples, number_datapoints) + val.shape[1:])
+                  if isinstance(val, chainer.Variable) else val
                   for key, val in reshaped_output.items()}
         return output
 

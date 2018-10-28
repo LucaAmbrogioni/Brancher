@@ -4,10 +4,22 @@ Utilities
 Module description
 """
 from functools import reduce
+from collections import abc
 
 import numpy as np
 import chainer
 import chainer.functions as F
+
+
+def split_dict(dic, condition):
+    dict_1 = {}
+    dict_2 = {}
+    for key, val in dic.items():
+        if condition(key, val):
+            dict_1.update({key: val})
+        else:
+            dict_2.update({key: val})
+    return dict_1, dict_2
 
 
 def flatten_list(lst):
@@ -49,6 +61,18 @@ def broadcast_and_squeeze(*args):
     return broadcasted_values
 
 
+def broadcast_parent_values(parents_values):
+    keys_list, values_list = zip(*[(key, value) for key, value in parents_values.items()])
+    broadcasted_values = partial_broadcast(*values_list)
+    original_shapes = [val.shape for val in broadcasted_values]
+    data_shapes = [s[2:] for s in original_shapes]
+    number_samples, number_datapoints = original_shapes[0][0:2]
+    newshapes = [tuple([number_samples * number_datapoints]) + s
+                 for s in data_shapes]
+    reshaped_values = [F.reshape(val, shape=s) for val, s in zip(broadcasted_values, newshapes)]
+    return {key: value for key, value in zip(keys_list, reshaped_values)}, number_samples, number_datapoints
+
+
 def get_diagonal(tensor):
     dim1, dim2, dim_matrix, _ = tensor.shape
     diag_ind = list(range(dim_matrix))
@@ -57,7 +81,7 @@ def get_diagonal(tensor):
     reshaped_tensor = F.reshape(tensor, shape = (dim1*dim2, dim_matrix, dim_matrix))
     ind = (np.array(axis12_ind), np.array(expanded_diag_ind), np.array(expanded_diag_ind))
     subdiagonal = reshaped_tensor[ind]
-    return F.reshape(subdiagonal, shape=(dim1,dim2,dim_matrix))
+    return F.reshape(subdiagonal, shape=(dim1, dim2, dim_matrix))
 
 
 def coerce_to_dtype(data, is_observed=False):
@@ -66,7 +90,7 @@ def coerce_to_dtype(data, is_observed=False):
     if dtype is chainer.Variable:
         result = data
     elif np.issubdtype(dtype, float):
-        result = chainer.Variable(data * np.ones(shape=(1, 1), dtype="float32")) #TODO
+        result = chainer.Variable(data * np.ones(shape=(1, 1), dtype="float32"))
     elif np.issubdtype(dtype, int):
         result = chainer.Variable(data * np.ones(shape=(1, 1), dtype="int32"))
     elif dtype is np.ndarray:
@@ -76,6 +100,9 @@ def coerce_to_dtype(data, is_observed=False):
             result = chainer.Variable(data.astype("int32"))
         else:
             result = chainer.Variable(data)
+    elif issubclass(dtype, abc.Iterable):
+        result = data  # TODO: This is for allowing discrete data, temporary?
+        return result #TODO: This needs some clean up
     else:
         raise TypeError("Invalid input dtype {} - expected float, integer, np.ndarray, or chainer var.".format(dtype))
 

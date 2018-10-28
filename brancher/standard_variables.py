@@ -50,7 +50,7 @@ class VariableConstructor(RandomVariable):
                 elif isinstance(value, numbers.Number):
                     dim = 1
                 else:
-                    raise TypeError("The input value should be either a boolean, a number or a np.ndarray")
+                    dim = [] #TODO: You should consider the other possible cases individually
                 deterministic_parent = DeterministicVariable(ranges[parameter_name].inverse_transform(value, dim),
                                                              self.name + "_" + parameter_name, learnable, is_observed=self._observed)
                 kwargs.update({parameter_name: ranges[parameter_name].forward_transform(deterministic_parent, dim)})
@@ -63,11 +63,35 @@ class EmpiricalVariable(VariableConstructor):
     Parameters
     ----------
     """
-    def __init__(self, dataset, batch_size, is_observed, name):
-        ranges = {"dataset": geometric_ranges.UnboundedRange(), "batch_size": geometric_ranges.UnboundedRange()}
-        super().__init__(name, dataset=dataset, learnable=False, ranges=ranges, is_observed=is_observed)
+    def __init__(self, dataset, is_observed, name, batch_size=(), indices=()):
+        ranges = {"dataset": geometric_ranges.UnboundedRange(),
+                  "batch_size": geometric_ranges.UnboundedRange(),
+                  "indices": geometric_ranges.UnboundedRange()}
+        super().__init__(name, dataset=dataset, indices=indices, learnable=False, ranges=ranges, is_observed=is_observed)
         self.distribution = distributions.EmpiricalDistribution()
-        self.distribution.batch_size = batch_size
+        if batch_size:
+            self.distribution.batch_size = batch_size
+            self.batch_size = batch_size
+        elif indices:
+            self.distribution.batch_size = len(indices)
+            self.batch_size = batch_size #TODO: Clean up here
+        else:
+            raise ValueError("Either the indices or the batch size has to be given as input")
+
+
+class RandomIndices(EmpiricalVariable):
+    """
+    Summary
+
+    Parameters
+    ----------
+    """
+    def __init__(self, dataset_size, batch_size, name):
+        super().__init__(dataset=list(range(dataset_size)),
+                         batch_size=batch_size, is_observed=True, name=name)
+
+    def __len__(self):
+        return self.batch_size
 
 
 class NormalVariable(VariableConstructor):

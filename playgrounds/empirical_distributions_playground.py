@@ -5,21 +5,25 @@ import chainer.links as L
 import chainer.functions as F
 
 from brancher.variables import DeterministicVariable, RandomVariable, ProbabilisticModel
-from brancher.standard_variables import NormalVariable, EmpiricalVariable
+from brancher.standard_variables import NormalVariable, EmpiricalVariable, RandomIndices
 from brancher.functions import BrancherFunction
 import brancher.functions as BF
 
 ## Data ##
 dataset_size = 100
-number_dimensions = 4
-dataset = np.random.normal(0, 1, (dataset_size, number_dimensions))
+number_dimensions = 1
+dataset1 = np.random.normal(0, 1, (dataset_size, number_dimensions))
 
 ## Variables ##
-a = EmpiricalVariable(dataset, batch_size=5, is_observed=True, name='a')
+indices = RandomIndices(dataset_size=dataset_size, batch_size=5, name="indices")
+a = EmpiricalVariable(dataset1, indices=indices, is_observed=True, name='a')
+b = EmpiricalVariable(dataset1, indices=indices, is_observed=True, name='a')
+
+model = ProbabilisticModel([a, b])
+
 
 ## Sample ##
-samples1 = a.get_sample(1)
-samples2 = a.get_sample(1)
+samples = model.get_sample(1)
 
-print(samples1[a])
-print(samples2[a])
+print(samples[a])
+print(samples[b])
