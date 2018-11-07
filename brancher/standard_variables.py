@@ -63,7 +63,7 @@ class EmpiricalVariable(VariableConstructor):
     Parameters
     ----------
     """
-    def __init__(self, dataset, is_observed, name, batch_size=(), indices=()):
+    def __init__(self, dataset, name, is_observed=True, batch_size=(), indices=()):
         ranges = {"dataset": geometric_ranges.UnboundedRange(),
                   "batch_size": geometric_ranges.UnboundedRange(),
                   "indices": geometric_ranges.UnboundedRange()}
@@ -86,9 +86,9 @@ class RandomIndices(EmpiricalVariable):
     Parameters
     ----------
     """
-    def __init__(self, dataset_size, batch_size, name):
+    def __init__(self, dataset_size, batch_size, name, is_observed=False):
         super().__init__(dataset=list(range(dataset_size)),
-                         batch_size=batch_size, is_observed=True, name=name)
+                         batch_size=batch_size, is_observed=is_observed, name=name)
 
     def __len__(self):
         return self.batch_size

@@ -16,8 +16,8 @@ dataset1 = np.random.normal(0, 1, (dataset_size, number_dimensions))
 
 ## Variables ##
 indices = RandomIndices(dataset_size=dataset_size, batch_size=5, name="indices")
-a = EmpiricalVariable(dataset1, indices=indices, is_observed=True, name='a')
-b = EmpiricalVariable(dataset1, indices=indices, is_observed=True, name='a')
+a = EmpiricalVariable(dataset1, indices=indices, name='a', is_observed=True)
+b = EmpiricalVariable(dataset1, indices=indices, name='a', is_observed=True)
 
 model = ProbabilisticModel([a, b])
 

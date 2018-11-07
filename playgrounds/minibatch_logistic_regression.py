@@ -3,23 +3,26 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from brancher.variables import DeterministicVariable, ProbabilisticModel
-from brancher.standard_variables import NormalVariable, BinomialVariable, EmpiricalVariable
+from brancher.standard_variables import NormalVariable, BinomialVariable, EmpiricalVariable, RandomIndices
 from brancher import inference
 import brancher.functions as BF
 
-# Data #TODO!!!
+# Data
 number_regressors = 2
-number_samples = 50
-x1_input_variable = np.random.normal(1.5, 1.5, (int(number_samples/2), number_regressors, 1))
-x1_labels = 0*np.ones((int(number_samples/2), 1))
-x2_input_variable = np.random.normal(-1.5, 1.5, (int(number_samples/2), number_regressors, 1))
-x2_labels = 1*np.ones((int(number_samples/2),1))
+dataset_size = 50
+x1_input_variable = np.random.normal(1.5, 1.5, (int(dataset_size/2), number_regressors, 1))
+x1_labels = 0*np.ones((int(dataset_size/2), 1))
+x2_input_variable = np.random.normal(-1.5, 1.5, (int(dataset_size/2), number_regressors, 1))
+x2_labels = 1*np.ones((int(dataset_size/2),1))
 input_variable = np.concatenate((x1_input_variable, x2_input_variable), axis=0)
-labels = np.concatenate((x1_labels, x2_labels), axis=0)
+output_labels = np.concatenate((x1_labels, x2_labels), axis=0)
 
 # Probabilistic model
+minibatch_size = 10
+minibatch_indices = RandomIndices(dataset_size=dataset_size, batch_size=minibatch_size, name="indices")
+x = EmpiricalVariable(input_variable, indices=minibatch_indices, name="x", is_observed=True)
+labels = EmpiricalVariable(output_labels, indices=minibatch_indices, name="labels", is_observed=True)
 weights = NormalVariable(np.zeros((1, number_regressors)), 0.5*np.ones((1, number_regressors)), "weights")
-x = EmpiricalVariable(input_variable, batch_size=5, name="x", is_observed=True)
 logit_p = BF.matmul(weights, x)
 k = BinomialVariable(1, logit_p=logit_p, name="k") #TODO
 model = ProbabilisticModel([k])
@@ -28,7 +31,7 @@ samples = model.get_sample(300)
 model.calculate_log_probability(samples)
 
 # Observations
-k.observe(labels, synchronize=x) #TODO: implement the binding method (save index from x and pass to k)
+k.observe(labels)
 
 # Variational Model
 Qweights = NormalVariable(np.zeros((1, number_regressors)),

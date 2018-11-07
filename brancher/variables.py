@@ -208,6 +208,9 @@ class RandomVariable(Variable):
         self._observed = False
         self._observed_value = None
         self._current_value = None
+        self._dataset_parents = set()
+        self._dataset = None
+        self.__has_random_dataset = False
 
     @property
     def value(self):
@@ -237,23 +240,23 @@ class RandomVariable(Variable):
                   for key, val in reshaped_output.items()}
         return output
 
-    def calculate_log_probability(self, values, reevaluate=True):
+    def calculate_log_probability(self, input_values, reevaluate=True):
         """
         Summary
         """
         if self._evaluated and not reevaluate:
             return 0.
-        if (type(self) is DeterministicVariable) or self.is_observed:
+        if (type(self) is DeterministicVariable) or self.is_observed: #TODO: random indices
             value = self.value
         else:
-            value = values[self]
+            value = input_values[self]
         self._evaluated = True
         deterministic_parents_values = {parent: parent.value for parent in self.parents
                                         if (type(parent) is DeterministicVariable) or parent.is_observed}
-        parents_values = {**values, **deterministic_parents_values}
+        parents_values = {**input_values, **deterministic_parents_values}
         parameters_dict = self.apply_link(parents_values)
         log_probability = self.distribution.calculate_log_probability(value, **parameters_dict)
-        parents_log_probability = sum([parent.calculate_log_probability(values, reevaluate) for parent in self.parents])
+        parents_log_probability = sum([parent.calculate_log_probability(input_values, reevaluate) for parent in self.parents])
         if self.is_observed:
             log_probability = F.sum(log_probability, axis=1, keepdims=True)
         if type(log_probability) is chainer.Variable and type(parents_log_probability) is chainer.Variable:
@@ -273,10 +276,14 @@ class RandomVariable(Variable):
         self.samples.append(sample)
         return {**parents_samples_dict, self: sample}
 
-    def observe(self, data):
+    def observe(self, data, random_indices=()):
         """
         Summary
         """
+        if isinstance(data, RandomVariable): #TODO Work in progress: We nee a small probabilistic model for keeping track of indices of datasets
+            self._dataset = data #TODO: The sampler should construct the model from submodels
+            self._dataset_parents = data.parents
+            self.__has_random_dataset = True
         self._observed_value = coerce_to_dtype(data, is_observed=True)
         self._observed = True
 
@@ -294,27 +301,13 @@ class RandomVariable(Variable):
         return flatten_list([parent.flatten() for parent in self.parents]) + [self]
 
 
-class ImplicitVariable(RandomVariable): #TODO: stuff to fix here
-    """
-    Summary
-
-    Parameters
-    ----------
-    distribution : brancher.Distribution
-    Summary
-    name : str
-    Summary
-    parents : tuple of brancher variables
-    Summary
-    link : callable
-    Summary
-    """
-
-    def __init__(self, distribution, name, parents, link):
-        super().__init__(self, distribution, name, parents, link)
-
-    def calculate_log_probability(self, values, reevaluate=True):
-        raise NotImplementedError("The probability of implicit variables cannot be computed")
+#class ImplicitVariable(RandomVariable): #TODO: remove?
+#
+#    def __init__(self, distribution, name, parents, link):
+#        super().__init__(self, distribution, name, parents, link)
+#
+#    def calculate_log_probability(self, input_values, reevaluate=True):
+#        raise NotImplementedError("The probability of implicit variables cannot be computed")
 
 
 class ProbabilisticModel(BrancherClass):
