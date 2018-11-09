@@ -37,6 +37,18 @@ def qsamples2psamples(qsamples, variational_mapping):
     return p_samples
 
 
+def get_observed_model(probabilistic_model):
+    """
+    Summary
+
+    Parameters
+    ---------
+    """
+    flattened_model = probabilistic_model.flatten()
+    observed_variables = [var for var in flattened_model if var.is_observed]
+    return ProbabilisticModel(observed_variables)
+
+
 def maximal_likelihood(random_variable, number_iterations, optimizer=chainer.optimizers.SGD(0.001)):
     """
     Summary
@@ -73,13 +85,15 @@ def stochastic_variational_inference(p, q, number_iterations, number_samples,
     """
     variational_mapping = get_variational_mapping(p, q)
     prob_optimizer = ProbabilisticOptimizer(optimizer)
+    observed_model = get_observed_model(p)
     prob_optimizer.setup(q)
     loss_list = []
     for iteration in tqdm(range(number_iterations)):
+        samples = observed_model.get_sample(1, observed=True)
         q_samples = q.get_sample(number_samples)
         q_prob = q.calculate_log_probability(q_samples)
-        p_prob = p.calculate_log_probability(qsamples2psamples(q_samples, variational_mapping))
-        #p_prob, q_prob = F.broadcast(p_prob, q_prob)
+        samples.update(qsamples2psamples(q_samples, variational_mapping))
+        p_prob = p.calculate_log_probability(samples)
         loss = -F.sum(p_prob - q_prob)
         if np.isfinite(loss.data).all():
             prob_optimizer.chain.cleargrads()

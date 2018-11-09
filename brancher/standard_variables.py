@@ -40,6 +40,9 @@ class VariableConstructor(RandomVariable):
         self.link = VarLink()
         self.samples = []
         self.ranges = {}
+        self.dataset = None
+        self.has_random_dataset = False
+        self.has_observed_value = False
 
 
     def construct_deterministic_parents(self, learnable, ranges, kwargs):

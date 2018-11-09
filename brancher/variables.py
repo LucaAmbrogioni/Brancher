@@ -167,7 +167,7 @@ class DeterministicVariable(Variable):
     def is_observed(self):
         return self._observed
 
-    def get_sample(self, number_samples, resample=False):
+    def get_sample(self, number_samples, resample=False, observed=False):
         if isinstance(self.value, chainer.Variable):
             value_shape = self.value.shape
             reps = tuple([number_samples] + [1]*len(value_shape[1:]))
@@ -208,9 +208,9 @@ class RandomVariable(Variable):
         self._observed = False
         self._observed_value = None
         self._current_value = None
-        self._dataset_parents = set()
-        self._dataset = None
-        self.__has_random_dataset = False
+        self.dataset = None
+        self.has_random_dataset = False
+        self.has_observed_value = False
 
     @property
     def value(self):
@@ -228,7 +228,7 @@ class RandomVariable(Variable):
 
     def apply_link(self, parents_values):  #TODO: This is for allowing discrete data, temporary?
         cont_values, discrete_values = split_dict(parents_values,
-                                                  condition=lambda key,val: isinstance(val, chainer.Variable))
+                                                  condition=lambda key, val: isinstance(val, chainer.Variable))
         if cont_values:
             reshaped_dict, number_samples, number_datapoints = broadcast_parent_values(cont_values)
             reshaped_dict.update(discrete_values)
@@ -246,14 +246,15 @@ class RandomVariable(Variable):
         """
         if self._evaluated and not reevaluate:
             return 0.
-        if (type(self) is DeterministicVariable) or self.is_observed: #TODO: random indices
+        if (type(self) is DeterministicVariable):
             value = self.value
         else:
             value = input_values[self]
         self._evaluated = True
         deterministic_parents_values = {parent: parent.value for parent in self.parents
-                                        if (type(parent) is DeterministicVariable) or parent.is_observed}
-        parents_values = {**input_values, **deterministic_parents_values}
+                                        if (type(parent) is DeterministicVariable)}
+        parents_input_values = {parent: parent_input for parent, parent_input in input_values.items() if parent in self.parents}
+        parents_values = {**parents_input_values, **deterministic_parents_values}
         parameters_dict = self.apply_link(parents_values)
         log_probability = self.distribution.calculate_log_probability(value, **parameters_dict)
         parents_log_probability = sum([parent.calculate_log_probability(input_values, reevaluate) for parent in self.parents])
@@ -263,16 +264,26 @@ class RandomVariable(Variable):
             log_probability, parents_log_probability = partial_broadcast(log_probability, parents_log_probability)
         return log_probability + parents_log_probability
 
-    def get_sample(self, number_samples=1, resample=True):
+    def get_sample(self, number_samples=1, resample=True, observed=False):
         """
         Summary
         """
         if self.samples and not resample:
             return {self: self.samples[-1]}
-        parents_samples_dict = join_dicts_list([parent.get_sample(number_samples, resample) for parent in self.parents])
-        input_dict = {parent: parents_samples_dict[parent] for parent in self.parents}
-        parameters_dict = self.apply_link(input_dict)
-        sample = self.distribution.get_sample(**parameters_dict, number_samples=number_samples)
+        if observed is False:
+            var_to_sample = self
+        else: #TODO: Some clean-up here
+            if self.has_observed_value:
+                return {self: self._observed_value}
+            elif self.has_random_dataset:
+                var_to_sample = self.dataset
+            else:
+                var_to_sample = self
+        parents_samples_dict = join_dicts_list([parent.get_sample(number_samples, resample, observed)
+                                                for parent in var_to_sample.parents])
+        input_dict = {parent: parents_samples_dict[parent] for parent in var_to_sample.parents}
+        parameters_dict = var_to_sample.apply_link(input_dict)
+        sample = var_to_sample.distribution.get_sample(**parameters_dict, number_samples=number_samples)
         self.samples.append(sample)
         return {**parents_samples_dict, self: sample}
 
@@ -280,11 +291,12 @@ class RandomVariable(Variable):
         """
         Summary
         """
-        if isinstance(data, RandomVariable): #TODO Work in progress: We nee a small probabilistic model for keeping track of indices of datasets
-            self._dataset = data #TODO: The sampler should construct the model from submodels
-            self._dataset_parents = data.parents
-            self.__has_random_dataset = True
-        self._observed_value = coerce_to_dtype(data, is_observed=True)
+        if isinstance(data, RandomVariable): #TODO Work in progress: We need a small probabilistic model for keeping track of indices of datasets
+            self.dataset = data #TODO: The sampler should construct the model from submodels
+            self.has_random_dataset = True
+        else:
+            self._observed_value = coerce_to_dtype(data, is_observed=True)
+            self.has_observed_value = True
         self._observed = True
 
     def reset(self):
@@ -299,15 +311,6 @@ class RandomVariable(Variable):
 
     def flatten(self):
         return flatten_list([parent.flatten() for parent in self.parents]) + [self]
-
-
-#class ImplicitVariable(RandomVariable): #TODO: remove?
-#
-#    def __init__(self, distribution, name, parents, link):
-#        super().__init__(self, distribution, name, parents, link)
-#
-#    def calculate_log_probability(self, input_values, reevaluate=True):
-#        raise NotImplementedError("The probability of implicit variables cannot be computed")
 
 
 class ProbabilisticModel(BrancherClass):
@@ -349,11 +352,11 @@ class ProbabilisticModel(BrancherClass):
         self.reset()
         return log_probability
 
-    def get_sample(self, number_samples):
+    def get_sample(self, number_samples, observed=False):
         """
         Summary
         """
-        joint_sample = join_dicts_list([var.get_sample(number_samples=number_samples, resample=False)
+        joint_sample = join_dicts_list([var.get_sample(number_samples=number_samples, resample=False, observed=observed)
                                         for var in self.variables])
         self.reset()
         return joint_sample

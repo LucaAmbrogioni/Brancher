@@ -31,8 +31,8 @@ class Distribution(ABC):
 ## Implicit distributions ##
 class ImplicitDistribution(Distribution):
 
-    def calculate_log_probability(self, *parameters):
-        raise NotImplementedError("The probability of implicit variables cannot be computed")
+    def calculate_log_probability(self, x, **parameters):
+        return np.zeros((1, 1)).astype("float32") #TODO: Implement some checks here
 
 
 class EmpiricalDistribution(ImplicitDistribution):
