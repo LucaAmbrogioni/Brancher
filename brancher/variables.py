@@ -23,13 +23,26 @@ from brancher.utilities import split_dict
 
 class BrancherClass(ABC):
     """
-    Summary
+    BrancherClass is the abstract superclass of all Brancher variables and models.
     """
     @abstractmethod
     def flatten(self):
+        """
+        Abstract method. It returs a list of all the variables contained in the model.
+        """
         pass
 
     def get_variable(self, var_name):
+        """
+        It returns the variable in the model with the requested name.
+
+        Args:
+            var_name: String. Name  of the requested variable.
+
+        Returns:
+            brancher.Variable.
+
+        """
         flat_list = self.flatten()
         try:
             return {var.name: var for var in flat_list}[var_name]
@@ -39,14 +52,42 @@ class BrancherClass(ABC):
 
 class Variable(BrancherClass):
     """
-    Summary
+    Variable is the abstract superclass of deterministic and random variables. Variables are the building blocks of
+    all probabilistic models in Brancher.
     """
     @abstractmethod
     def calculate_log_probability(self, values, reevaluate):
+        """
+        Abstract method. It returns the log probability of the values given the model.
+
+        Args:
+            values: Dictionary(brancher.Variable: chainer.Variable). A dictionary having the brancher.variables of the
+            model as keys and chainer.Variables as values. This dictionary has to provide values for all variables of
+            the model except for the deterministic variables.
+
+            reevaluate: Bool. If false it returns the output of the latest call. It avoid unnecessary computations when
+            multiple children variables ask for the log probability of the same paternt variable.
+
+        Returns:
+            chainer.Variable. the log probability of the input values given the model.
+
+        """
         pass
 
     @abstractmethod
     def get_sample(self, number_samples, resample):
+        """
+        Abstract method. It returns samples from the joint distribution specified by the model.
+
+        Args:
+            number_samples:
+
+            resample:
+
+        Returns:
+
+
+        """
         pass
 
     @abstractmethod
