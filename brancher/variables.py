@@ -246,10 +246,11 @@ class RandomVariable(Variable):
         """
         if self._evaluated and not reevaluate:
             return 0.
-        if (type(self) is DeterministicVariable):
-            value = self.value
-        else:
+        if self in input_values:
             value = input_values[self]
+        else:
+            value = self.value
+
         self._evaluated = True
         deterministic_parents_values = {parent: parent.value for parent in self.parents
                                         if (type(parent) is DeterministicVariable)}
@@ -298,6 +299,13 @@ class RandomVariable(Variable):
             self._observed_value = coerce_to_dtype(data, is_observed=True)
             self.has_observed_value = True
         self._observed = True
+
+    def unobserve(self):
+        self._observed = False
+        self.has_observed_value = False
+        self.has_random_dataset = False
+        self._observed_value = None
+        self.dataset = None
 
     def reset(self):
         """

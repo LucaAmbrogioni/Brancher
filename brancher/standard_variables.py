@@ -49,7 +49,7 @@ class VariableConstructor(RandomVariable):
         for parameter_name, value in kwargs.items():
             if not isinstance(value, (Variable, PartialLink)):
                 if isinstance(value, np.ndarray):
-                    dim = value.shape[1]
+                    dim = value.shape[0] #TODO: This is probably not general enough
                 elif isinstance(value, numbers.Number):
                     dim = 1
                 else:
@@ -173,7 +173,28 @@ class BinomialVariable(VariableConstructor):
             self.distribution = distributions.LogitBinomialDistribution()
         else:
             raise ValueError("Either p or " +
-                             "logit_p need to be provided as input")
+                             "logit_p needs to be provided as input")
+
+
+class CategoricalVariable(VariableConstructor): #TODO: Work in progress
+    """
+    Summary
+
+    Parameters
+    ----------
+    """
+    def __init__(self, p=None, softmax_p=None, name="Categorical", learnable=False):
+        if p is not None and softmax_p is None:
+            ranges = {"p": geometric_ranges.Simplex()}
+            super().__init__(name, p=p, learnable=learnable, ranges=ranges)
+            self.distribution = distributions.CategoricalDistribution()
+        elif softmax_p is not None and p is None:
+            ranges = {"z": geometric_ranges.UnboundedRange()}
+            super().__init__(name, z=softmax_p, learnable=learnable, ranges=ranges)
+            self.distribution = distributions.SoftmaxCategoricalDistribution()
+        else:
+            raise ValueError("Either p or " +
+                             "softmax_p needs to be provided as input")
 
 
 class ConcreteVariable(VariableConstructor):

@@ -23,7 +23,7 @@ w12 = Norm(0., 1., name="w12")
 nu = LogNorm(0.2, 0.5, name="nu")
 mean = b + w1*x1 + w2*x2 + w12*x1*x2
 y = Norm(mean, nu, name="y")
-model = ProbabilisticModel([w1, w2, nu, y])
+model = ProbabilisticModel([y])
 
 # Variational distributions
 Qb = Norm(0., 1., name="b", learnable=True)

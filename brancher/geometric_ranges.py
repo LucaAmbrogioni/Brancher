@@ -75,7 +75,7 @@ class Simplex(GeometricRange):
 
     def forward_transform(self, x, dim):
         latent_p = BF.softplus(x)
-        normalization = BF.sum(latent_p, axis=2, keepdims=True)
+        normalization = BF.sum(latent_p, axis=1, keepdims=True)
         normalization = BF.broadcast_to(normalization, latent_p.shape())
         return latent_p / normalization
 

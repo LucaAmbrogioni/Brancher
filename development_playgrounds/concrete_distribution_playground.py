@@ -15,7 +15,8 @@ mu1 = 2
 nu1 = 0.2
 y = NormalVariable(x[0]*mu0 + x[1]*mu1, x[0]*nu0 + x[1]*nu1, "y")
 
-samples = y.get_sample(2000)[y].data.flatten()
-plt.hist(samples, 60)
+samples = y.get_sample(1000)
+plt.hist(samples[y].data.flatten(), 60)
+print(y.calculate_log_probability(samples))
 plt.title("Concrete mixture of Gaussians")
 plt.show()

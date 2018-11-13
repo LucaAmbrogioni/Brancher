@@ -13,6 +13,7 @@ from scipy.special import binom
 from brancher.utilities import broadcast_and_squeeze
 from brancher.utilities import sum_data_dimensions
 from brancher.utilities import get_diagonal
+from brancher.utilities import broadcast_parent_values
 
 
 class Distribution(ABC):
@@ -314,6 +315,82 @@ class CholeskyMultivariateNormal(MultivariateDistribution): #TODO: This needs to
             random_vector = np.random.normal(0,1,size=mu.shape).astype("float32")
             return mu + F.matmul(chol_cov, random_vector)
 
+class CategoricalDistribution(MultivariateDistribution):
+    """
+    Summary
+    """
+    def calculate_log_probability(self, x, p):
+        """
+        One line description
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        """
+        x, p = broadcast_and_squeeze(x, p)
+        x = x.data
+        log_probability = F.sum(x*F.log(p), axis=2)
+        return sum_data_dimensions(log_probability)
+
+    def get_sample(self, p, number_samples):
+        """
+        One line description
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        """
+        p_values = p.data
+        p_shape = p_values.shape
+        sample = np.swapaxes(np.array([[np.random.multinomial(1, p_values[j, k, :])
+                                        for j in range(p_shape[0])]
+                                       for k in range(p_shape[1])]), axis1=0, axis2=1)
+        return chainer.Variable(sample.astype("int32"))
+
+
+class SoftmaxCategoricalDistribution(MultivariateDistribution): #TODO: Work in progress!!!
+    """
+        Summary
+        """
+
+    def calculate_log_probability(self, x, z):
+        """
+        One line description
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        """
+        x, z = broadcast_and_squeeze(x, z)
+        reshaped_dict, n_samples, n_datapoints = broadcast_parent_values({"x": x, "z": z})
+        labels = np.argmax(reshaped_dict["x"].data, axis=1).astype("int32")
+        log_probability = -F.softmax_cross_entropy(reshaped_dict["z"], labels, reduce="no")
+        log_probability = F.reshape(log_probability, shape=(n_samples, n_datapoints))
+        return log_probability
+
+    def get_sample(self, z, number_samples):
+        """
+        One line description
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        """
+        p_values = F.softmax(z.data, axis=2).data
+        p_shape = p_values.shape
+        sample = np.swapaxes(np.array([[np.random.multinomial(1, p_values[j, k, :])
+                                        for j in range(p_shape[0])]
+                                       for k in range(p_shape[1])]), axis1=0, axis2=1)
+        return chainer.Variable(sample.astype("int32"))
+
 
 class ConcreteDistribution(MultivariateDistribution):
     """
@@ -329,12 +406,10 @@ class ConcreteDistribution(MultivariateDistribution):
         Returns
         -------
         """
-        if p.shape > 2:
-            raise ValueError("The parameter p of the concrete distribution should be a 2D array")
-        dim = p.shape[1]
-        p, tau = F.broadcast(p, tau)
-        normalization = F.log(F.sum(p*x**(-tau-1), axis=1))
-        log_probability = (np.log(dim + 1) + (dim - 1)*F.log(tau) + F.sum(F.log(p) + (-tau + 1)*F.log(x), axis=1)
+        dim = p.shape[2]
+        #p, tau = F.broadcast(p, tau)
+        normalization = F.log(F.sum(p*x**(-tau-1), axis=2))
+        log_probability = (F.sum(np.log(dim + 1) + (dim - 1)*F.log(tau), axis=2) + F.sum(F.log(p) + (-tau + 1)*F.log(x), axis=2)
                            - dim*normalization)
         return log_probability
 
@@ -354,43 +429,43 @@ class ConcreteDistribution(MultivariateDistribution):
 
 
 # StochasticProcesses #
-class StochasticProcesses(MultivariateDistribution):
-    pass
-
-
-class DiffusionProcess(StochasticProcesses): #TODO: This needs to be finished
-    """
-    Summary
-    """
-    def __init__(self, drift_function, diffusion_function, time_spacing):
-        self.drift = drift_function
-        self.diffusion = diffusion_function
-        self.time_spacing = time_spacing
-
-    def calculate_log_probability(self, time_series):
-        """
-        One line description
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        """
-        pass
-
-    def get_sample(self, p, tau, number_samples):
-        """
-        One line description
-
-        Parameters
-        ----------
-        mu : numeric
-        sigma : numeric
-        number_samples : int
-
-        Returns
-        -------
-        sample : type
-        """
-        pass
+# class StochasticProcesses(MultivariateDistribution):
+#     pass
+#
+#
+# class DiffusionProcess(StochasticProcesses): #TODO: This needs to be finished
+#     """
+#     Summary
+#     """
+#     def __init__(self, drift_function, diffusion_function, time_spacing):
+#         self.drift = drift_function
+#         self.diffusion = diffusion_function
+#         self.time_spacing = time_spacing
+#
+#     def calculate_log_probability(self, time_series):
+#         """
+#         One line description
+#
+#         Parameters
+#         ----------
+#
+#         Returns
+#         -------
+#         """
+#         pass
+#
+#     def get_sample(self, p, tau, number_samples):
+#         """
+#         One line description
+#
+#         Parameters
+#         ----------
+#         mu : numeric
+#         sigma : numeric
+#         number_samples : int
+#
+#         Returns
+#         -------
+#         sample : type
+#         """
+#         pass

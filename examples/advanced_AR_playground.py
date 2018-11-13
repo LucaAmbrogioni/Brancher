@@ -10,7 +10,7 @@ import brancher.functions as BF
 # Probabilistic model #
 T = 20
 driving_noise = 1.
-measure_noise = 0.3
+measure_noise = 0.1
 x0 = NormalVariable(0., driving_noise, 'x0')
 y0 = NormalVariable(x0, measure_noise, 'x0')
 b = LogitNormalVariable(0.5, 1., 'b')
@@ -43,7 +43,7 @@ Qx = [NormalVariable(0., 1., 'x0', learnable=True)]
 Qx_mean = [DeterministicVariable(0., 'x0_mean', learnable=True)]
 for t in range(1, T):
     Qx_mean.append(DeterministicVariable(0., x_names[t] + "_mean", learnable=True))
-    Qx.append(NormalVariable(BF.sigmoid(logit_b_post)*Qx[t-1] + Qx_mean[t], 1., x_names[t], learnable=True))
+    Qx.append(NormalVariable(logit_b_post*Qx[t-1] + Qx_mean[t], 1., x_names[t], learnable=True))
 variational_posterior = ProbabilisticModel([Qb] + Qx)
 
 # Inference #
