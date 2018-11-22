@@ -105,17 +105,52 @@ class Variable(BrancherClass):
 
     @abstractmethod
     def reset(self):
+        """
+        Abstract method. It recursively reset the self._evalueted and self._current_value attributes of the variable and
+        all downstream variables. It is used after sampling and evaluating the log probability of a model.
+
+        Args: None.
+
+        Returns: None.
+        """
         pass
 
     @property
     @abstractmethod
     def is_observed(self):
+        """
+        Abstract property method. It returns True if the variable is observed and False otherwise.
+
+        Args: None.
+
+        Returns: Bool.
+        """
         pass
 
     def __str__(self):
+        """
+        Method.
+
+        Args: None
+
+        Returns: String
+        """
         return self.name
 
     def _apply_operator(self, other, op):
+        """
+        Method. It is used for using operations between variables symbolically. It always returns a partialLink object
+        that define a mathematical operation between variables. The vars attribute of the link is the set of variables
+        that are used in the operation. The fn attribute is a lambda that specify the operation as a functions between the
+        values of the variables in vars and a numeric output. This is required for defining the forward pass of the model.
+
+        Args:
+            other: PartialLink, RandomVariable, numeric or np.array.
+
+            op: Binary operator.
+
+        Returns: PartialLink
+        """
         if isinstance(other, PartialLink):
             vars = other.vars
             vars.add(self)
@@ -183,16 +218,19 @@ class Variable(BrancherClass):
 
 class DeterministicVariable(Variable):
     """
-    Summary
+    Deterministic variables are a subclass of random variables that always return the same value. The hyper-parameters of
+    a probabilistic model are usually encoded as DeterministicVariables. When the user input a parameter as a Numeric value or
+    an array, Brancher created a DeterministicVariable that store its value.
 
     Parameters
     ----------
-    data : chainer.Variable, numeric, or np.ndarray
-        Summary
-    name : str
-        Summary
-    learnable : bool
-        Summary
+    data : chainer.Variable, numeric, or np.ndarray. The value of the variable. It gets stored in the self.current value
+    attribute.
+
+    name : String. The name of the variable.
+
+    learnable : Bool. This boolean value specify if the value of the DeterministicVariable can be updated during treaning.
+
     """
     def __init__(self, data, name, learnable=False, is_observed=False):
         self._current_value = coerce_to_dtype(data, is_observed)
@@ -204,6 +242,22 @@ class DeterministicVariable(Variable):
             self.link = L.Bias(axis=1, shape=self._current_value.shape[1:])
 
     def calculate_log_probability(self, values, reevaluate=True):
+        """
+        Method. It returns the log probability of the values given the model. This value is always 0 since the probability
+        of a deterministic variable having its value is always 1.
+
+        Args:
+            values: Dictionary(brancher.Variable: chainer.Variable). A dictionary having the brancher.variables of the
+            model as keys and chainer.Variables as values. This dictionary has to provide values for all variables of
+            the model except for the deterministic variables.
+
+            reevaluate: Bool. If false it returns the output of the latest call. It avoid unnecessary computations when
+            multiple children variables ask for the log probability of the same paternt variable.
+
+        Returns:
+            chainer.Variable. the log probability of the input values given the model.
+
+        """
         return 0.
 
     @property
@@ -242,7 +296,7 @@ class DeterministicVariable(Variable):
 
 class RandomVariable(Variable):
     """
-    Summary
+    Random variables are the main building blocks of probabilistic models.
 
     Parameters
     ----------
@@ -300,7 +354,20 @@ class RandomVariable(Variable):
 
     def calculate_log_probability(self, input_values, reevaluate=True):
         """
-        Summary
+        Method. It returns the log probability of the values given the model. This value is always 0 since the probability
+        of a deterministic variable having its value is always 1.
+
+        Args:
+            values: Dictionary(brancher.Variable: chainer.Variable). A dictionary having the brancher.variables of the
+            model as keys and chainer.Variables as values. This dictionary has to provide values for all variables of
+            the model except for the deterministic variables.
+
+            reevaluate: Bool. If false it returns the output of the latest call. It avoid unnecessary computations when
+            multiple children variables ask for the log probability of the same paternt variable.
+
+        Returns:
+            chainer.Variable. the log probability of the input values given the model.
+
         """
         if self._evaluated and not reevaluate:
             return 0.
