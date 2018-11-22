@@ -61,31 +61,16 @@ for t in range(1, T):
     Qx_mean.append(DeterministicVariable(0., x_names[t] + "_mean", learnable=True))
     Qx.append(NormalVariable(BF.sigmoid(logit_b_post)*Qx[t-1] + Qx_mean[t], 1., x_names[t], learnable=True))
 variational_posterior = ProbabilisticModel([Qb] + Qx)
+model.set_posterior_model(variational_posterior)
 ```
 
 ### Inference ###
 Now that the models are spicified we can perform approximate inference using stochastic gradient descent:
 
 ```python
-loss_list = inference.stochastic_variational_inference(AR_model, variational_posterior,
-                                                       number_iterations=100,
-                                                       number_samples=300,
+inference.stochastic_variational_inference(AR_model, 
+                                           number_iterations=100,
+                                           number_samples=300,
 optimizer=chainer.optimizers.Adam(0.05))
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
