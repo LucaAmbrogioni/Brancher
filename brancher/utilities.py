@@ -111,3 +111,15 @@ def coerce_to_dtype(data, is_observed=False):
     else:
         result = F.expand_dims(F.expand_dims(result, axis=0), axis=1)
     return result
+
+
+def get_observed_model(probabilistic_model):
+    """
+    Summary
+
+    Parameters
+    ---------
+    """
+    flattened_model = probabilistic_model.flatten()
+    observed_variables = [var for var in flattened_model if var.is_observed]
+    return ProbabilisticModel(observed_variables)

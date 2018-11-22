@@ -15,6 +15,10 @@ from brancher.utilities import sum_data_dimensions
 from brancher.utilities import get_diagonal
 from brancher.utilities import broadcast_parent_values
 
+# TODO: This module is messy with ad hoc solutions for every distribution. You need to make everything more standardized.
+
+# TODO: You need to implement a consistent broadcasting strategy for univariate, multivariate and tensor distributions.
+
 
 class Distribution(ABC):
     """
@@ -367,9 +371,8 @@ class SoftmaxCategoricalDistribution(MultivariateDistribution): #TODO: Work in p
         Returns
         -------
         """
-        x, z = broadcast_and_squeeze(x, z)
         reshaped_dict, n_samples, n_datapoints = broadcast_parent_values({"x": x, "z": z})
-        labels = np.argmax(reshaped_dict["x"].data, axis=1).astype("int32")
+        labels = np.reshape(reshaped_dict["x"].data, newshape=(n_samples*n_datapoints, 1))
         log_probability = -F.softmax_cross_entropy(reshaped_dict["z"], labels, reduce="no")
         log_probability = F.reshape(log_probability, shape=(n_samples, n_datapoints))
         return log_probability
@@ -384,11 +387,15 @@ class SoftmaxCategoricalDistribution(MultivariateDistribution): #TODO: Work in p
         Returns
         -------
         """
-        p_values = F.softmax(z.data, axis=2).data
+        # import matplotlib.pyplot as plt
+        # [plt.plot(z.data[k, 0, :, 0]) for k in range(10)] #TODO: Work in progress
+        p_values = F.softmax(z, axis=2).data
         p_shape = p_values.shape
-        sample = np.swapaxes(np.array([[np.random.multinomial(1, p_values[j, k, :])
+        p_values = np.reshape(p_values.astype("float64"), newshape=p_shape[:2] + tuple([np.prod(p_shape[2:])])) #TODO: This should go in a more general class (Future refactoring)
+        sample = np.swapaxes(np.array([[np.random.multinomial(1, p_values[j, k, :]/np.sum(p_values[j, k, :]))
                                         for j in range(p_shape[0])]
                                        for k in range(p_shape[1])]), axis1=0, axis2=1)
+        sample = np.reshape(sample, newshape=p_shape)
         return chainer.Variable(sample.astype("int32"))
 
 

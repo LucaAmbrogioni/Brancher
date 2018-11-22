@@ -35,16 +35,20 @@ print("The true coefficient is: {}".format(float(true_b)))
 Qnu = LogNormalVariable(0.5, 1., "nu", learnable=True)
 Qb = LogitNormalVariable(0.5, 0.5, "b", learnable=True)
 variational_posterior = ProbabilisticModel([Qb, Qnu])
+AR_model.set_posterior_model(variational_posterior)
 
-#
 # Inference #
-loss_list = inference.stochastic_variational_inference(AR_model, variational_posterior,
-                                                       number_iterations=100,
-                                                       number_samples=300,
-                                                       optimizer=chainer.optimizers.Adam(0.05)) #0,1
+inference.stochastic_variational_inference(AR_model,
+                                           number_iterations=100,
+                                           number_samples=300,
+                                           optimizer=chainer.optimizers.Adam(0.05))
+loss_list = AR_model.diagnostics["loss curve"]
+
+
 # Statistics
-nu_posterior_samples = variational_posterior.get_sample(2000)[Qnu].data.flatten()
-b_posterior_samples = variational_posterior.get_sample(2000)[Qb].data.flatten()
+posterior_samples = AR_model.get_posterior_sample(2000)
+nu_posterior_samples = posterior_samples[nu].data.flatten()
+b_posterior_samples = posterior_samples[b].data.flatten()
 b_mean = np.mean(b_posterior_samples)
 b_sd = np.sqrt(np.var(b_posterior_samples))
 print("The estimated coefficient is: {} +- {}".format(b_mean, b_sd))

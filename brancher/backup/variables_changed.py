@@ -327,16 +327,19 @@ class RandomVariable(Variable):
         """
         Summary
         """
+        sample = input_values
         if self.samples and not resample:
             return {self: self.samples[-1]}
         if observed is False:
             if self in input_values:
-                return {self: input_values[self]} #TODO: This breaks the recursion if an input is provided. The future will decide if this is a feature or a bug!
+                sample.update({self: input_values[self]}) #TODO: This breaks the recursion if an input is provided. The future will decide if this is a feature or a bug!
+                return sample
             else:
                 var_to_sample = self
         else:
             if self.has_observed_value:
-                return {self: self._observed_value}
+                sample.update({self: self._observed_value})
+                return sample
             elif self.has_random_dataset:
                 var_to_sample = self.dataset
             else:
@@ -345,9 +348,10 @@ class RandomVariable(Variable):
                                                 for parent in var_to_sample.parents])
         input_dict = {parent: parents_samples_dict[parent] for parent in var_to_sample.parents}
         parameters_dict = var_to_sample.apply_link(input_dict)
-        sample = var_to_sample.distribution.get_sample(**parameters_dict, number_samples=number_samples)
+        variable_sample = var_to_sample.distribution.get_sample(**parameters_dict, number_samples=number_samples)
         self.samples.append(sample)
-        return {**parents_samples_dict, self: sample}
+        sample.update({**parents_samples_dict, self: variable_sample})
+        return sample
 
     def observe(self, data, random_indices=()):
         """
@@ -446,12 +450,12 @@ class ProbabilisticModel(BrancherClass):
         """
         Summary
         """
-        joint_sample = join_dicts_list([var.get_sample(number_samples=number_samples, resample=False,
-                                                       observed=observed, input_values=input_values)
-                                        for var in self.variables])
-        joint_sample.update(input_values) #TODO: Work in progress
+        sample = input_values
+        sample.update(join_dicts_list([var.get_sample(number_samples=number_samples, resample=False,
+                                                      observed=observed, input_values=input_values)
+                                       for var in self.variables]))
         self.reset()
-        return joint_sample
+        return sample
 
     def check_posterior_model(self):
         """
@@ -466,10 +470,11 @@ class ProbabilisticModel(BrancherClass):
         """
         Summary
         """
+        sample = input_values
         self.check_posterior_model()
         posterior_sample = self.posterior_model.get_posterior_sample(number_samples=number_samples,
                                                                      input_values=input_values)
-        sample = self.get_sample(number_samples, input_values=posterior_sample)
+        sample.update(self.get_sample(number_samples, input_values=posterior_sample))
         return sample
 
     def estimate_log_model_evidence(self, number_samples, method="ELBO", input_values={}):  #TODO Work in progress
@@ -537,8 +542,8 @@ class PosteriorModel(ProbabilisticModel): #TODO: Work in progress
         return joint_sample
 
     def get_posterior_sample(self, number_samples, observed=False, input_values={}):
-        sample = self.posterior_sample2joint_sample(self.get_sample(number_samples, observed, input_values))
-        sample.update(input_values) #TODO: Work in progress
+        sample = input_values
+        sample.update(self.posterior_sample2joint_sample(self.get_sample(number_samples, observed, input_values)))
         return sample
 
 

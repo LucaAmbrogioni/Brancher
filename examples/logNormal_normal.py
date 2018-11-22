@@ -29,18 +29,19 @@ x.observe(data[x_real][:, 0, :])
 # Variational model
 Qnu = LogNormalVariable(0., 1., "nu", learnable=True)
 Qmu = NormalVariable(0., 1., "mu", learnable=True)
-variational_model = ProbabilisticModel([Qmu, Qnu])
+model.set_posterior_model(ProbabilisticModel([Qmu, Qnu]))
 
 # Inference
-loss_list = inference.stochastic_variational_inference(model, variational_model,
-                                                       number_iterations=100,
-                                                       number_samples=50,
-                                                       optimizer=chainer.optimizers.Adam(0.1))
+inference.stochastic_variational_inference(model,
+                                           number_iterations=100,
+                                           number_samples=50,
+                                           optimizer=chainer.optimizers.Adam(0.1))
+loss_list = model.diagnostics["loss curve"]
 
 # Statistics
-posterior_samples = variational_model.get_sample(5000)
-nu_posterior_samples = posterior_samples[Qnu].data.flatten()
-mu_posterior_samples = posterior_samples[Qmu].data.flatten()
+posterior_samples = model.get_posterior_sample(5000)
+nu_posterior_samples = posterior_samples[nu].data.flatten()
+mu_posterior_samples = posterior_samples[mu].data.flatten()
 
 # Two subplots, unpack the axes array immediately
 f, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4)

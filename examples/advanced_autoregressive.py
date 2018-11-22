@@ -45,28 +45,32 @@ for t in range(1, T):
     Qx_mean.append(DeterministicVariable(0., x_names[t] + "_mean", learnable=True))
     Qx.append(NormalVariable(logit_b_post*Qx[t-1] + Qx_mean[t], 1., x_names[t], learnable=True))
 variational_posterior = ProbabilisticModel([Qb] + Qx)
+AR_model.set_posterior_model(variational_posterior)
 
 # Inference #
-loss_list = inference.stochastic_variational_inference(AR_model, variational_posterior,
-                                                       number_iterations=100,
-                                                       number_samples=300,
-                                                       optimizer=chainer.optimizers.Adam(0.05))
+inference.stochastic_variational_inference(AR_model,
+                                           number_iterations=100,
+                                           number_samples=300,
+                                           optimizer=chainer.optimizers.Adam(0.05))
+
+loss_list = AR_model.diagnostics["loss curve"]
+
 # Statistics
-posterior_samples = variational_posterior.get_sample(2000)
-b_posterior_samples = posterior_samples[Qb].data.flatten()
+posterior_samples = AR_model.get_posterior_sample(2000)
+b_posterior_samples = posterior_samples[b].data.flatten()
 b_mean = np.mean(b_posterior_samples)
 b_sd = np.sqrt(np.var(b_posterior_samples))
 
 x_mean = []
 lower_bound = []
 upper_bound = []
-for qx in Qx:
-    qx_posterior_samples = posterior_samples[qx].data.flatten()
-    qx_mean = np.mean(qx_posterior_samples)
-    qx_sd = np.sqrt(np.var(qx_posterior_samples))
-    x_mean.append(qx_mean)
-    lower_bound.append(qx_mean - qx_sd)
-    upper_bound.append(qx_mean + qx_sd)
+for xt in x:
+    x_posterior_samples = posterior_samples[xt].data.flatten()
+    mean = np.mean(x_posterior_samples)
+    sd = np.sqrt(np.var(x_posterior_samples))
+    x_mean.append(mean)
+    lower_bound.append(mean - sd)
+    upper_bound.append(mean + sd)
 print("The estimated coefficient is: {} +- {}".format(b_mean, b_sd))
 
 

@@ -39,17 +39,18 @@ k.observe(labels)
 # Variational Model
 Qweights = NormalVariable(np.zeros((1, number_regressors)),
                           np.ones((1, number_regressors)), "weights", learnable=True)
-variational_model = ProbabilisticModel([Qweights])
+model.set_posterior_model(ProbabilisticModel([Qweights]))
 
 # Inference
-loss_list = inference.stochastic_variational_inference(model, variational_model,
-                                                       number_iterations=200,
-                                                       number_samples=100,
-                                                       optimizer=chainer.optimizers.Adam(0.05))
+inference.stochastic_variational_inference(model,
+                                            number_iterations=200,
+                                            number_samples=100,
+                                            optimizer=chainer.optimizers.Adam(0.05))
+loss_list = model.diagnostics["loss curve"]
 
 # Statistics
-posterior_samples = variational_model.get_sample(100)
-weights_posterior_samples = posterior_samples[Qweights].data
+posterior_samples = model.get_posterior_sample(50)
+weights_posterior_samples = posterior_samples[weights].data
 
 # Two subplots, unpack the axes array immediately
 f, (ax1, ax2) = plt.subplots(1, 2)
@@ -59,7 +60,7 @@ ax1.set_xlabel("Iteration")
 x_range = np.linspace(-2,2,200)
 ax2.scatter(input_variable[:, 0, 0], input_variable[:, 1, 0], c=output_labels.flatten())
 for w in weights_posterior_samples:
-    coeff = -float(w[0,0,0])/float(w[0,0,1])
+    coeff = -float(w[0,0,0])/float(w[0, 0, 1])
     plt.plot(x_range, coeff*x_range, alpha=0.3)
 ax2.set_xlim(-2,2)
 ax2.set_ylim(-2,2)

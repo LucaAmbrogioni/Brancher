@@ -11,95 +11,58 @@ import numpy as np
 from tqdm import tqdm
 
 from brancher.optimizers import ProbabilisticOptimizer
-from brancher.variables import Variable, DeterministicVariable, RandomVariable, ProbabilisticModel
+from brancher.variables import DeterministicVariable, ProbabilisticModel
 
 
-def get_variational_mapping(p,q):
-    variational_mapping = {}
-    for p_var in p.flatten():
-        try:
-            variational_mapping.update({q.get_variable(p_var.name): p_var})
-        except KeyError:
-            if p_var.is_observed or type(p_var) is DeterministicVariable:
-                pass
-            else:
-                raise ValueError("The variable {} is not present in the variational distribution".format(p_var.name))
-    return variational_mapping
+# def maximal_likelihood(random_variable, number_iterations, optimizer=chainer.optimizers.SGD(0.001)):
+#     """
+#     Summary
+#
+#     Parameters
+#     ---------
+#     random_variable : brancher.Variable
+#     number_iterations : int
+#     optimizer : chainer.optimizers
+#     Summary
+#     """
+#     prob_optimizer = ProbabilisticOptimizer(optimizer) #TODO: This function is not up to date
+#     prob_optimizer.setup(random_variable)
+#     loss_list = []
+#     for iteration in tqdm(range(number_iterations)):
+#         loss = -F.sum(random_variable.calculate_log_probability({}))
+#         prob_optimizer.chain.cleargrads()
+#         loss.backward()
+#         prob_optimizer.optimizer.update()
+#         loss_list.append(loss.data)
+#     return loss_list
 
 
-def qsamples2psamples(qsamples, variational_mapping):
-    p_samples = {}
-    for key, value in qsamples.items():
-        try:
-            p_samples.update({variational_mapping[key]: value})
-        except KeyError:
-            pass
-    return p_samples
-
-
-def get_observed_model(probabilistic_model):
+def stochastic_variational_inference(joint_model, number_iterations, number_samples,
+                                     optimizer=chainer.optimizers.Adam(0.001),
+                                     input_values={}):
     """
     Summary
 
     Parameters
     ---------
     """
-    flattened_model = probabilistic_model.flatten()
-    observed_variables = [var for var in flattened_model if var.is_observed]
-    return ProbabilisticModel(observed_variables)
+    joint_model.update_observed_submodel() #TODO: Probably not here
+    posterior_model = joint_model.posterior_model
+    joint_optimizer = ProbabilisticOptimizer(joint_model, optimizer)
+    posterior_optimizer = ProbabilisticOptimizer(posterior_model, optimizer) #TODO: These things should not be here, maybe they should be inherited
 
-
-def maximal_likelihood(random_variable, number_iterations, optimizer=chainer.optimizers.SGD(0.001)):
-    """
-    Summary
-
-    Parameters
-    ---------
-    random_variable : brancher.Variable
-    number_iterations : int
-    optimizer : chainer.optimizers
-    Summary
-    """
-    prob_optimizer = ProbabilisticOptimizer(optimizer)
-    prob_optimizer.setup(random_variable)
     loss_list = []
     for iteration in tqdm(range(number_iterations)):
-        loss = -F.sum(random_variable.calculate_log_probability({}))
-        prob_optimizer.chain.cleargrads()
-        loss.backward()
-        prob_optimizer.optimizer.update()
-        loss_list.append(loss.data)
-    return loss_list
+        loss = -joint_model.estimate_log_model_evidence(number_samples=number_samples,
+                                                        method="ELBO", input_values=input_values)
 
-
-def stochastic_variational_inference(p, q, number_iterations, number_samples,
-                                     optimizer=chainer.optimizers.Adam(0.001)):
-    """
-    Summary
-
-    Parameters
-    ---------
-    p : brancher.Variable
-    q : brancher.Variable
-    optimizer : chainer.optimizers
-    """
-    variational_mapping = get_variational_mapping(p, q)
-    prob_optimizer = ProbabilisticOptimizer(optimizer)
-    observed_model = get_observed_model(p)
-    prob_optimizer.setup(q)
-    loss_list = []
-    for iteration in tqdm(range(number_iterations)):
-        samples = observed_model.get_sample(1, observed=True)
-        q_samples = q.get_sample(number_samples)
-        q_prob = q.calculate_log_probability(q_samples)
-        samples.update(qsamples2psamples(q_samples, variational_mapping))
-        p_prob = p.calculate_log_probability(samples)
-        loss = -F.sum(p_prob - q_prob)
         if np.isfinite(loss.data).all():
-            prob_optimizer.chain.cleargrads()
+            posterior_optimizer.chain.cleargrads()
+            joint_optimizer.chain.cleargrads()
             loss.backward()
-            prob_optimizer.optimizer.update()
+            joint_optimizer.update()
+            posterior_optimizer.update()
             loss_list.append(loss.data)
         else:
             warnings.warn("Numerical error, skipping sample")
-    return loss_list
+    joint_model.diagnostics.update({"loss curve": np.array(loss_list)})

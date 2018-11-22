@@ -25,7 +25,6 @@ k = BinomialVariable(1, logit_p=logit_p, name="k")
 model = ProbabilisticModel([k])
 
 samples = model.get_sample(300)
-model.calculate_log_probability(samples)
 
 # Observations
 k.observe(labels)
@@ -34,16 +33,18 @@ k.observe(labels)
 Qweights = NormalVariable(np.zeros((1, number_regressors)),
                           np.ones((1, number_regressors)), "weights", learnable=True)
 variational_model = ProbabilisticModel([Qweights])
+model.set_posterior_model(variational_model)
 
 # Inference
-loss_list = inference.stochastic_variational_inference(model, variational_model,
-                                                       number_iterations=200,
-                                                       number_samples=100,
-                                                       optimizer=chainer.optimizers.Adam(0.05))
+inference.stochastic_variational_inference(model,
+                                           number_iterations=200,
+                                           number_samples=100,
+                                           optimizer=chainer.optimizers.Adam(0.05))
+loss_list = model.diagnostics["loss curve"]
 
 # Statistics
-posterior_samples = variational_model.get_sample(100)
-weights_posterior_samples = posterior_samples[Qweights].data
+posterior_samples = model.get_posterior_sample(100)
+weights_posterior_samples = posterior_samples[weights].data
 
 # Two subplots, unpack the axes array immediately
 f, (ax1, ax2) = plt.subplots(1, 2)

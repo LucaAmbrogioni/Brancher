@@ -32,6 +32,7 @@ Qw2 = Norm(0., 1., name="w2", learnable=True)
 Qw12 = Norm(0., 1., name="w12", learnable=True)
 Qnu = LogNorm(0.2, 0.5, name="nu", learnable=True)
 variational_model = ProbabilisticModel([Qb, Qw1, Qw2, Qw12, Qnu])
+model.set_posterior_model(variational_model)
 
 # Generate data
 ground_samples = model.get_sample(1)
@@ -41,30 +42,32 @@ data = np.reshape(ground_samples[y].data, newshape=(n, 1, 1))
 y.observe(data)
 
 # Inference
-loss_list = inference.stochastic_variational_inference(model, variational_model,
-                                                       number_iterations=200,
-                                                       number_samples=100,
-                                                       optimizer=chainer.optimizers.Adam(0.05))
+inference.stochastic_variational_inference(model,
+                                           number_iterations=200,
+                                           number_samples=100,
+                                           optimizer=chainer.optimizers.Adam(0.05)) #0.05
 
+#post_samples = model.get_posterior_sample(2) #TODO: Work in progress
 
+# Plot
+plt.plot(model.diagnostics["loss curve"])
+plt.show()
 
-# Variational Distribution
 n_post_samples = 1000
-post_samples = variational_model.get_sample(n_post_samples)
+post_samples = model.get_posterior_sample(n_post_samples)
 s_x1 = np.reshape(x1.value.data, newshape=(n,))
 s_x2 = np.reshape(x2.value.data, newshape=(n,))
 post_mean = 0.
 for k in range(n_post_samples):
-    s_b = float(post_samples[Qb].data[k,:])
-    s_w1 = float(post_samples[Qw1].data[k,:])
-    s_w2 = float(post_samples[Qw2].data[k,:])
-    s_w12 = float(post_samples[Qw12].data[k,:])
+    s_b = float(post_samples[b].data[k,:])
+    s_w1 = float(post_samples[w1].data[k,:])
+    s_w2 = float(post_samples[w2].data[k,:])
+    s_w12 = float(post_samples[w12].data[k,:])
     sample_function = s_b + s_w1*s_x1 + s_w2*s_x2 + s_w12*s_x1*s_x2
     post_mean += sample_function
     plt.plot(np.reshape(x_range, newshape=(n,)), sample_function, c="b", alpha=0.05)
 post_mean /= float(n_post_samples)
 plt.plot(np.reshape(x_range, newshape=(n,)), post_mean, c="k", lw=2, ls="--")
-#plt.plot(loss_list)
 plt.scatter(x_range, np.reshape(ground_samples[y].data, newshape=(n,)), c="k")
 plt.xlim(-x_max, x_max)
 plt.show()

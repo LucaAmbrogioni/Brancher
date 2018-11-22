@@ -28,16 +28,17 @@ k.observe(data[k_real][:,0,:])
 
 # Variational distribution
 Qp = LogitNormalVariable(0.2, 2., "p", learnable=True)
-variational_model = ProbabilisticModel([Qp])
+model.set_posterior_model(ProbabilisticModel([Qp]))
 
 # Inference
-loss_list = inference.stochastic_variational_inference(model, variational_model,
-                                                       number_iterations=150,
-                                                       number_samples=100,
-                                                       optimizer=chainer.optimizers.Adam(0.05))
+inference.stochastic_variational_inference(model,
+                                           number_iterations=150,
+                                           number_samples=100,
+                                           optimizer=chainer.optimizers.Adam(0.05))
+loss_list = model.diagnostics["loss curve"]
 
 # Statistics
-p_posterior_samples = variational_model.get_sample(2000)[Qp].data.flatten()
+p_posterior_samples = model.get_posterior_sample(2000)[p].data.flatten()
 
 # Two subplots, unpack the axes array immediately
 f, (ax1, ax2) = plt.subplots(1, 2)

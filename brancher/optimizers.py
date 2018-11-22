@@ -4,6 +4,7 @@ Optimizers
 Module description
 """
 from abc import ABC, abstractmethod
+import copy
 
 from chainer import optimizers, Link, Chain, ChainList
 
@@ -17,16 +18,7 @@ PO_DEFAULT_BETA2 = 0.999
 PO_DEFAULT_EPS = 1e-08
 
 
-class Optimizer(ABC):
-    """
-    Summary
-    """
-    @abstractmethod
-    def setup(self, variable=None):
-        pass
-
-
-class ProbabilisticOptimizer:
+class ProbabilisticOptimizer(ABC):
     """
     Summary
 
@@ -35,12 +27,17 @@ class ProbabilisticOptimizer:
     optimizer : chainer optimizer
         Summary
     """
-    def __init__(self, optimizer=None):
+    def __init__(self, model, optimizer=None):
         if optimizer is None:
             optimizer = self._get_default_optimizer()
-        self.optimizer = optimizer
+        else:
+            #TODO: Assert
+            self.optimizer = copy.deepcopy(optimizer)
         self.link_set = set()
+        self.chain = None
+        self.setup(model)
 
+    @staticmethod
     def _get_default_optimizer(self, **kwargs):
         optimizer = optimizers.Adam(alpha=PO_DEFAULT_APLHA, beta1=PO_DEFAULT_BETA1,
                                     beta2=PO_DEFAULT_BETA2, eps=PO_DEFAULT_EPS)
@@ -65,3 +62,6 @@ class ProbabilisticOptimizer:
         for link in self.link_set:
             self.chain.add_link(link)
         self.optimizer.setup(self.chain)
+
+    def update(self):
+        self.optimizer.update()
