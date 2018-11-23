@@ -20,6 +20,18 @@ mu = NormalVariable(0., 10., "mu")
 x = NormalVariable(mu, nu, "x")
 model = ProbabilisticModel([x])
 
+# Print samples
+sample = model.get_sample(10)
+print(sample)
+
+# Print samples from single variable
+x_sample = x.get_sample(10)
+print(x_sample)
+
+# Print samples conditional on an input
+in_sample = model.get_sample(10, input_values={mu: 100.})
+print(in_sample)
+
 # # Generate data
 data = x_real._get_sample(number_samples=50)
 
@@ -33,26 +45,11 @@ model.set_posterior_model(ProbabilisticModel([Qmu, Qnu]))
 
 # Inference
 inference.stochastic_variational_inference(model,
-                                            number_iterations=100,
-                                            number_samples=50,
-                                            optimizer=chainer.optimizers.Adam(0.1))
+                                           number_iterations=100,
+                                           number_samples=50,
+                                           optimizer=chainer.optimizers.Adam(0.1))
 loss_list = model.diagnostics["loss curve"]
 
-# Statistics
-posterior_samples = model._get_posterior_sample(5000)
-nu_posterior_samples = posterior_samples[nu].data.flatten()
-mu_posterior_samples = posterior_samples[mu].data.flatten()
-
-# Two subplots, unpack the axes array immediately
-f, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4)
-ax1.plot(np.array(loss_list))
-ax1.set_title("Convergence")
-ax1.set_xlabel("Iteration")
-ax2.scatter(mu_posterior_samples, nu_posterior_samples, alpha=0.01)
-ax2.scatter(mu_real, nu_real, c="r")
-ax2.set_title("Posterior samples (b)")
-ax3.hist(mu_posterior_samples, 25)
-ax3.axvline(x=mu_real, lw=2, c="r")
-ax4.hist(nu_posterior_samples, 25)
-ax4.axvline(x=nu_real, lw=2, c="r")
-plt.show()
+# print posterior sample
+post_samples = model.get_posterior_sample(10)
+print(post_samples)

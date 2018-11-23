@@ -15,7 +15,7 @@ prob /= np.sum(prob)
 k = CategoricalVariable(p=prob)
 
 #Sample
-samples = k.get_sample(5)
+samples = k._get_sample(5)
 
 print(samples[k])
 print(np.exp(k.calculate_log_probability(samples).data))

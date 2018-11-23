@@ -11,7 +11,7 @@ import brancher.functions as BF
 # Regressors
 x_max = 1.
 n = 100
-x_range = np.reshape(np.linspace(-x_max, x_max, n), (n, 1, 1))
+x_range = np.linspace(-x_max, x_max, n)
 x1 = DeterministicVariable(np.sin(2*np.pi*2*x_range), name="x1", is_observed=True)
 x2 = DeterministicVariable(x_range, name="x2", is_observed=True)
 
@@ -35,7 +35,7 @@ variational_model = ProbabilisticModel([Qb, Qw1, Qw2, Qw12, Qnu])
 model.set_posterior_model(variational_model)
 
 # Generate data
-ground_samples = model.get_sample(1)
+ground_samples = model._get_sample(1)
 
 # Observe data
 data = np.reshape(ground_samples[y].data, newshape=(n, 1, 1))
@@ -47,14 +47,14 @@ inference.stochastic_variational_inference(model,
                                            number_samples=100,
                                            optimizer=chainer.optimizers.Adam(0.05)) #0.05
 
-#post_samples = model.get_posterior_sample(2) #TODO: Work in progress
+#post_samples = model._get_posterior_sample(2) #TODO: Work in progress
 
 # Plot
 plt.plot(model.diagnostics["loss curve"])
 plt.show()
 
 n_post_samples = 1000
-post_samples = model.get_posterior_sample(n_post_samples)
+post_samples = model._get_posterior_sample(n_post_samples)
 s_x1 = np.reshape(x1.value.data, newshape=(n,))
 s_x2 = np.reshape(x2.value.data, newshape=(n,))
 post_mean = 0.

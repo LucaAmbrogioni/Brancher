@@ -24,7 +24,7 @@ logit_p = BF.matmul(weights, x)
 k = BinomialVariable(1, logit_p=logit_p, name="k")
 model = ProbabilisticModel([k])
 
-samples = model.get_sample(300)
+samples = model._get_sample(300)
 
 # Observations
 k.observe(labels)
@@ -43,7 +43,7 @@ inference.stochastic_variational_inference(model,
 loss_list = model.diagnostics["loss curve"]
 
 # Statistics
-posterior_samples = model.get_posterior_sample(100)
+posterior_samples = model._get_posterior_sample(100)
 weights_posterior_samples = posterior_samples[weights].data
 
 # Two subplots, unpack the axes array immediately

@@ -43,7 +43,7 @@ model_prediction = []
 for a in a_range:
     x.value = a
     sigma.value = -20.
-    model_prediction.append(float(y.get_sample()[y].data))
+    model_prediction.append(float(y._get_sample()[y].data))
 
 # Two subplots, unpack the axes array immediately
 f, (ax1, ax2) = plt.subplots(1, 2)

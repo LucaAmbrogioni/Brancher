@@ -23,7 +23,7 @@ model = ProbabilisticModel([a, b])
 
 
 ## Sample ##
-samples = model.get_sample(1)
+samples = model._get_sample(1)
 
 print(samples[a])
 print(samples[b])

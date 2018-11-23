@@ -22,7 +22,7 @@ for t in range(1,T):
 AR_model = ProbabilisticModel(x)
 
 # Generate data #
-data = AR_model.get_sample(number_samples=1)
+data = AR_model._get_sample(number_samples=1)
 time_series = [float(data[xt].data) for xt in x]
 true_b = data[b].data
 true_nu = data[nu].data
@@ -46,7 +46,7 @@ loss_list = AR_model.diagnostics["loss curve"]
 
 
 # Statistics
-posterior_samples = AR_model.get_posterior_sample(2000)
+posterior_samples = AR_model._get_posterior_sample(2000)
 nu_posterior_samples = posterior_samples[nu].data.flatten()
 b_posterior_samples = posterior_samples[b].data.flatten()
 b_mean = np.mean(b_posterior_samples)

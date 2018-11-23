@@ -19,6 +19,10 @@ from brancher.utilities import partial_broadcast
 from brancher.utilities import coerce_to_dtype
 from brancher.utilities import broadcast_parent_values
 from brancher.utilities import split_dict
+from brancher.utilities import reformat_sampler_input
+from brancher.utilities import tile_parameter
+
+from brancher.pandas_interface import reformat_sample_to_pandas
 
 
 class BrancherClass(ABC):
@@ -75,7 +79,7 @@ class Variable(BrancherClass):
         pass
 
     @abstractmethod
-    def get_sample(self, number_samples, resample, observed, input_values):
+    def _get_sample(self, number_samples, resample, observed, input_values):
         """
         Abstract method. It returns samples from the joint distribution specified by the model. If an input is provided
         it only samples the variables that are not contained in the input.
@@ -102,6 +106,14 @@ class Variable(BrancherClass):
 
         """
         pass
+
+    def get_sample(self, number_samples, input_values={}): #TODO: Work in progress
+        reformatted_input_values = reformat_sampler_input(input_values, number_samples=number_samples)
+        raw_sample = {self: self._get_sample(number_samples, resample=False,
+                                             observed=self.is_observed, input_values=reformatted_input_values)[self]}
+        sample = reformat_sample_to_pandas(raw_sample, number_samples)
+        self.reset()
+        return sample
 
     @abstractmethod
     def reset(self):
@@ -256,7 +268,6 @@ class DeterministicVariable(Variable):
 
         Returns:
             chainer.Variable. the log probability of the input values given the model.
-
         """
         return 0.
 
@@ -275,15 +286,16 @@ class DeterministicVariable(Variable):
     def is_observed(self):
         return self._observed
 
-    def get_sample(self, number_samples, resample=False, observed=False, input_values={}):
+    def _get_sample(self, number_samples, resample=False, observed=False, input_values={}):
         if self in input_values:
             value = input_values[self]
         else:
             value = self.value
         if isinstance(value, chainer.Variable):
-            value_shape = value.shape
-            reps = tuple([number_samples] + [1]*len(value_shape[1:]))
-            return {self: F.tile(value, reps=reps)}
+            return {self: tile_parameter(value, number_samples=number_samples)}
+            #value_shape = value.shape
+            #reps = tuple([number_samples] + [1]*len(value_shape[1:]))
+            #return {self: F.tile(value, reps=reps)} #TODO: Work in progress
         else:
             return {self: value} #TODO: This is for allowing discrete data, temporary?
 
@@ -390,13 +402,13 @@ class RandomVariable(Variable):
             log_probability, parents_log_probability = partial_broadcast(log_probability, parents_log_probability)
         return log_probability + parents_log_probability
 
-    def get_sample(self, number_samples=1, resample=True, observed=False, input_values={}):
+    def _get_sample(self, number_samples=1, resample=True, observed=False, input_values={}):
         """
         Summary
         """
         if self.samples and not resample:
             return {self: self.samples[-1]}
-        if observed is False:
+        if not observed:
             if self in input_values:
                 return {self: input_values[self]} #TODO: This breaks the recursion if an input is provided. The future will decide if this is a feature or a bug!
             else:
@@ -408,7 +420,7 @@ class RandomVariable(Variable):
                 var_to_sample = self.dataset
             else:
                 var_to_sample = self
-        parents_samples_dict = join_dicts_list([parent.get_sample(number_samples, resample, observed, input_values)
+        parents_samples_dict = join_dicts_list([parent._get_sample(number_samples, resample, observed, input_values)
                                                 for parent in var_to_sample.parents])
         input_dict = {parent: parents_samples_dict[parent] for parent in var_to_sample.parents}
         parameters_dict = var_to_sample.apply_link(input_dict)
@@ -487,7 +499,7 @@ class ProbabilisticModel(BrancherClass):
     def is_observed(self):
         return all([var.is_observed for var in self.flatten()])
 
-    def update_observed_submodel(self): #TODO: Work in progress
+    def update_observed_submodel(self):
         """
         Summary
 
@@ -498,7 +510,7 @@ class ProbabilisticModel(BrancherClass):
         observed_variables = [var for var in flattened_model if var.is_observed]
         self.observed_submodel = ProbabilisticModel(observed_variables)
 
-    def set_posterior_model(self, model): #TODO: Work in progress
+    def set_posterior_model(self, model):
         self.posterior_model = PosteriorModel(posterior_model=model, joint_model=self)
 
     def calculate_log_probability(self, rv_values):
@@ -509,16 +521,22 @@ class ProbabilisticModel(BrancherClass):
         self.reset()
         return log_probability
 
-    def get_sample(self, number_samples, observed=False, input_values={}):
+    def _get_sample(self, number_samples, observed=False, input_values={}):
         """
         Summary
         """
-        joint_sample = join_dicts_list([var.get_sample(number_samples=number_samples, resample=False,
-                                                       observed=observed, input_values=input_values)
+        joint_sample = join_dicts_list([var._get_sample(number_samples=number_samples, resample=False,
+                                                        observed=observed, input_values=input_values)
                                         for var in self.variables])
-        joint_sample.update(input_values) #TODO: Work in progress
+        joint_sample.update(input_values)
         self.reset()
         return joint_sample
+
+    def get_sample(self, number_samples, input_values={}): #TODO: Work in progress
+        reformatted_input_values = reformat_sampler_input(input_values, number_samples=number_samples)
+        raw_sample = self._get_sample(number_samples, observed=False, input_values=reformatted_input_values)
+        sample = reformat_sample_to_pandas(raw_sample, number_samples=number_samples)
+        return sample
 
     def check_posterior_model(self):
         """
@@ -529,22 +547,28 @@ class ProbabilisticModel(BrancherClass):
 #        elif self.posterior_model._is_trained is False:
 #            raise AttributeError("The posterior model needs to be trained before sampling.")
 
-    def get_posterior_sample(self, number_samples, input_values={}): #TODO: Work in progress
+    def _get_posterior_sample(self, number_samples, input_values={}):
         """
         Summary
         """
         self.check_posterior_model()
-        posterior_sample = self.posterior_model.get_posterior_sample(number_samples=number_samples,
-                                                                     input_values=input_values)
-        sample = self.get_sample(number_samples, input_values=posterior_sample)
+        posterior_sample = self.posterior_model._get_posterior_sample(number_samples=number_samples,
+                                                                      input_values=input_values)
+        sample = self._get_sample(number_samples, input_values=posterior_sample)
+        return sample
+
+    def get_posterior_sample(self, number_samples, input_values={}): #TODO: Work in progress
+        reformatted_input_values = reformat_sampler_input(input_values, number_samples=number_samples)
+        raw_sample = self._get_posterior_sample(number_samples, input_values=reformatted_input_values)
+        sample = reformat_sample_to_pandas(raw_sample, number_samples=number_samples)
         return sample
 
     def estimate_log_model_evidence(self, number_samples, method="ELBO", input_values={}):  #TODO Work in progress
         self.check_posterior_model()
         if method is "ELBO":
-            samples = self.observed_submodel.get_sample(1, observed=True) #TODO: You need to correct for subsampling
-            posterior_samples = self.posterior_model.get_sample(number_samples=number_samples,
-                                                                observed=False, input_values=input_values)
+            samples = self.observed_submodel._get_sample(1, observed=True) #TODO: You need to correct for subsampling
+            posterior_samples = self.posterior_model._get_sample(number_samples=number_samples,
+                                                                 observed=False, input_values=input_values)
             posterior_log_prob = self.posterior_model.calculate_log_probability(posterior_samples)
             samples.update(self.posterior_model.posterior_sample2joint_sample(posterior_samples))
             joint_log_prob = self.calculate_log_probability(samples)
@@ -603,8 +627,8 @@ class PosteriorModel(ProbabilisticModel): #TODO: Work in progress
                 pass
         return joint_sample
 
-    def get_posterior_sample(self, number_samples, observed=False, input_values={}):
-        sample = self.posterior_sample2joint_sample(self.get_sample(number_samples, observed, input_values))
+    def _get_posterior_sample(self, number_samples, observed=False, input_values={}):
+        sample = self.posterior_sample2joint_sample(self._get_sample(number_samples, observed, input_values))
         sample.update(input_values) #TODO: Work in progress
         return sample
 

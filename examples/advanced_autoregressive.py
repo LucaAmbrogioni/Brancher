@@ -27,7 +27,7 @@ for t in range(1,T):
 AR_model = ProbabilisticModel(x + y)
 
 # Generate data #
-data = AR_model.get_sample(number_samples=1)
+data = AR_model._get_sample(number_samples=1)
 time_series = [float(data[yt].data) for yt in y]
 ground_truth = [float(data[xt].data) for xt in x]
 true_b = data[b].data
@@ -56,7 +56,7 @@ inference.stochastic_variational_inference(AR_model,
 loss_list = AR_model.diagnostics["loss curve"]
 
 # Statistics
-posterior_samples = AR_model.get_posterior_sample(2000)
+posterior_samples = AR_model._get_posterior_sample(2000)
 b_posterior_samples = posterior_samples[b].data.flatten()
 b_mean = np.mean(b_posterior_samples)
 b_sd = np.sqrt(np.var(b_posterior_samples))

@@ -461,7 +461,7 @@ class ConcreteDistribution(MultivariateDistribution):
 #         """
 #         pass
 #
-#     def get_sample(self, p, tau, number_samples):
+#     def _get_sample(self, p, tau, number_samples):
 #         """
 #         One line description
 #

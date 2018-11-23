@@ -31,7 +31,7 @@ e1 = BF.concat((a, b), 2)
 e2 = BF.concat((a, c), 2)
 f = NormalVariable(e1**2, e2**1, 'f')
 
-f.get_sample(10)
+f._get_sample(10)
 
 a_val = chainer.Variable(0.25*np.pi*np.ones((1,1), dtype = "float32"))
 b_val = chainer.Variable(0.25*np.pi*np.ones((1,1), dtype = "float32"))

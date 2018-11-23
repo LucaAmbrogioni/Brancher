@@ -344,11 +344,11 @@ class RandomVariable(Variable):
                 var_to_sample = self.dataset
             else:
                 var_to_sample = self
-        parents_samples_dict = join_dicts_list([parent.get_sample(number_samples, resample, observed, input_values)
+        parents_samples_dict = join_dicts_list([parent._get_sample(number_samples, resample, observed, input_values)
                                                 for parent in var_to_sample.parents])
         input_dict = {parent: parents_samples_dict[parent] for parent in var_to_sample.parents}
         parameters_dict = var_to_sample.apply_link(input_dict)
-        variable_sample = var_to_sample.distribution.get_sample(**parameters_dict, number_samples=number_samples)
+        variable_sample = var_to_sample.distribution._get_sample(**parameters_dict, number_samples=number_samples)
         self.samples.append(sample)
         sample.update({**parents_samples_dict, self: variable_sample})
         return sample
@@ -451,8 +451,8 @@ class ProbabilisticModel(BrancherClass):
         Summary
         """
         sample = input_values
-        sample.update(join_dicts_list([var.get_sample(number_samples=number_samples, resample=False,
-                                                      observed=observed, input_values=input_values)
+        sample.update(join_dicts_list([var._get_sample(number_samples=number_samples, resample=False,
+                                                       observed=observed, input_values=input_values)
                                        for var in self.variables]))
         self.reset()
         return sample
@@ -472,8 +472,8 @@ class ProbabilisticModel(BrancherClass):
         """
         sample = input_values
         self.check_posterior_model()
-        posterior_sample = self.posterior_model.get_posterior_sample(number_samples=number_samples,
-                                                                     input_values=input_values)
+        posterior_sample = self.posterior_model._get_posterior_sample(number_samples=number_samples,
+                                                                      input_values=input_values)
         sample.update(self.get_sample(number_samples, input_values=posterior_sample))
         return sample
 
@@ -481,8 +481,8 @@ class ProbabilisticModel(BrancherClass):
         self.check_posterior_model()
         if method is "ELBO":
             samples = self.observed_submodel.get_sample(1, observed=True) #TODO: You need to correct for subsampling
-            posterior_samples = self.posterior_model.get_sample(number_samples=number_samples,
-                                                                observed=False, input_values=input_values)
+            posterior_samples = self.posterior_model._get_sample(number_samples=number_samples,
+                                                                 observed=False, input_values=input_values)
             posterior_log_prob = self.posterior_model.calculate_log_probability(posterior_samples)
             samples.update(self.posterior_model.posterior_sample2joint_sample(posterior_samples))
             joint_log_prob = self.calculate_log_probability(samples)

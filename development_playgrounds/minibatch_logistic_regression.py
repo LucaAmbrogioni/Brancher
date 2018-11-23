@@ -27,14 +27,14 @@ logit_p = BF.matmul(weights, x)
 k = BinomialVariable(1, logit_p=logit_p, name="k")
 model = ProbabilisticModel([k])
 
-#samples = model.get_sample(300)
+#samples = model._get_sample(300)
 #model.calculate_log_probability(samples)
 
 # Observations
 k.observe(labels)
 
 #observed_model = inference.get_observed_model(model)
-#observed_samples = observed_model.get_sample(number_samples=1, observed=True)
+#observed_samples = observed_model._get_sample(number_samples=1, observed=True)
 
 # Variational Model
 Qweights = NormalVariable(np.zeros((1, number_regressors)),
@@ -49,7 +49,7 @@ inference.stochastic_variational_inference(model,
 loss_list = model.diagnostics["loss curve"]
 
 # Statistics
-posterior_samples = model.get_posterior_sample(50)
+posterior_samples = model._get_posterior_sample(50)
 weights_posterior_samples = posterior_samples[weights].data
 
 # Two subplots, unpack the axes array immediately

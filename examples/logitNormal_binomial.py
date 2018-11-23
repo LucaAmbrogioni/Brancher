@@ -21,7 +21,7 @@ k = BinomialVariable(number_samples, p=p, name="k")
 model = ProbabilisticModel([k])
 
 # Generate data
-data = k_real.get_sample(number_samples=50)
+data = k_real._get_sample(number_samples=50)
 
 # Observe data
 k.observe(data[k_real][:,0,:])
@@ -38,7 +38,7 @@ inference.stochastic_variational_inference(model,
 loss_list = model.diagnostics["loss curve"]
 
 # Statistics
-p_posterior_samples = model.get_posterior_sample(2000)[p].data.flatten()
+p_posterior_samples = model._get_posterior_sample(2000)[p].data.flatten()
 
 # Two subplots, unpack the axes array immediately
 f, (ax1, ax2) = plt.subplots(1, 2)

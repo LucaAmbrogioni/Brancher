@@ -108,6 +108,11 @@ def coerce_to_dtype(data, is_observed=False):
 
     if is_observed:
         result = F.expand_dims(result, axis=0)
+        result_shape = result.shape
+        if len(result_shape) == 2:
+            result = F.reshape(result, shape=result_shape + tuple([1, 1]))
+        elif len(result_shape) == 3:
+            result = F.reshape(result, shape=result_shape + tuple([1]))
     else:
         result = F.expand_dims(F.expand_dims(result, axis=0), axis=1)
     return result
@@ -122,4 +127,15 @@ def get_observed_model(probabilistic_model):
     """
     flattened_model = probabilistic_model.flatten()
     observed_variables = [var for var in flattened_model if var.is_observed]
-    return ProbabilisticModel(observed_variables)
+    return ProbabilisticModel(observed_variables) #TODO: To fix
+
+
+def tile_parameter(value, number_samples):
+    value_shape = value.shape
+    reps = tuple([number_samples] + [1] * len(value_shape[1:]))
+    return F.tile(value, reps=reps)
+
+
+def reformat_sampler_input(sample_input, number_samples):
+    return {var: tile_parameter(coerce_to_dtype(value, is_observed=var.is_observed), number_samples=number_samples)
+            for var, value in sample_input.items()}

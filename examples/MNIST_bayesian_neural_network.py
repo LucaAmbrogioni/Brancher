@@ -73,13 +73,13 @@ test_model = ProbabilisticModel([test_images, test_labels])
 
 s = 0
 for _ in range(num_images):
-    test_sample = test_model.get_sample(1)
+    test_sample = test_model._get_sample(1)
     test_image, test_label = test_sample[test_images], test_sample[test_labels]
-    model_output = np.reshape(np.mean(model.get_posterior_sample(10, input_values={x: test_image})[k].data, axis=0), newshape=(10,))
+    model_output = np.reshape(np.mean(model._get_posterior_sample(10, input_values={x: test_image})[k].data, axis=0), newshape=(10,))
     s += 1 if int(np.argmax(model_output)) == int(test_label.data) else 0
 print("Accuracy: {} %".format(100*s/float(num_images)))
 
-#weight_map = variational_model.get_sample(1)[Qweights1].data[0, 0, 0, :]
+#weight_map = variational_model._get_sample(1)[Qweights1].data[0, 0, 0, :]
 #plt.imshow(np.reshape(weight_map, (28, 28)))
 #plt.show()
 
