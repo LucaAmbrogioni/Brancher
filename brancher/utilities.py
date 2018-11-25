@@ -118,16 +118,16 @@ def coerce_to_dtype(data, is_observed=False):
     return result
 
 
-def get_observed_model(probabilistic_model):
-    """
-    Summary
-
-    Parameters
-    ---------
-    """
-    flattened_model = probabilistic_model.flatten()
-    observed_variables = [var for var in flattened_model if var.is_observed]
-    return ProbabilisticModel(observed_variables) #TODO: To fix
+# def get_observed_model(probabilistic_model):
+#     """
+#     Summary
+#
+#     Parameters
+#     ---------
+#     """
+#     flattened_model = probabilistic_model.flatten()
+#     observed_variables = [var for var in flattened_model if var.is_observed]
+#     return ProbabilisticModel(observed_variables) #TODO: To fix
 
 
 def tile_parameter(value, number_samples):

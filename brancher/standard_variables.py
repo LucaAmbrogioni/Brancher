@@ -67,6 +67,7 @@ class EmpiricalVariable(VariableConstructor):
     ----------
     """
     def __init__(self, dataset, name, is_observed=True, batch_size=(), indices=()):
+        self._type = "Empirical"
         ranges = {"dataset": geometric_ranges.UnboundedRange(),
                   "batch_size": geometric_ranges.UnboundedRange(),
                   "indices": geometric_ranges.UnboundedRange()}
@@ -90,6 +91,7 @@ class RandomIndices(EmpiricalVariable):
     ----------
     """
     def __init__(self, dataset_size, batch_size, name, is_observed=False):
+        self._type = "Random Index"
         super().__init__(dataset=list(range(dataset_size)),
                          batch_size=batch_size, is_observed=is_observed, name=name)
 
@@ -105,6 +107,7 @@ class NormalVariable(VariableConstructor):
     ----------
     """
     def __init__(self, mean, var, name, learnable=False):
+        self._type = "Normal"
         ranges = {"mean": geometric_ranges.UnboundedRange(),
                   "var": geometric_ranges.RightHalfLine(0.)}
         super().__init__(name, mean=mean, var=var, learnable=learnable, ranges=ranges)
@@ -119,6 +122,7 @@ class CauchyVariable(VariableConstructor):
     ----------
     """
     def __init__(self, mu, sigma, name, learnable=False):
+        self._type = "Cauchy"
         ranges = {"mu": geometric_ranges.UnboundedRange(),
                   "sigma": geometric_ranges.RightHalfLine(0.)}
         super().__init__(name, mu=mu, sigma=sigma, learnable=learnable, ranges=ranges)
@@ -133,6 +137,7 @@ class LogNormalVariable(VariableConstructor):
     ----------
     """
     def __init__(self, mu, sigma, name, learnable=False):
+        self._type = "Log Normal"
         ranges = {"mu": geometric_ranges.UnboundedRange(),
                   "sigma": geometric_ranges.RightHalfLine(0.)}
         super().__init__(name, mu=mu, sigma=sigma, learnable=learnable, ranges=ranges)
@@ -147,6 +152,7 @@ class LogitNormalVariable(VariableConstructor):
     ----------
     """
     def __init__(self, mu, sigma, name, learnable=False):
+        self._type = "Logit Normal"
         ranges = {"mu": geometric_ranges.UnboundedRange(),
                   "sigma": geometric_ranges.RightHalfLine(0.)}
         super().__init__(name, mu=mu, sigma=sigma, learnable=learnable, ranges=ranges)
@@ -161,6 +167,7 @@ class BinomialVariable(VariableConstructor):
     ----------
     """
     def __init__(self, n, p=None, logit_p=None, name="Binomial", learnable=False):
+        self._type = "Binomial"
         if p is not None and logit_p is None:
             ranges = {"n": geometric_ranges.UnboundedRange(),
                       "p": geometric_ranges.Interval(0., 1.)}
@@ -184,6 +191,7 @@ class CategoricalVariable(VariableConstructor): #TODO: Work in progress
     ----------
     """
     def __init__(self, p=None, softmax_p=None, name="Categorical", learnable=False):
+        self._type = "Categorical"
         if p is not None and softmax_p is None:
             ranges = {"p": geometric_ranges.Simplex()}
             super().__init__(name, p=p, learnable=learnable, ranges=ranges)
@@ -205,6 +213,7 @@ class ConcreteVariable(VariableConstructor):
     ----------
     """
     def __init__(self, tau, p, name, learnable=False):
+        self._type = "Concrete"
         ranges = {"tau": geometric_ranges.RightHalfLine(0.),
                   "p": geometric_ranges.Simplex()}
         super().__init__(name, tau=tau, p=p, learnable=learnable, ranges=ranges)
@@ -219,6 +228,7 @@ class MultivariateNormalVariable(VariableConstructor):
     ----------
     """
     def __init__(self, mu, cov=None, chol_cov=None, diag_cov=None, name="Multivariate Normal", learnable=False):
+        self._type = "Multivariate Normal"
         if chol_cov is not None and diag_cov is None:
             ranges = {"mu": geometric_ranges.UnboundedRange(),
                       "chol_cov": geometric_ranges.UnboundedRange()}

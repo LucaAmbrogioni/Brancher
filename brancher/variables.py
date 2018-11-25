@@ -23,7 +23,7 @@ from brancher.utilities import reformat_sampler_input
 from brancher.utilities import tile_parameter
 
 from brancher.pandas_interface import reformat_sample_to_pandas
-
+from brancher.pandas_interface import reformat_model_summary
 
 class BrancherClass(ABC):
     """
@@ -249,6 +249,7 @@ class DeterministicVariable(Variable):
         self.name = name
         self._observed = is_observed
         self.parents = ()
+        self._type = "Deterministic"
         self.learnable = learnable
         if learnable:
             self.link = L.Bias(axis=1, shape=self._current_value.shape[1:])
@@ -326,6 +327,7 @@ class RandomVariable(Variable):
         self.distribution = distribution
         self.link = link
         self.parents = parents
+        self._type = "Random"
         self.samples = []
 
         self._evaluated = False
@@ -350,7 +352,7 @@ class RandomVariable(Variable):
     def is_observed(self):
         return self._observed
 
-    def apply_link(self, parents_values):  #TODO: This is for allowing discrete data, temporary?
+    def _apply_link(self, parents_values):  #TODO: This is for allowing discrete data, temporary?
         cont_values, discrete_values = split_dict(parents_values,
                                                   condition=lambda key, val: isinstance(val, chainer.Variable))
         if cont_values:
@@ -393,7 +395,7 @@ class RandomVariable(Variable):
                                         if (type(parent) is DeterministicVariable)}
         parents_input_values = {parent: parent_input for parent, parent_input in input_values.items() if parent in self.parents}
         parents_values = {**parents_input_values, **deterministic_parents_values}
-        parameters_dict = self.apply_link(parents_values)
+        parameters_dict = self._apply_link(parents_values)
         log_probability = self.distribution.calculate_log_probability(value, **parameters_dict)
         parents_log_probability = sum([parent.calculate_log_probability(input_values, reevaluate) for parent in self.parents])
         if self.is_observed:
@@ -423,7 +425,7 @@ class RandomVariable(Variable):
         parents_samples_dict = join_dicts_list([parent._get_sample(number_samples, resample, observed, input_values)
                                                 for parent in var_to_sample.parents])
         input_dict = {parent: parents_samples_dict[parent] for parent in var_to_sample.parents}
-        parameters_dict = var_to_sample.apply_link(input_dict)
+        parameters_dict = var_to_sample._apply_link(input_dict)
         sample = var_to_sample.distribution.get_sample(**parameters_dict, number_samples=number_samples)
         self.samples.append(sample)
         return {**parents_samples_dict, self: sample}
@@ -472,6 +474,7 @@ class ProbabilisticModel(BrancherClass):
     """
     def __init__(self, variables):
         self.variables = self._validate_variables(variables)
+        self.model_summary = self._set_summary()
         self.posterior_model = None
         self.observed_submodel = None
         self.diagnostics = {}
@@ -480,12 +483,30 @@ class ProbabilisticModel(BrancherClass):
         else:
             self.observed_submodel = self
 
+    def __str__(self): #TODO: Work in progress
+        """
+        Method.
+
+        Args: None
+
+        Returns: String
+        """
+        return self.model_summary.__str__()
+
     @staticmethod
     def _validate_variables(variables):
         for var in variables:
             if not isinstance(var, (DeterministicVariable, RandomVariable)):
                 raise ValueError("Invalid input type: {}".format(type(var)))
         return variables
+
+    def _set_summary(self): #TODO: Work in progress
+        feature_list = ["Distribution", "Parents", "Observed"]
+        var_list = self.flatten()
+        var_names = [var.name for var in var_list]
+        summary_data = [[var._type, var.parents, var.is_observed]
+                         for var in var_list]
+        return reformat_model_summary(summary_data, var_names, feature_list)
 
     @property
     def value(self):
@@ -588,7 +609,7 @@ class ProbabilisticModel(BrancherClass):
         return flatten_list([var.flatten() for var in self.variables])
 
 
-class PosteriorModel(ProbabilisticModel): #TODO: Work in progress
+class PosteriorModel(ProbabilisticModel):
     """
     Summary
 
@@ -629,7 +650,7 @@ class PosteriorModel(ProbabilisticModel): #TODO: Work in progress
 
     def _get_posterior_sample(self, number_samples, observed=False, input_values={}):
         sample = self.posterior_sample2joint_sample(self._get_sample(number_samples, observed, input_values))
-        sample.update(input_values) #TODO: Work in progress
+        sample.update(input_values)
         return sample
 
 
@@ -648,7 +669,7 @@ def var2link(var):
     return PartialLink(vars=vars, fn=fn, links=set())
 
 
-class PartialLink(BrancherClass): #TODO: This should become "ProbabilisticProgram"
+class PartialLink(BrancherClass): #TODO: This should become "ProbabilisticProgram?"
 
     def __init__(self, vars, fn, links):
         self.vars = vars

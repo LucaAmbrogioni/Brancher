@@ -20,6 +20,8 @@ mu = NormalVariable(0., 10., "mu")
 x = NormalVariable(mu, nu, "x")
 model = ProbabilisticModel([x])
 
+print(model)
+
 # Print samples
 sample = model.get_sample(10)
 print(sample)
