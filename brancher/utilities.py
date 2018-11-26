@@ -89,9 +89,9 @@ def coerce_to_dtype(data, is_observed=False):
     dtype = type(data)
     if dtype is chainer.Variable:
         result = data
-    elif np.issubdtype(dtype, float):
+    elif dtype is float or dtype is np.float32 or dtype is np.float64:
         result = chainer.Variable(data * np.ones(shape=(1, 1), dtype="float32"))
-    elif np.issubdtype(dtype, int):
+    elif dtype is int or dtype is np.int32 or dtype is np.int64:
         result = chainer.Variable(data * np.ones(shape=(1, 1), dtype="int32"))
     elif dtype is np.ndarray:
         if data.dtype is np.dtype(np.float64):

@@ -107,7 +107,7 @@ class Variable(BrancherClass):
         """
         pass
 
-    def get_sample(self, number_samples, input_values={}): #TODO: Work in progress
+    def get_sample(self, number_samples, input_values={}):
         reformatted_input_values = reformat_sampler_input(input_values, number_samples=number_samples)
         raw_sample = {self: self._get_sample(number_samples, resample=False,
                                              observed=self.is_observed, input_values=reformatted_input_values)[self]}
@@ -474,7 +474,7 @@ class ProbabilisticModel(BrancherClass):
     """
     def __init__(self, variables):
         self.variables = self._validate_variables(variables)
-        self.model_summary = self._set_summary()
+        self._set_summary()
         self.posterior_model = None
         self.observed_submodel = None
         self.diagnostics = {}
@@ -506,7 +506,12 @@ class ProbabilisticModel(BrancherClass):
         var_names = [var.name for var in var_list]
         summary_data = [[var._type, var.parents, var.is_observed]
                          for var in var_list]
-        return reformat_model_summary(summary_data, var_names, feature_list)
+        self._model_summary = reformat_model_summary(summary_data, var_names, feature_list)
+
+    @property
+    def model_summary(self):
+        self._set_summary()
+        return self._model_summary
 
     @property
     def value(self):
