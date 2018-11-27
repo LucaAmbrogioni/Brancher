@@ -24,6 +24,8 @@ from brancher.utilities import tile_parameter
 
 from brancher.pandas_interface import reformat_sample_to_pandas
 from brancher.pandas_interface import reformat_model_summary
+from brancher.pandas_interface import pandas_frame2dict
+from brancher.pandas_interface import pandas_frame2value
 
 class BrancherClass(ABC):
     """
@@ -108,7 +110,8 @@ class Variable(BrancherClass):
         pass
 
     def get_sample(self, number_samples, input_values={}):
-        reformatted_input_values = reformat_sampler_input(input_values, number_samples=number_samples)
+        reformatted_input_values = reformat_sampler_input(pandas_frame2dict(input_values),
+                                                          number_samples=number_samples)
         raw_sample = {self: self._get_sample(number_samples, resample=False,
                                              observed=self.is_observed, input_values=reformatted_input_values)[self]}
         sample = reformat_sample_to_pandas(raw_sample, number_samples)
@@ -434,6 +437,7 @@ class RandomVariable(Variable):
         """
         Summary
         """
+        data = pandas_frame2value(data, self.name)
         if isinstance(data, RandomVariable):
             self.dataset = data
             self.has_random_dataset = True
@@ -559,7 +563,8 @@ class ProbabilisticModel(BrancherClass):
         return joint_sample
 
     def get_sample(self, number_samples, input_values={}): #TODO: Work in progress
-        reformatted_input_values = reformat_sampler_input(input_values, number_samples=number_samples)
+        reformatted_input_values = reformat_sampler_input(pandas_frame2dict(input_values),
+                                                                            number_samples=number_samples)
         raw_sample = self._get_sample(number_samples, observed=False, input_values=reformatted_input_values)
         sample = reformat_sample_to_pandas(raw_sample, number_samples=number_samples)
         return sample
@@ -584,7 +589,8 @@ class ProbabilisticModel(BrancherClass):
         return sample
 
     def get_posterior_sample(self, number_samples, input_values={}): #TODO: Work in progress
-        reformatted_input_values = reformat_sampler_input(input_values, number_samples=number_samples)
+        reformatted_input_values = reformat_sampler_input(pandas_frame2dict(input_values),
+                                                                            number_samples=number_samples)
         raw_sample = self._get_posterior_sample(number_samples, input_values=reformatted_input_values)
         sample = reformat_sample_to_pandas(raw_sample, number_samples=number_samples)
         return sample

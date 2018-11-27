@@ -2,6 +2,26 @@ import pandas as pd
 import numpy as np
 
 
+def pandas_dict2list(dic):
+    indices, values = zip(*dic.items())
+    sorted_indices = np.argsort(indices)
+    return np.array(values)[sorted_indices]
+
+
+def pandas_frame2dict(dataframe):
+    if isinstance(dataframe, pd.core.frame.DataFrame):
+        return {key: pandas_dict2list(val) for key,val in dataframe.to_dict().items()}
+    elif isinstance(dataframe, dict):
+        return dataframe
+    else:
+        raise ValueError("The input should be either a dictionary or a Pandas dataframe")
+
+def pandas_frame2value(dataframe, index):
+    if isinstance(dataframe, pd.core.frame.DataFrame):
+        return np.array(dataframe[index])
+    else:
+        return dataframe
+
 def reformat_value(value):
     if np.prod(value.shape) == 1:
         return float(value.data)
@@ -9,7 +29,6 @@ def reformat_value(value):
         return value.data[0, :]
     else:
         return value.data
-
 
 def reformat_sample_to_pandas(sample, number_samples): #TODO: Work in progress
     data = [[reformat_value(value[index, :, :])
