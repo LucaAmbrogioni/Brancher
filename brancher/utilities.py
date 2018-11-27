@@ -27,6 +27,11 @@ def flatten_list(lst):
     return flat_list
 
 
+def flatten_set(st):
+    flat_set = set([item for subset in st for item in subset])
+    return flat_set
+
+
 def join_dicts_list(dicts_list):
     if dicts_list:
         return reduce(lambda d1,d2: {**d1, **d2}, dicts_list)
@@ -125,7 +130,7 @@ def coerce_to_dtype(data, is_observed=False):
 #     Parameters
 #     ---------
 #     """
-#     flattened_model = probabilistic_model.flatten()
+#     flattened_model = probabilistic_model._flatten()
 #     observed_variables = [var for var in flattened_model if var.is_observed]
 #     return ProbabilisticModel(observed_variables) #TODO: To fix
 

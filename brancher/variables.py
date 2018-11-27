@@ -32,11 +32,14 @@ class BrancherClass(ABC):
     BrancherClass is the abstract superclass of all Brancher variables and models.
     """
     @abstractmethod
-    def flatten(self):
+    def _flatten(self):
         """
         Abstract method. It returs a list of all the variables contained in the model.
         """
         pass
+
+    def flatten(self):
+        return set(self._flatten())
 
     def get_variable(self, var_name):
         """
@@ -49,7 +52,7 @@ class BrancherClass(ABC):
             brancher.Variable.
 
         """
-        flat_list = self.flatten()
+        flat_list = self._flatten()
         try:
             return {var.name: var for var in flat_list}[var_name]
         except ValueError:
@@ -306,7 +309,7 @@ class DeterministicVariable(Variable):
     def reset(self):
         pass
 
-    def flatten(self):
+    def _flatten(self):
         return [self]
 
 
@@ -463,8 +466,8 @@ class RandomVariable(Variable):
         for parent in self.parents:
             parent.reset()
 
-    def flatten(self):
-        return flatten_list([parent.flatten() for parent in self.parents]) + [self]
+    def _flatten(self):
+        return flatten_list([parent._flatten() for parent in self.parents]) + [self]
 
 
 class ProbabilisticModel(BrancherClass):
@@ -527,7 +530,7 @@ class ProbabilisticModel(BrancherClass):
 
     @property
     def is_observed(self):
-        return all([var.is_observed for var in self.flatten()])
+        return all([var.is_observed for var in self._flatten()])
 
     def update_observed_submodel(self):
         """
@@ -536,7 +539,7 @@ class ProbabilisticModel(BrancherClass):
         Parameters
         ---------
         """
-        flattened_model = self.flatten()
+        flattened_model = self._flatten()
         observed_variables = [var for var in flattened_model if var.is_observed]
         self.observed_submodel = ProbabilisticModel(observed_variables)
 
@@ -616,8 +619,8 @@ class ProbabilisticModel(BrancherClass):
         for variable in self.variables:
             variable.reset()
 
-    def flatten(self):
-        return flatten_list([var.flatten() for var in self.variables])
+    def _flatten(self):
+        return flatten_list([var._flatten() for var in self.variables])
 
 
 class PosteriorModel(ProbabilisticModel):
@@ -638,7 +641,7 @@ class PosteriorModel(ProbabilisticModel):
 
     def set_model_mapping(self, joint_model):
         model_mapping = {}
-        for p_var in joint_model.flatten():
+        for p_var in joint_model._flatten():
             try:
                 model_mapping.update({self.get_variable(p_var.name): p_var})
             except KeyError:
@@ -739,5 +742,5 @@ class PartialLink(BrancherClass): #TODO: This should become "ProbabilisticProgra
         links = set()
         return PartialLink(vars=vars, fn=fn, links=links)
 
-    def flatten(self):
-        return flatten_list([var.flatten() for var in self.vars]) + [self]
+    def _flatten(self):
+        return flatten_list([var._flatten() for var in self.vars]) + [self]

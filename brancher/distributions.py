@@ -78,7 +78,7 @@ class NormalDistribution(UnivariateDistribution):
     """
     Summary
     """
-    def calculate_log_probability(self, x, mean, var):
+    def calculate_log_probability(self, x, mu, sigma):
         """
         One line description
 
@@ -88,11 +88,11 @@ class NormalDistribution(UnivariateDistribution):
         Returns
         -------
         """
-        x, mean, var = broadcast_and_squeeze(x, mean, var)
-        log_probability = -0.5*F.log(2*np.pi*var) - 0.5*(x-mean)**2/var
+        x, mu, sigma = broadcast_and_squeeze(x, mu, sigma)
+        log_probability = -0.5*F.log(2*np.pi*sigma**2) - 0.5*(x-mu)**2/(sigma**2)
         return sum_data_dimensions(log_probability)
 
-    def get_sample(self, mean, var, number_samples):
+    def get_sample(self, mu, sigma, number_samples):
         """
         One line description
 
@@ -102,8 +102,8 @@ class NormalDistribution(UnivariateDistribution):
         Returns
         -------
         """
-        mean, var = broadcast_and_squeeze(mean, var)
-        sample = mean + F.sqrt(var)*np.random.normal(0, 1, size=mean.shape)
+        mean, var = broadcast_and_squeeze(mu, sigma)
+        sample = mean + sigma*np.random.normal(0, 1, size=mean.shape)
         return sample
 
 

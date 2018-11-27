@@ -106,11 +106,11 @@ class NormalVariable(VariableConstructor):
     Parameters
     ----------
     """
-    def __init__(self, mean, var, name, learnable=False):
+    def __init__(self, mu, sigma, name, learnable=False):
         self._type = "Normal"
-        ranges = {"mean": geometric_ranges.UnboundedRange(),
-                  "var": geometric_ranges.RightHalfLine(0.)}
-        super().__init__(name, mean=mean, var=var, learnable=learnable, ranges=ranges)
+        ranges = {"mu": geometric_ranges.UnboundedRange(),
+                  "sigma": geometric_ranges.RightHalfLine(0.)}
+        super().__init__(name, mu=mu, sigma=sigma, learnable=learnable, ranges=ranges)
         self.distribution = distributions.NormalDistribution()
 
 

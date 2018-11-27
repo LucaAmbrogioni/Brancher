@@ -38,7 +38,7 @@ inference.stochastic_variational_inference(model,
 loss_list = model.diagnostics["loss curve"]
 
 # Statistics
-p_posterior_samples = model._get_posterior_sample(2000)[p].data.flatten()
+p_posterior_samples = model._get_posterior_sample(2000)[p].data._flatten()
 
 # Two subplots, unpack the axes array immediately
 f, (ax1, ax2) = plt.subplots(1, 2)

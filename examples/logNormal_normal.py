@@ -40,8 +40,8 @@ loss_list = model.diagnostics["loss curve"]
 
 # Statistics
 posterior_samples = model._get_posterior_sample(5000)
-nu_posterior_samples = posterior_samples[nu].data.flatten()
-mu_posterior_samples = posterior_samples[mu].data.flatten()
+nu_posterior_samples = posterior_samples[nu].data._flatten()
+mu_posterior_samples = posterior_samples[mu].data._flatten()
 
 # Two subplots, unpack the axes array immediately
 f, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4)

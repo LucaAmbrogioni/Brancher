@@ -383,7 +383,7 @@ class RandomVariable(Variable):
             parent.reset()
 
     def flatten(self):
-        return flatten_list([parent.flatten() for parent in self.parents]) + [self]
+        return flatten_list([parent._flatten() for parent in self.parents]) + [self]
 
 
 class ProbabilisticModel(BrancherClass):
@@ -499,7 +499,7 @@ class ProbabilisticModel(BrancherClass):
             variable.reset()
 
     def flatten(self):
-        return flatten_list([var.flatten() for var in self.variables])
+        return flatten_list([var._flatten() for var in self.variables])
 
 
 class PosteriorModel(ProbabilisticModel): #TODO: Work in progress
@@ -520,7 +520,7 @@ class PosteriorModel(ProbabilisticModel): #TODO: Work in progress
 
     def set_model_mapping(self, joint_model):
         model_mapping = {}
-        for p_var in joint_model.flatten():
+        for p_var in joint_model._flatten():
             try:
                 model_mapping.update({self.get_variable(p_var.name): p_var})
             except KeyError:
@@ -622,4 +622,4 @@ class PartialLink(BrancherClass): #TODO: This should become "ProbabilisticProgra
         return PartialLink(vars=vars, fn=fn, links=links)
 
     def flatten(self):
-        return flatten_list([var.flatten() for var in self.vars]) + [self]
+        return flatten_list([var._flatten() for var in self.vars]) + [self]
