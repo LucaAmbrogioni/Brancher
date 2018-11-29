@@ -565,7 +565,7 @@ class ProbabilisticModel(BrancherClass):
         self.reset()
         return joint_sample
 
-    def get_sample(self, number_samples, input_values={}): #TODO: Work in progress
+    def get_sample(self, number_samples, input_values={}):
         reformatted_input_values = reformat_sampler_input(pandas_frame2dict(input_values),
                                                                             number_samples=number_samples)
         raw_sample = self._get_sample(number_samples, observed=False, input_values=reformatted_input_values)
