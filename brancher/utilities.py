@@ -62,7 +62,8 @@ def partial_broadcast(*args):
 def broadcast_and_squeeze(*args):
     if all([np.prod(val.shape[2:]) == 1 for val in args]):
         args = [F.reshape(val, shape=val.shape[:2] + tuple([1, 1])) for val in args] #TODO: Work in progress
-    broadcasted_values = F.broadcast(*args)
+    uniformed_values = uniform_shapes(*args)
+    broadcasted_values = F.broadcast(*uniformed_values)
     return broadcasted_values
 
 
@@ -123,18 +124,6 @@ def coerce_to_dtype(data, is_observed=False):
     return result
 
 
-# def get_observed_model(probabilistic_model):
-#     """
-#     Summary
-#
-#     Parameters
-#     ---------
-#     """
-#     flattened_model = probabilistic_model._flatten()
-#     observed_variables = [var for var in flattened_model if var.is_observed]
-#     return ProbabilisticModel(observed_variables) #TODO: To fix
-
-
 def tile_parameter(value, number_samples):
     value_shape = value.shape
     reps = tuple([number_samples] + [1] * len(value_shape[1:]))
@@ -144,3 +133,10 @@ def tile_parameter(value, number_samples):
 def reformat_sampler_input(sample_input, number_samples):
     return {var: tile_parameter(coerce_to_dtype(value, is_observed=var.is_observed), number_samples=number_samples)
             for var, value in sample_input.items()}
+
+
+def uniform_shapes(*args):
+    shapes = [ar.shape for ar in args]
+    max_len = np.max([len(s) for s in shapes])
+    return [F.expand_dims(ar, axis=len(ar.shape)) if (len(ar.shape) == max_len-1) else ar
+            for ar in args]

@@ -727,20 +727,29 @@ class PartialLink(BrancherClass): #TODO: This should become "ProbabilisticProgra
         raise NotImplementedError
 
     def __getitem__(self, key):
-        if isinstance(key, collections.Iterable):
+        if isinstance(key, collections.Iterable) and all([isinstance(k, int) for k in key]):
             variable_slice = (slice(None, None, None), *key)
-        else:
+        elif isinstance(key, int):
             variable_slice = (slice(None, None, None), key)
+        elif isinstance(key, collections.Hashable):
+            variable_slice = key
+        else:
+            raise ValueError("The input to __getitem__ is neither numeric nor a hashabble key")
+
         vars = self.vars
         fn = lambda values: self.fn(values)[variable_slice]
         links = set()
-        return PartialLink(vars=vars, fn=fn, links=links)
+        return PartialLink(vars=vars,
+                           fn=fn,
+                           links=self.links)
 
     def shape(self):
         vars = self.vars
         fn = lambda values: self.fn(values).shape
         links = set()
-        return PartialLink(vars=vars, fn=fn, links=links)
+        return PartialLink(vars=vars,
+                           fn=fn,
+                           links=self.links)
 
     def _flatten(self):
         return flatten_list([var._flatten() for var in self.vars]) + [self]

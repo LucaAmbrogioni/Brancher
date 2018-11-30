@@ -34,6 +34,6 @@ class BrancherFunction(object):
         return isinstance(arg, (Variable, PartialLink))
 
 
-is_chainer_fn = lambda k, v: type(v) is types.FunctionType and not k.startswith('_')
+is_chainer_fn = lambda k, v: type(v) is types.FunctionType and not k.startswith('_') #TODO: Work in progress
 brancher_fns = {name: BrancherFunction(v) for name, v in F.__dict__.items() if is_chainer_fn(name, v)}
 globals().update(brancher_fns)

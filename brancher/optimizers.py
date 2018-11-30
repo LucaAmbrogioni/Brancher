@@ -31,11 +31,11 @@ class ProbabilisticOptimizer(ABC):
         if optimizer is None:
             optimizer = self._get_default_optimizer()
         else:
-            #TODO: Assert
             self.optimizer = copy.deepcopy(optimizer)
         self.link_set = set()
         self.chain = None
         self.setup(model)
+        pass
 
     @staticmethod
     def _get_default_optimizer(self, **kwargs):
@@ -53,14 +53,18 @@ class ProbabilisticOptimizer(ABC):
         for var in getattr(random_variable, vars_attr):
             self._update_link_set(var)
 
-    def setup(self, random_variable):
+    def setup(self, random_variable): # TODO: Work in progress
         """
         Summary
         """
         self.chain = EmptyChain()
         self._update_link_set(random_variable)
         for link in self.link_set:
-            self.chain.add_link(link)
+            if isinstance(link, Link):
+                self.chain.add_link(link)
+            elif isinstance(link, ChainList):
+                [self.chain.add_link(l) for l in link]
+
         self.optimizer.setup(self.chain)
 
     def update(self):
