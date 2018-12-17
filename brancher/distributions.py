@@ -19,6 +19,8 @@ from brancher.utilities import broadcast_parent_values
 
 # TODO: You need to implement a consistent broadcasting strategy for univariate, multivariate and tensor distributions.
 
+# TODO: Remove "number samples" input
+
 
 class Distribution(ABC):
     """
@@ -67,6 +69,36 @@ class EmpiricalDistribution(ImplicitDistribution):
         else:
             sample = list(np.array(dataset)[indices]) #TODO: clean up
         return sample
+
+
+## Unnormalized distributions ##
+class UnnormalizedDistribution(Distribution):
+    pass
+
+
+class TruncatedDistribution(UnnormalizedDistribution): #TODO: Work in progress for the implementation of WVGD
+
+    def __init__(self, base_distribution, truncation_rule):
+        self.base_distribution = base_distribution
+        self.truncation_rule = truncation_rule
+
+    def _reject_samples(self, samples): #TODO: Work in progress
+        sample_list = [F.expand_dims(s, axis=0) for s in samples if self.truncation_rule(s.data)]
+        truncated_sample = F.concat(sample_list, axis=0)
+        return truncated_sample
+
+    def calculate_log_probability(self, x, **kwargs): #TODO: Work in progress
+        return self.base_distribution.calculate_log_probability(x, **kwargs)
+
+    def get_sample(self, number_samples, **kwargs): #TODO: Work in progress
+        samples_count = 0
+        sample_list = []
+        while samples_count < number_samples:
+            truncated_sample = self._reject_samples(self.base_distribution.get_sample(number_samples=number_samples,
+                                                                                      **kwargs))
+            sample_list.append(truncated_sample)
+            samples_count += truncated_sample.shape[0]
+        return F.concat(sample_list, axis=0)[:number_samples, :]
 
 
 ## Univariate distributions ##
@@ -136,7 +168,7 @@ class CauchyDistribution(UnivariateDistribution):
         -------
         """
         mu, sigma = broadcast_and_squeeze(mu, sigma)
-        sample = mu + sigma*F.tan(np.pi*np.random.uniform(0,1,size=mu.shape).astype(np.float32))
+        sample = mu + sigma*F.tan(np.pi*np.random.uniform(0, 1, size=mu.shape).astype(np.float32))
         return sample
 
 
@@ -204,7 +236,7 @@ class LogitNormalDistribution(UnivariateDistribution):
         -------
         """
         mu, sigma = broadcast_and_squeeze(mu, sigma)
-        logit_sample = mu + sigma*np.random.normal(0,1,size=mu.shape)
+        logit_sample = mu + sigma*np.random.normal(0, 1, size=mu.shape)
         return F.sigmoid(logit_sample)
 
 

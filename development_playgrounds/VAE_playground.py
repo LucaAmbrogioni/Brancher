@@ -11,7 +11,7 @@ import brancher.functions as BF
 
 # Data
 image_size = 28*28
-latent_size = 20
+latent_size = 10
 
 train, test = chainer.datasets.get_mnist()
 dataset_size = len(train)
@@ -69,13 +69,21 @@ model.set_posterior_model(ProbabilisticModel([Qx, Qz]))
 
 # Joint-contrastive inference
 inference.stochastic_variational_inference(model,
-                                           number_iterations=2000,
+                                           number_iterations=10000,
                                            number_samples=1,
                                            optimizer=chainer.optimizers.Adam(0.001))
 loss_list = model.diagnostics["loss curve"]
 
 #Plot results
 plt.plot(loss_list)
+plt.show()
+
+sample = model.get_sample(1)
+plt.imshow(np.reshape(sample["x"][0], newshape=(28, 28)))
+plt.show()
+
+sample = model.get_sample(1)
+plt.imshow(np.reshape(sample["x"][0], newshape=(28, 28)))
 plt.show()
 
 sample = model.get_sample(1)
