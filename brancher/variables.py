@@ -260,7 +260,7 @@ class DeterministicVariable(Variable):
         if learnable:
             self.link = L.Bias(axis=1, shape=self._current_value.shape[1:])
 
-    def calculate_log_probability(self, values, reevaluate=True):
+    def calculate_log_probability(self, values, reevaluate=True, for_gradient=False):
         """
         Method. It returns the log probability of the values given the model. This value is always 0 since the probability
         of a deterministic variable having its value is always 1.
@@ -372,7 +372,7 @@ class RandomVariable(Variable):
                   for key, val in reshaped_output.items()}
         return output
 
-    def calculate_log_probability(self, input_values, reevaluate=True):
+    def calculate_log_probability(self, input_values, reevaluate=True, for_gradient=False, include_parents=True):
         """
         Method. It returns the log probability of the values given the model. This value is always 0 since the probability
         of a deterministic variable having its value is always 1.
@@ -403,12 +403,15 @@ class RandomVariable(Variable):
         parents_values = {**parents_input_values, **deterministic_parents_values}
         parameters_dict = self._apply_link(parents_values)
         log_probability = self.distribution.calculate_log_probability(value, **parameters_dict)
-        parents_log_probability = sum([parent.calculate_log_probability(input_values, reevaluate) for parent in self.parents])
+        parents_log_probability = sum([parent.calculate_log_probability(input_values, reevaluate, for_gradient) for parent in self.parents])
         if self.is_observed:
             log_probability = F.sum(log_probability, axis=1, keepdims=True)
         if type(log_probability) is chainer.Variable and type(parents_log_probability) is chainer.Variable:
             log_probability, parents_log_probability = partial_broadcast(log_probability, parents_log_probability)
-        return log_probability + parents_log_probability
+        if include_parents:
+            return log_probability + parents_log_probability
+        else:
+            return log_probability
 
     def _get_sample(self, number_samples=1, resample=True, observed=False, input_values={}):
         """
@@ -418,7 +421,7 @@ class RandomVariable(Variable):
             return {self: self.samples[-1]}
         if not observed:
             if self in input_values:
-                return {self: input_values[self]} #TODO: This breaks the recursion if an input is provided. The future will decide if this is a feature or a bug!
+                return {self: input_values[self]}
             else:
                 var_to_sample = self
         else:
@@ -546,11 +549,12 @@ class ProbabilisticModel(BrancherClass):
     def set_posterior_model(self, model):
         self.posterior_model = PosteriorModel(posterior_model=model, joint_model=self)
 
-    def calculate_log_probability(self, rv_values):
+    def calculate_log_probability(self, rv_values, for_gradient=False):
         """
         Summary
         """
-        log_probability = sum([var.calculate_log_probability(rv_values, reevaluate=False) for var in self.variables])
+        log_probability = sum([var.calculate_log_probability(rv_values, reevaluate=False, for_gradient=for_gradient)
+                               for var in self.variables])
         self.reset()
         return log_probability
 
@@ -598,16 +602,17 @@ class ProbabilisticModel(BrancherClass):
         sample = reformat_sample_to_pandas(raw_sample, number_samples=number_samples)
         return sample
 
-    def estimate_log_model_evidence(self, number_samples, method="ELBO", input_values={}):  #TODO Work in progress
+    def estimate_log_model_evidence(self, number_samples, method="ELBO", input_values={}, for_gradient=False):
         self.check_posterior_model()
         if method is "ELBO":
             samples = self.observed_submodel._get_sample(1, observed=True) #TODO: You need to correct for subsampling
             posterior_samples = self.posterior_model._get_sample(number_samples=number_samples,
                                                                  observed=False, input_values=input_values)
-            posterior_log_prob = self.posterior_model.calculate_log_probability(posterior_samples)
+            posterior_log_prob = self.posterior_model.calculate_log_probability(posterior_samples,
+                                                                                for_gradient=for_gradient)
             samples.update(self.posterior_model.posterior_sample2joint_sample(posterior_samples))
-            joint_log_prob = self.calculate_log_probability(samples)
-            log_model_evidence = F.mean(joint_log_prob - posterior_log_prob) #TODO: It was sum, bug?
+            joint_log_prob = self.calculate_log_probability(samples, for_gradient=for_gradient)
+            log_model_evidence = F.mean(joint_log_prob - posterior_log_prob)
             return log_model_evidence
         else:
             raise NotImplementedError("The requested estimation method is currently not implemented.")

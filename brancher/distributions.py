@@ -4,6 +4,7 @@ Distributions
 Module description
 """
 from abc import ABC, abstractmethod
+import copy
 
 import chainer
 import chainer.functions as F
@@ -82,23 +83,32 @@ class TruncatedDistribution(UnnormalizedDistribution): #TODO: Work in progress f
         self.base_distribution = base_distribution
         self.truncation_rule = truncation_rule
 
-    def _reject_samples(self, samples): #TODO: Work in progress
-        sample_list = [F.expand_dims(s, axis=0) for s in samples if self.truncation_rule(s.data)]
-        truncated_sample = F.concat(sample_list, axis=0)
-        return truncated_sample
+    def _reject_samples(self, samples, remaining_indices): #TODO: Work in progress
+        sample_list, sample_indices = zip(*[(F.expand_dims(s, axis=0), index)
+                                            for index, s in enumerate(samples) if self.truncation_rule(s.data)])
+        return sample_list, [remaining_indices[index] for index in sample_indices]
 
     def calculate_log_probability(self, x, **kwargs): #TODO: Work in progress
         return self.base_distribution.calculate_log_probability(x, **kwargs)
 
     def get_sample(self, number_samples, **kwargs): #TODO: Work in progress
-        samples_count = 0
-        sample_list = []
-        while samples_count < number_samples:
-            truncated_sample = self._reject_samples(self.base_distribution.get_sample(number_samples=number_samples,
-                                                                                      **kwargs))
-            sample_list.append(truncated_sample)
-            samples_count += truncated_sample.shape[0]
-        return F.concat(sample_list, axis=0)[:number_samples, :]
+        total_sampled_indices = set()
+        truncated_samples = {}
+        original_range = range(number_samples)
+        remaining_indices = range(number_samples)
+        original_input_parents = kwargs
+        while total_sampled_indices != set(original_range):
+            input_parents = {parent: value[remaining_indices, :] if value.shape[0] == number_samples else value
+                             for parent, value in original_input_parents.items()}
+            try:
+                sample_list, sample_indices = self._reject_samples(self.base_distribution.get_sample(number_samples=number_samples,
+                                                                                                     **input_parents), remaining_indices)
+                remaining_indices = [index for index in remaining_indices if index not in total_sampled_indices]
+                truncated_samples.update({index: sample for index, sample in zip(sample_indices, sample_list)})
+                total_sampled_indices.update(set(sample_indices))
+            except ValueError: #TODO
+                pass
+        return F.concat([value for (key, value) in sorted(truncated_samples.items())], axis=0)
 
 
 ## Univariate distributions ##

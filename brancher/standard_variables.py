@@ -1,6 +1,9 @@
 import numbers
+import warnings
+
 import numpy as np
 import chainer
+import chainer.functions as F
 
 import brancher.distributions as distributions
 import brancher.geometric_ranges as geometric_ranges
@@ -43,6 +46,7 @@ class VariableConstructor(RandomVariable):
         self.dataset = None
         self.has_random_dataset = False
         self.has_observed_value = False
+        self.is_normalized = True
 
 
     def construct_deterministic_parents(self, learnable, ranges, kwargs):
@@ -57,6 +61,34 @@ class VariableConstructor(RandomVariable):
                 deterministic_parent = DeterministicVariable(ranges[parameter_name].inverse_transform(value, dim),
                                                              self.name + "_" + parameter_name, learnable, is_observed=self._observed)
                 kwargs.update({parameter_name: ranges[parameter_name].forward_transform(deterministic_parent, dim)})
+
+
+class UnnormalizedVariable(VariableConstructor): #TODO: Work in progress
+
+    def __init__(self, name, learnable, ranges, is_observed=False, **kwargs):
+        super().__init__(name, learnable, ranges, is_observed, **kwargs)
+
+    def calculate_unnormalized_log_probability(self, input_values, reevaluate=True,
+                                               for_gradient=False, include_parents=True):
+        return super().calculate_log_probability(input_values,
+                                                 reevaluate = reevaluate,
+                                                 for_gradient = for_gradient,
+                                                 include_parents = include_parents)
+
+    def calculate_log_probability(self, input_values, reevaluate=True, for_gradient=False, include_parents=True): #TODO: Work in progress
+        num_samples = max([value.shape[0] for _, value in input_values.items()])
+        parent_values = {key: value for key, value in input_values.items() if key is not self}
+        norm_samples = super()._get_sample(num_samples, input_values=parent_values)[self]
+        norm_input_values = parent_values
+        norm_input_values.update({self: norm_samples})
+        if for_gradient:
+            norm_input_values = {key: value.data for key, value in norm_input_values.items()}
+            normalization = -F.mean(self.calculate_unnormalized_log_probability(norm_input_values,
+                                                                                include_parents=False))
+        else:
+            raise NotImplemented #TODO
+
+        return self.calculate_unnormalized_log_probability(input_values) + normalization
 
 
 class EmpiricalVariable(VariableConstructor):
@@ -112,6 +144,23 @@ class NormalVariable(VariableConstructor):
                   "sigma": geometric_ranges.RightHalfLine(0.)}
         super().__init__(name, mu=mu, sigma=sigma, learnable=learnable, ranges=ranges)
         self.distribution = distributions.NormalDistribution()
+
+
+class TruncatedNormalVariable(UnnormalizedVariable):
+    """
+    Summary
+
+    Parameters
+    ----------
+    """
+    def __init__(self, mu, sigma, truncation_rule, name, learnable=False):
+        self._type = "Truncated Normal"
+        self.is_normalized = False
+        ranges = {"mu": geometric_ranges.UnboundedRange(),
+                  "sigma": geometric_ranges.RightHalfLine(0.)}
+        super().__init__(name, mu=mu, sigma=sigma, learnable=learnable, ranges=ranges)
+        self.distribution = distributions.TruncatedDistribution(base_distribution=distributions.NormalDistribution(),
+                                                                truncation_rule=truncation_rule)
 
 
 class CauchyVariable(VariableConstructor):

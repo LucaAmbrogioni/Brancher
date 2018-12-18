@@ -10,7 +10,7 @@ def pandas_dict2list(dic):
 
 def pandas_frame2dict(dataframe):
     if isinstance(dataframe, pd.core.frame.DataFrame):
-        return {key: pandas_dict2list(val) for key,val in dataframe.to_dict().items()}
+        return {key: pandas_dict2list(val) for key, val in dataframe.to_dict().items()}
     elif isinstance(dataframe, dict):
         return dataframe
     else:

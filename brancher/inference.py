@@ -54,7 +54,7 @@ def stochastic_variational_inference(joint_model, number_iterations, number_samp
     loss_list = []
     for iteration in tqdm(range(number_iterations)):
         loss = -joint_model.estimate_log_model_evidence(number_samples=number_samples,
-                                                        method="ELBO", input_values=input_values)
+                                                        method="ELBO", input_values=input_values, for_gradient=True)
 
         if np.isfinite(loss.data).all():
             posterior_optimizer.chain.cleargrads()

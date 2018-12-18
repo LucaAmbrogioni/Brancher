@@ -126,8 +126,13 @@ def coerce_to_dtype(data, is_observed=False):
 
 def tile_parameter(value, number_samples):
     value_shape = value.shape
-    reps = tuple([number_samples] + [1] * len(value_shape[1:]))
-    return F.tile(value, reps=reps)
+    if value_shape[0] == number_samples:
+        return value
+    elif value_shape[1] == 1:
+        reps = tuple([number_samples] + [1] * len(value_shape[1:]))
+        return F.tile(value, reps=reps)
+    else:
+        raise ValueError("The parameter cannot be broadcasted to the rerquired number of samples")
 
 
 def reformat_sampler_input(sample_input, number_samples):
