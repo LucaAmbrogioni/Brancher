@@ -4,6 +4,7 @@ Distributions
 Module description
 """
 from abc import ABC, abstractmethod
+from collections.abc import Iterable
 import copy
 
 import chainer
@@ -43,6 +44,36 @@ class ImplicitDistribution(Distribution):
         return np.zeros((1, 1)).astype("float32") #TODO: Implement some checks here
 
 
+# class EmpiricalDistribution(ImplicitDistribution):
+#     """
+#     Summary
+#     """
+#     def get_sample(self, dataset, indices, number_samples):
+#         """
+#         One line description
+#
+#         Parameters
+#         ----------
+#         Returns
+#         -------
+#         Without replacement
+#         """
+#         if not indices:
+#             if isinstance(dataset, chainer.Variable):
+#                 dataset_size = dataset.shape[1]
+#             else:
+#                 dataset_size = len(dataset)
+#             if dataset_size < self.batch_size:
+#                 raise ValueError("It is impossible to have more samples than the size of the dataset without replacement")
+#             indices = np.random.choice(range(dataset_size), size=self.batch_size, replace=False)
+#
+#         if isinstance(dataset, chainer.Variable):
+#             sample = dataset[:, indices, :]
+#         else:
+#             sample = list(np.array(dataset)[indices]) #TODO: clean up
+#         return sample
+
+
 class EmpiricalDistribution(ImplicitDistribution):
     """
     Summary
@@ -59,16 +90,37 @@ class EmpiricalDistribution(ImplicitDistribution):
         """
         if not indices:
             if isinstance(dataset, chainer.Variable):
-                dataset_size = dataset.shape[1]
+                if self.is_observed:
+                    dataset_size = dataset.shape[1]
+                else:
+                    dataset_size = dataset.shape[2]
             else:
                 dataset_size = len(dataset)
-            if dataset_size < number_samples:
+            if dataset_size < self.batch_size:
                 raise ValueError("It is impossible to have more samples than the size of the dataset without replacement")
-            indices = np.random.choice(range(dataset_size), size=self.batch_size, replace=False)
+            if isinstance(dataset, Iterable): # TODO: This is for allowing discrete data, temporary?
+                indices = np.random.choice(range(dataset_size), size=self.batch_size, replace=False)
+            else:
+                indices = [np.random.choice(range(dataset_size), size=self.batch_size, replace=False)
+                           for _ in range(number_samples)]
+            #indices = np.random.choice(range(dataset_size), size=self.batch_size, replace=False)
+
         if isinstance(dataset, chainer.Variable):
-            sample = dataset[:, indices, :]
+            if isinstance(indices, list) and isinstance(indices[0], np.ndarray):
+                if self.is_observed:
+                    sample = F.concat([F.expand_dims(dataset[n, k, :], axis=0) for n, k in enumerate(indices)], axis=0)
+                else:
+                    sample = F.concat([F.expand_dims(dataset[n, :, k, :], axis=0) for n, k in enumerate(indices)], axis=0)
+
+            elif isinstance(indices, list) and isinstance(indices[0], (int, np.int32, np.int64)):
+                if self.is_observed:
+                    sample = dataset[:, indices, :]
+                else:
+                    sample = dataset[:, :, indices, :]
+            else:
+                raise IndexError("The indices of an empirical variable should be either a list of integers or a list of arrays")
         else:
-            sample = list(np.array(dataset)[indices]) #TODO: clean up
+            sample = list(np.array(dataset)[indices]) # TODO: This is for allowing discrete data, temporary?
         return sample
 
 
@@ -83,15 +135,15 @@ class TruncatedDistribution(UnnormalizedDistribution): #TODO: Work in progress f
         self.base_distribution = base_distribution
         self.truncation_rule = truncation_rule
 
-    def _reject_samples(self, samples, remaining_indices): #TODO: Work in progress
+    def _reject_samples(self, samples, remaining_indices):
         sample_list, sample_indices = zip(*[(F.expand_dims(s, axis=0), index)
                                             for index, s in enumerate(samples) if self.truncation_rule(s.data)])
         return sample_list, [remaining_indices[index] for index in sample_indices]
 
-    def calculate_log_probability(self, x, **kwargs): #TODO: Work in progress
+    def calculate_log_probability(self, x, **kwargs):
         return self.base_distribution.calculate_log_probability(x, **kwargs)
 
-    def get_sample(self, number_samples, **kwargs): #TODO: Work in progress
+    def get_sample(self, number_samples, **kwargs):
         total_sampled_indices = set()
         truncated_samples = {}
         original_range = range(number_samples)

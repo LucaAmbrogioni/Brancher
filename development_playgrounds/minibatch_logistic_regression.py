@@ -43,10 +43,12 @@ model.set_posterior_model(ProbabilisticModel([Qweights]))
 
 # Inference
 inference.stochastic_variational_inference(model,
-                                            number_iterations=200,
-                                            number_samples=100,
-                                            optimizer=chainer.optimizers.Adam(0.05))
+                                           number_iterations=200,
+                                           number_samples=100,
+                                           optimizer=chainer.optimizers.Adam(0.05))
 loss_list = model.diagnostics["loss curve"]
+plt.plot(loss_list)
+plt.show()
 
 # Statistics
 posterior_samples = model._get_posterior_sample(50)
@@ -60,7 +62,7 @@ ax1.set_xlabel("Iteration")
 x_range = np.linspace(-2,2,200)
 ax2.scatter(input_variable[:, 0, 0], input_variable[:, 1, 0], c=output_labels.flatten())
 for w in weights_posterior_samples:
-    coeff = -float(w[0,0,0])/float(w[0, 0, 1])
+    coeff = -float(w[0, 0, 0])/float(w[0, 0, 1])
     plt.plot(x_range, coeff*x_range, alpha=0.3)
 ax2.set_xlim(-2,2)
 ax2.set_ylim(-2,2)

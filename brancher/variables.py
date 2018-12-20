@@ -258,7 +258,11 @@ class DeterministicVariable(Variable):
         self._type = "Deterministic"
         self.learnable = learnable
         if learnable:
-            self.link = L.Bias(axis=1, shape=self._current_value.shape[1:])
+            if not isinstance(self._current_value, collections.abc.Iterable):
+                self.link = L.Bias(axis=1, shape=self._current_value.shape[1:])
+            else:
+                self.learnable = False #TODO: Warning?
+
 
     def calculate_log_probability(self, values, reevaluate=True, for_gradient=False):
         """
@@ -300,9 +304,6 @@ class DeterministicVariable(Variable):
             value = self.value
         if isinstance(value, chainer.Variable):
             return {self: tile_parameter(value, number_samples=number_samples)}
-            #value_shape = value.shape
-            #reps = tuple([number_samples] + [1]*len(value_shape[1:]))
-            #return {self: F.tile(value, reps=reps)} #TODO: Work in progress
         else:
             return {self: value} #TODO: This is for allowing discrete data, temporary?
 
@@ -680,7 +681,7 @@ def var2link(var):
     elif isinstance(var, (numbers.Number, np.ndarray)):
         vars = {}
         fn = lambda values: var
-    elif isinstance(var, tuple) and all([isinstance(v, (Variable, PartialLink)) for v in var]):
+    elif isinstance(var, (tuple, list)) and all([isinstance(v, (Variable, PartialLink)) for v in var]):
         vars = join_sets_list([{v} if isinstance(v, Variable) else v.vars for v in var])
         fn = lambda values: tuple([values[v] if isinstance(v, Variable) else v.fn(values) for v in var])
     else:

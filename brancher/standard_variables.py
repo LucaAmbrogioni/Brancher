@@ -63,7 +63,7 @@ class VariableConstructor(RandomVariable):
                 kwargs.update({parameter_name: ranges[parameter_name].forward_transform(deterministic_parent, dim)})
 
 
-class UnnormalizedVariable(VariableConstructor): #TODO: Work in progress
+class UnnormalizedVariable(VariableConstructor):
 
     def __init__(self, name, learnable, ranges, is_observed=False, **kwargs):
         super().__init__(name, learnable, ranges, is_observed, **kwargs)
@@ -75,7 +75,7 @@ class UnnormalizedVariable(VariableConstructor): #TODO: Work in progress
                                                  for_gradient = for_gradient,
                                                  include_parents = include_parents)
 
-    def calculate_log_probability(self, input_values, reevaluate=True, for_gradient=False, include_parents=True): #TODO: Work in progress
+    def calculate_log_probability(self, input_values, reevaluate=True, for_gradient=False, include_parents=True):
         num_samples = max([value.shape[0] for _, value in input_values.items()])
         parent_values = {key: value for key, value in input_values.items() if key is not self}
         norm_samples = super()._get_sample(num_samples, input_values=parent_values)[self]
@@ -86,7 +86,7 @@ class UnnormalizedVariable(VariableConstructor): #TODO: Work in progress
             normalization = -F.mean(self.calculate_unnormalized_log_probability(norm_input_values,
                                                                                 include_parents=False))
         else:
-            raise NotImplemented #TODO
+            raise NotImplemented #TODO: Work in progress
 
         return self.calculate_unnormalized_log_probability(input_values) + normalization
 
@@ -98,19 +98,20 @@ class EmpiricalVariable(VariableConstructor):
     Parameters
     ----------
     """
-    def __init__(self, dataset, name, is_observed=True, batch_size=(), indices=()):
+    def __init__(self, dataset, name, learnable=False, is_observed=False, batch_size=(), indices=()):
         self._type = "Empirical"
         ranges = {"dataset": geometric_ranges.UnboundedRange(),
                   "batch_size": geometric_ranges.UnboundedRange(),
                   "indices": geometric_ranges.UnboundedRange()}
-        super().__init__(name, dataset=dataset, indices=indices, learnable=False, ranges=ranges, is_observed=is_observed)
+        super().__init__(name, dataset=dataset, indices=indices, learnable=learnable, ranges=ranges, is_observed=is_observed)
         self.distribution = distributions.EmpiricalDistribution()
+        self.distribution.is_observed = is_observed #TODO: Clean up here?
         if batch_size:
             self.distribution.batch_size = batch_size
             self.batch_size = batch_size
         elif indices:
             self.distribution.batch_size = len(indices)
-            self.batch_size = batch_size #TODO: Clean up here
+            self.batch_size = batch_size #TODO: Clean up here?
         else:
             raise ValueError("Either the indices or the batch size has to be given as input")
 

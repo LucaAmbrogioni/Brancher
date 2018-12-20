@@ -30,6 +30,7 @@ class BrancherFunction(object):
 
         return PartialLink(arg_vars.union(kwarg_vars), fn, self.links)
 
+    @staticmethod
     def _is_var(self, arg):
         return isinstance(arg, (Variable, PartialLink))
 

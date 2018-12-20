@@ -48,7 +48,7 @@ class DecoderArchitecture(chainer.ChainList):
         h = F.relu(self[0](z))
         output_mean = self[1](h)
         output_log_sd = self[2](h)
-        return {"mean": output_mean, "sd": F.softplus(output_log_sd)}
+        return {"mean": F.relu(F.tanh(0.1*output_mean)), "sd": F.sigmoid(0.1*output_log_sd) + 0.01}
 
 
 # Initialize encoder and decoders
@@ -62,16 +62,16 @@ x = NormalVariable(decoder_output["mean"], decoder_output["sd"], name="x")
 model = ProbabilisticModel([x, z])
 
 # Amortized variational distribution
-Qx = EmpiricalVariable(dataset, batch_size=50, name="x")
+Qx = EmpiricalVariable(dataset, batch_size=50, name="x", is_observed=True)
 encoder_output = encoder(Qx)
 Qz = NormalVariable(encoder_output["mean"], encoder_output["sd"], name="z")
 model.set_posterior_model(ProbabilisticModel([Qx, Qz]))
 
 # Joint-contrastive inference
 inference.stochastic_variational_inference(model,
-                                           number_iterations=10000,
+                                           number_iterations=5000,
                                            number_samples=1,
-                                           optimizer=chainer.optimizers.Adam(0.001))
+                                           optimizer=chainer.optimizers.Adam(0.0005))
 loss_list = model.diagnostics["loss curve"]
 
 #Plot results
@@ -89,8 +89,3 @@ plt.show()
 sample = model.get_sample(1)
 plt.imshow(np.reshape(sample["x"][0], newshape=(28, 28)))
 plt.show()
-
-#post_sample = model.get_posterior_sample(1)
-#print(post_sample["z"][0])
-#plt.imshow(np.reshape(post_sample["x"][0][0,:], newshape=(28, 28)))
-#plt.show()

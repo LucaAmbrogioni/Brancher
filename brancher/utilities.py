@@ -108,7 +108,7 @@ def coerce_to_dtype(data, is_observed=False):
             result = chainer.Variable(data)
     elif issubclass(dtype, abc.Iterable):
         result = data  # TODO: This is for allowing discrete data, temporary?
-        return result #TODO: This needs some clean up
+        return result
     else:
         raise TypeError("Invalid input dtype {} - expected float, integer, np.ndarray, or chainer var.".format(dtype))
 
@@ -128,7 +128,7 @@ def tile_parameter(value, number_samples):
     value_shape = value.shape
     if value_shape[0] == number_samples:
         return value
-    elif value_shape[1] == 1:
+    elif value_shape[0] == 1:
         reps = tuple([number_samples] + [1] * len(value_shape[1:]))
         return F.tile(value, reps=reps)
     else:
