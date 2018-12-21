@@ -98,12 +98,14 @@ class EmpiricalVariable(VariableConstructor):
     Parameters
     ----------
     """
-    def __init__(self, dataset, name, learnable=False, is_observed=False, batch_size=(), indices=()):
+    def __init__(self, dataset, name, learnable=False, is_observed=False, batch_size=(), indices=(), weights=()):
         self._type = "Empirical"
         ranges = {"dataset": geometric_ranges.UnboundedRange(),
                   "batch_size": geometric_ranges.UnboundedRange(),
-                  "indices": geometric_ranges.UnboundedRange()}
-        super().__init__(name, dataset=dataset, indices=indices, learnable=learnable, ranges=ranges, is_observed=is_observed)
+                  "indices": geometric_ranges.UnboundedRange(),
+                  "weights": geometric_ranges.UnboundedRange()}
+        super().__init__(name, dataset=dataset, indices=indices, weights=weights,
+                         learnable=learnable, ranges=ranges, is_observed=is_observed)
         self.distribution = distributions.EmpiricalDistribution()
         self.distribution.is_observed = is_observed #TODO: Clean up here?
         if batch_size:

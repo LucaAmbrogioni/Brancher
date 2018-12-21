@@ -69,7 +69,7 @@ model.set_posterior_model(ProbabilisticModel([Qx, Qz]))
 
 # Joint-contrastive inference
 inference.stochastic_variational_inference(model,
-                                           number_iterations=5000,
+                                           number_iterations=500,
                                            number_samples=1,
                                            optimizer=chainer.optimizers.Adam(0.0005))
 loss_list = model.diagnostics["loss curve"]

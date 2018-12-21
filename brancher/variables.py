@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 import operator
 import numbers
 import collections
+from collections.abc import Iterable
 
 import chainer
 import chainer.links as L
@@ -487,6 +488,7 @@ class ProbabilisticModel(BrancherClass):
         self.variables = self._validate_variables(variables)
         self._set_summary()
         self.posterior_model = None
+        self.posterior_sampler = None
         self.observed_submodel = None
         self.diagnostics = {}
         if not all([var.is_observed for var in self.variables]): #TODO: this is not elegant
@@ -547,8 +549,20 @@ class ProbabilisticModel(BrancherClass):
         observed_variables = [var for var in flattened_model if var.is_observed]
         self.observed_submodel = ProbabilisticModel(observed_variables)
 
-    def set_posterior_model(self, model):
+    def set_posterior_model(self, model, sampler=None): #TODO: Clean up code duplication
         self.posterior_model = PosteriorModel(posterior_model=model, joint_model=self)
+        if sampler:
+            if isinstance(sampler, ProbabilisticModel):
+                self.posterior_sampler = PosteriorModel(sampler, joint_model=self)
+            elif isinstance(sampler, Variable):
+                self.posterior_sampler = PosteriorModel(ProbabilisticModel([sampler]), joint_model=self)
+            elif isinstance(sampler, Iterable) and all([isinstance(subsampler, (ProbabilisticModel, Variable))
+                                                        for subsampler in sampler]):
+                self.posterior_sampler = [PosteriorModel(ProbabilisticModel([var]), joint_model=self)
+                                          if isinstance(var, Variable) else PosteriorModel(var, joint_model=self)
+                                          for var in sampler]
+            else:
+                raise ValueError("The sampler should be ither a probabilistic model, a brancher variable or an iterable of variables and/or models")
 
     def calculate_log_probability(self, rv_values, for_gradient=False):
         """
@@ -603,15 +617,17 @@ class ProbabilisticModel(BrancherClass):
         sample = reformat_sample_to_pandas(raw_sample, number_samples=number_samples)
         return sample
 
-    def estimate_log_model_evidence(self, number_samples, method="ELBO", input_values={}, for_gradient=False):
-        self.check_posterior_model()
+    def estimate_log_model_evidence(self, number_samples, method="ELBO", input_values={}, for_gradient=False, posterior_model=()):
+        if not posterior_model:
+            self.check_posterior_model()
+            posterior_model = self.posterior_model
         if method is "ELBO":
             samples = self.observed_submodel._get_sample(1, observed=True) #TODO: You need to correct for subsampling
-            posterior_samples = self.posterior_model._get_sample(number_samples=number_samples,
+            posterior_samples = posterior_model._get_sample(number_samples=number_samples,
                                                                  observed=False, input_values=input_values)
-            posterior_log_prob = self.posterior_model.calculate_log_probability(posterior_samples,
+            posterior_log_prob = posterior_model.calculate_log_probability(posterior_samples,
                                                                                 for_gradient=for_gradient)
-            samples.update(self.posterior_model.posterior_sample2joint_sample(posterior_samples))
+            samples.update(posterior_model.posterior_sample2joint_sample(posterior_samples))
             joint_log_prob = self.calculate_log_probability(samples, for_gradient=for_gradient)
             log_model_evidence = F.mean(joint_log_prob - posterior_log_prob)
             return log_model_evidence

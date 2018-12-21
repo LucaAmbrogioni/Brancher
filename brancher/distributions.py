@@ -78,7 +78,7 @@ class EmpiricalDistribution(ImplicitDistribution):
     """
     Summary
     """
-    def get_sample(self, dataset, indices, number_samples):
+    def get_sample(self, dataset, indices, number_samples, weights=None):
         """
         One line description
 
@@ -89,6 +89,11 @@ class EmpiricalDistribution(ImplicitDistribution):
         Without replacement
         """
         if not indices:
+            if weights:
+                p = np.array(weights).astype("float64")
+                p = p/np.sum(p)
+            else:
+                p = None
             if isinstance(dataset, chainer.Variable):
                 if self.is_observed:
                     dataset_size = dataset.shape[1]
@@ -99,11 +104,10 @@ class EmpiricalDistribution(ImplicitDistribution):
             if dataset_size < self.batch_size:
                 raise ValueError("It is impossible to have more samples than the size of the dataset without replacement")
             if isinstance(dataset, Iterable): # TODO: This is for allowing discrete data, temporary?
-                indices = np.random.choice(range(dataset_size), size=self.batch_size, replace=False)
+                indices = np.random.choice(range(dataset_size), size=self.batch_size, replace=False, p=p)
             else:
-                indices = [np.random.choice(range(dataset_size), size=self.batch_size, replace=False)
+                indices = [np.random.choice(range(dataset_size), size=self.batch_size, replace=False, p=p)
                            for _ in range(number_samples)]
-            #indices = np.random.choice(range(dataset_size), size=self.batch_size, replace=False)
 
         if isinstance(dataset, chainer.Variable):
             if isinstance(indices, list) and isinstance(indices[0], np.ndarray):

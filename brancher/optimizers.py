@@ -4,6 +4,7 @@ Optimizers
 Module description
 """
 from abc import ABC, abstractmethod
+from collections.abc import Iterable
 import copy
 
 from chainer import optimizers, Link, Chain, ChainList
@@ -35,7 +36,6 @@ class ProbabilisticOptimizer(ABC):
         self.link_set = set()
         self.chain = None
         self.setup(model)
-        pass
 
     @staticmethod
     def _get_default_optimizer(self, **kwargs):
@@ -53,11 +53,10 @@ class ProbabilisticOptimizer(ABC):
         for var in getattr(random_variable, vars_attr):
             self._update_link_set(var)
 
-    def setup(self, random_variable): # TODO: Work in progress
+    def add_variable2chain(self, random_variable):
         """
         Summary
         """
-        self.chain = EmptyChain()
         self._update_link_set(random_variable)
         for link in self.link_set:
             if isinstance(link, Link):
@@ -65,7 +64,29 @@ class ProbabilisticOptimizer(ABC):
             elif isinstance(link, ChainList):
                 [self.chain.add_link(l) for l in link]
 
+    def setup(self, model):
+        self.chain = EmptyChain()
+        if isinstance(model, (Variable, ProbabilisticModel)):
+            self.add_variable2chain(model)
+        elif isinstance(model, Iterable) and all([isinstance(submodel, (Variable, ProbabilisticModel))
+                                                  for submodel in model]):
+            [self.add_variable2chain(submodel) for submodel in model]
+        else:
+            raise ValueError("Only brancher variables and iterable of variables can be added to a probabilistic optimizer")
         self.optimizer.setup(self.chain)
+
+    # def setup(self, random_variable): # TODO: Work in progress
+    #     """
+    #     Summary
+    #     """
+    #     self.chain = EmptyChain()
+    #     self._update_link_set(random_variable)
+    #     for link in self.link_set:
+    #         if isinstance(link, Link):
+    #             self.chain.add_link(link)
+    #         elif isinstance(link, ChainList):
+    #             [self.chain.add_link(l) for l in link]
+    #     self.optimizer.setup(self.chain)
 
     def update(self):
         self.optimizer.update()
