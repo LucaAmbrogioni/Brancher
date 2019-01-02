@@ -626,7 +626,7 @@ class ProbabilisticModel(BrancherClass):
             posterior_samples = posterior_model._get_sample(number_samples=number_samples,
                                                                  observed=False, input_values=input_values)
             posterior_log_prob = posterior_model.calculate_log_probability(posterior_samples,
-                                                                                for_gradient=for_gradient)
+                                                                           for_gradient=for_gradient)
             samples.update(posterior_model.posterior_sample2joint_sample(posterior_samples))
             joint_log_prob = self.calculate_log_probability(samples, for_gradient=for_gradient)
             log_model_evidence = F.mean(joint_log_prob - posterior_log_prob)

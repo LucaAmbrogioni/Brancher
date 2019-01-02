@@ -67,8 +67,6 @@ def stochastic_variational_inference(joint_model, number_iterations, number_samp
     inference_method.check_model_compatibility(joint_model, posterior_model, sampler_model)
 
     for iteration in tqdm(range(number_iterations)):
-        #loss = -joint_model.estimate_log_model_evidence(number_samples=number_samples,
-        #                                                method="ELBO", input_values=input_values, for_gradient=True)
         loss = inference_method.compute_loss(joint_model, posterior_model, sampler_model, number_samples)
 
         if np.isfinite(loss.data).all():
@@ -114,7 +112,7 @@ class ReverseKL(InferenceMethod):
 
 class WassersteinVariationalGradientDescent(InferenceMethod): #TODO: Work in progress
 
-    def __init__(self, cost_function = lambda x,y: F.sum((x-y)**2)):
+    def __init__(self, cost_function=lambda x, y: F.sum((x-y)**2)):
         self.learnable_model = False #TODO: to implement later
         self.needs_sampler = True
         self.learnable_sampler = True
@@ -127,9 +125,11 @@ class WassersteinVariationalGradientDescent(InferenceMethod): #TODO: Work in pro
 
     def compute_loss(self, joint_model, posterior_model, sampler_model, number_samples, input_values={}): #TODO: Work in progress
         #particle_loss =
-        sampler_loss = F.sum([-joint_model.estimate_log_model_evidence(number_samples=number_samples, posterior_model=subsampler,
-                                                                       method="ELBO", input_values=input_values, for_gradient=True)
-                              for subsampler in sampler_model])
+        samples = [subsampler._get_sample(number_samples)[:, 0, :]
+                   for subsampler in sampler_model]
+        #sampler_loss = sum([-joint_model.estimate_log_model_evidence(number_samples=number_samples, posterior_model=subsampler,
+        #                                                             method="ELBO", input_values=input_values, for_gradient=True)
+        #                    for subsampler in sampler_model])
         #return particle_loss + sampler_loss
         return sampler_loss #TODO: Work in progress
 
