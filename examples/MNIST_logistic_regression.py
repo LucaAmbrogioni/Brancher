@@ -43,7 +43,7 @@ model.set_posterior_model(variational_model)
 
 # Inference
 inference.stochastic_variational_inference(model,
-                                           number_iterations=200,
+                                           number_iterations=500,
                                            number_samples=30,
                                            optimizer=chainer.optimizers.Adam(0.005))
 

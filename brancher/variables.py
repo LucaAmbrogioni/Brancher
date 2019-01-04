@@ -22,6 +22,8 @@ from brancher.utilities import broadcast_parent_values
 from brancher.utilities import split_dict
 from brancher.utilities import reformat_sampler_input
 from brancher.utilities import tile_parameter
+from brancher.utilities import get_model_mapping
+from brancher.utilities import reassign_samples
 
 from brancher.pandas_interface import reformat_sample_to_pandas
 from brancher.pandas_interface import reformat_model_summary
@@ -265,7 +267,7 @@ class DeterministicVariable(Variable):
                 self.learnable = False #TODO: Warning?
 
 
-    def calculate_log_probability(self, values, reevaluate=True, for_gradient=False):
+    def calculate_log_probability(self, values, reevaluate=True, for_gradient=False, normalized=True):
         """
         Method. It returns the log probability of the values given the model. This value is always 0 since the probability
         of a deterministic variable having its value is always 1.
@@ -374,7 +376,8 @@ class RandomVariable(Variable):
                   for key, val in reshaped_output.items()}
         return output
 
-    def calculate_log_probability(self, input_values, reevaluate=True, for_gradient=False, include_parents=True):
+    def calculate_log_probability(self, input_values, reevaluate=True, for_gradient=False,
+                                  include_parents=True, normalized=True):
         """
         Method. It returns the log probability of the values given the model. This value is always 0 since the probability
         of a deterministic variable having its value is always 1.
@@ -405,7 +408,9 @@ class RandomVariable(Variable):
         parents_values = {**parents_input_values, **deterministic_parents_values}
         parameters_dict = self._apply_link(parents_values)
         log_probability = self.distribution.calculate_log_probability(value, **parameters_dict)
-        parents_log_probability = sum([parent.calculate_log_probability(input_values, reevaluate, for_gradient) for parent in self.parents])
+        parents_log_probability = sum([parent.calculate_log_probability(input_values, reevaluate, for_gradient,
+                                                                        normalized=normalized)
+                                       for parent in self.parents])
         if self.is_observed:
             log_probability = F.sum(log_probability, axis=1, keepdims=True)
         if type(log_probability) is chainer.Variable and type(parents_log_probability) is chainer.Variable:
@@ -509,7 +514,7 @@ class ProbabilisticModel(BrancherClass):
     @staticmethod
     def _validate_variables(variables):
         for var in variables:
-            if not isinstance(var, (DeterministicVariable, RandomVariable)):
+            if not isinstance(var, (DeterministicVariable, RandomVariable, ProbabilisticModel)):
                 raise ValueError("Invalid input type: {}".format(type(var)))
         return variables
 
@@ -564,11 +569,13 @@ class ProbabilisticModel(BrancherClass):
             else:
                 raise ValueError("The sampler should be ither a probabilistic model, a brancher variable or an iterable of variables and/or models")
 
-    def calculate_log_probability(self, rv_values, for_gradient=False):
+    def calculate_log_probability(self, rv_values, for_gradient=False, normalized=True):
         """
         Summary
         """
-        log_probability = sum([var.calculate_log_probability(rv_values, reevaluate=False, for_gradient=for_gradient)
+        log_probability = sum([var.calculate_log_probability(rv_values, reevaluate=False,
+                                                             for_gradient=for_gradient,
+                                                             normalized=normalized)
                                for var in self.variables])
         self.reset()
         return log_probability
@@ -610,25 +617,48 @@ class ProbabilisticModel(BrancherClass):
         sample = self._get_sample(number_samples, input_values=posterior_sample)
         return sample
 
-    def get_posterior_sample(self, number_samples, input_values={}): #TODO: Work in progress
+    def get_posterior_sample(self, number_samples, input_values={}):
         reformatted_input_values = reformat_sampler_input(pandas_frame2dict(input_values),
                                                                             number_samples=number_samples)
         raw_sample = self._get_posterior_sample(number_samples, input_values=reformatted_input_values)
         sample = reformat_sample_to_pandas(raw_sample, number_samples=number_samples)
         return sample
 
+    def get_p_and_q_log_probabilities(self, q_samples, q_model, empirical_samples={},
+                                      for_gradient=False, normalized=True):  #TODO: Work in progress
+        q_log_prob = q_model.calculate_log_probability(q_samples,
+                                                       for_gradient=for_gradient, normalized=normalized)
+        p_samples = reassign_samples(q_samples, source_model=q_model, target_model=self)
+        p_samples.update(empirical_samples)
+        p_log_prob = self.calculate_log_probability(p_samples, for_gradient=for_gradient, normalized=normalized)
+        return q_log_prob, p_log_prob
+
+    def get_importance_weights(self, q_samples, q_model, empirical_samples={}, for_gradient=False):
+        if not empirical_samples:
+            empirical_samples = self.observed_submodel._get_sample(1, observed=True)
+        q_log_prob, p_log_prob = self.get_p_and_q_log_probabilities(q_samples=q_samples,
+                                                                    q_model=q_model,
+                                                                    empirical_samples=empirical_samples,
+                                                                    for_gradient=for_gradient,
+                                                                    normalized=False)
+        log_weights = (p_log_prob - q_log_prob).data
+        alpha = np.max(log_weights)
+        weights = np.exp(log_weights - alpha)
+        weights /= np.sum(weights)
+        return weights #TODO Return normalizations
+
     def estimate_log_model_evidence(self, number_samples, method="ELBO", input_values={}, for_gradient=False, posterior_model=()):
         if not posterior_model:
             self.check_posterior_model()
             posterior_model = self.posterior_model
         if method is "ELBO":
-            samples = self.observed_submodel._get_sample(1, observed=True) #TODO: You need to correct for subsampling
+            empirical_samples = self.observed_submodel._get_sample(1, observed=True) #TODO: You need to correct for subsampling
             posterior_samples = posterior_model._get_sample(number_samples=number_samples,
-                                                                 observed=False, input_values=input_values)
-            posterior_log_prob = posterior_model.calculate_log_probability(posterior_samples,
-                                                                           for_gradient=for_gradient)
-            samples.update(posterior_model.posterior_sample2joint_sample(posterior_samples))
-            joint_log_prob = self.calculate_log_probability(samples, for_gradient=for_gradient)
+                                                            observed=False, input_values=input_values)
+            posterior_log_prob, joint_log_prob = self.get_p_and_q_log_probabilities(q_samples=posterior_samples,
+                                                                                    empirical_samples=empirical_samples,
+                                                                                    for_gradient=for_gradient,
+                                                                                    q_model=posterior_model)
             log_model_evidence = F.mean(joint_log_prob - posterior_log_prob)
             return log_model_evidence
         else:
@@ -657,32 +687,12 @@ class PosteriorModel(ProbabilisticModel):
     def __init__(self, posterior_model, joint_model):
         super().__init__(posterior_model.variables)
         self.posterior_model = None
-        self.model_mapping = self.set_model_mapping(joint_model)
+        self.model_mapping = get_model_mapping(self, joint_model)
 
         self._is_trained = False
 
-    def set_model_mapping(self, joint_model):
-        model_mapping = {}
-        for p_var in joint_model._flatten():
-            try:
-                model_mapping.update({self.get_variable(p_var.name): p_var})
-            except KeyError:
-                pass
-                # if p_var.is_observed or type(p_var) is DeterministicVariable:
-                #     pass
-                # else:
-                #     raise ValueError(
-                #         "The variable {} is not present in the variational distribution".format(p_var.name))
-        return model_mapping
-
     def posterior_sample2joint_sample(self, posterior_sample):
-        joint_sample = {}
-        for key, value in posterior_sample.items():
-            try:
-                joint_sample.update({self.model_mapping[key]: value})
-            except KeyError:
-                pass
-        return joint_sample
+        return reassign_samples(posterior_sample, self.model_mapping)
 
     def _get_posterior_sample(self, number_samples, observed=False, input_values={}):
         sample = self.posterior_sample2joint_sample(self._get_sample(number_samples, observed, input_values))

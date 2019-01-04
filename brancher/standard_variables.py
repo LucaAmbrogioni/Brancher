@@ -71,24 +71,30 @@ class UnnormalizedVariable(VariableConstructor):
     def calculate_unnormalized_log_probability(self, input_values, reevaluate=True,
                                                for_gradient=False, include_parents=True):
         return super().calculate_log_probability(input_values,
-                                                 reevaluate = reevaluate,
-                                                 for_gradient = for_gradient,
-                                                 include_parents = include_parents)
+                                                 reevaluate=reevaluate,
+                                                 for_gradient=for_gradient,
+                                                 include_parents=include_parents)
 
-    def calculate_log_probability(self, input_values, reevaluate=True, for_gradient=False, include_parents=True):
+    def calculate_log_probability(self, input_values, reevaluate=True, for_gradient=False,
+                                  include_parents=True, normalized=True):
         num_samples = max([value.shape[0] for _, value in input_values.items()])
         parent_values = {key: value for key, value in input_values.items() if key is not self}
         norm_samples = super()._get_sample(num_samples, input_values=parent_values)[self]
         norm_input_values = parent_values
         norm_input_values.update({self: norm_samples})
-        if for_gradient:
-            norm_input_values = {key: value.data for key, value in norm_input_values.items()}
-            normalization = -F.mean(self.calculate_unnormalized_log_probability(norm_input_values,
-                                                                                include_parents=False))
+        unnormalized_log_probability = self.calculate_unnormalized_log_probability(input_values)
+        if not normalized:
+            return unnormalized_log_probability
         else:
-            raise NotImplemented #TODO: Work in progress
+            if for_gradient:
+                norm_input_values = {key: value.data for key, value in norm_input_values.items()}
+                normalization = -F.mean(self.calculate_unnormalized_log_probability(norm_input_values,
+                                                                                    include_parents=False))
+                return unnormalized_log_probability + normalization
+            else:
+                raise NotImplemented #TODO: Work in progress
 
-        return self.calculate_unnormalized_log_probability(input_values) + normalization
+
 
 
 class EmpiricalVariable(VariableConstructor):

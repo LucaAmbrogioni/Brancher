@@ -147,25 +147,30 @@ class TruncatedDistribution(UnnormalizedDistribution): #TODO: Work in progress f
     def calculate_log_probability(self, x, **kwargs):
         return self.base_distribution.calculate_log_probability(x, **kwargs)
 
-    def get_sample(self, number_samples, **kwargs): #TODO: work in progress
+    def get_sample(self, number_samples, max_depth=np.inf, **kwargs): #TODO: work in progress
         total_sampled_indices = set()
-        truncated_samples = {}
-        original_range = range(number_samples)
-        remaining_indices = range(number_samples)
-        original_input_parents = kwargs
-        iteration_index = 0
-        while total_sampled_indices != set(original_range):
-            input_parents = {parent: value[remaining_indices, :] if value.shape[0] == number_samples else value
-                             for parent, value in original_input_parents.items()}
-            try:
-                sample_list, sample_indices = self._reject_samples(self.base_distribution.get_sample(number_samples=number_samples,
-                                                                                                     **input_parents), remaining_indices)
-                remaining_indices = [index for index in remaining_indices if index not in total_sampled_indices]
-                truncated_samples.update({index: sample for index, sample in zip(sample_indices, sample_list)})
-                total_sampled_indices.update(set(sample_indices))
-                iteration_index += 1
-            except ValueError:
-                pass
+        while not total_sampled_indices:
+            truncated_samples = {}
+            original_range = range(number_samples)
+            remaining_indices = range(number_samples)
+            original_input_parents = kwargs
+            iteration_index = 0
+            while total_sampled_indices != set(original_range) and iteration_index < max_depth:
+                input_parents = {parent: value[remaining_indices, :] if value.shape[0] == number_samples else value
+                                 for parent, value in original_input_parents.items()}
+                try:
+                    if iteration_index < max_depth:
+                        sample_list, sample_indices = self._reject_samples(self.base_distribution.get_sample(number_samples=number_samples,
+                                                                                                             **input_parents), remaining_indices)
+                        remaining_indices = [index for index in remaining_indices if index not in total_sampled_indices]
+                        truncated_samples.update({index: sample for index, sample in zip(sample_indices, sample_list)})
+                        total_sampled_indices.update(set(sample_indices))
+                        iteration_index += 1
+                    else:
+                        pass
+                except ValueError:
+                    iteration_index += 1
+                    pass
         return F.concat([value for (key, value) in sorted(truncated_samples.items())], axis=0)
 
 

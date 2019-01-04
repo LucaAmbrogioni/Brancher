@@ -11,6 +11,10 @@ import chainer
 import chainer.functions as F
 
 
+def zip_dict(first_dict, second_dict):
+    assert set(first_dict.keys()) == set(second_dict.keys()), "You can not zip two dictionaries with different keys"
+    return {key: (value, second_dict[key]) for key, value in first_dict.items()}
+
 def split_dict(dic, condition):
     dict_1 = {}
     dict_2 = {}
@@ -46,11 +50,15 @@ def join_sets_list(sets_list):
         return set()
 
 
-def sum_data_dimensions(var):
+def sum_from_dim(var, dim_index):
     data_dim = len(var.shape)
-    for dim in reversed(range(2, data_dim)):
+    for dim in reversed(range(dim_index, data_dim)):
         var = F.sum(var, axis=dim)
     return var
+
+
+def sum_data_dimensions(var):
+    return sum_from_dim(var, dim_index=2)
 
 
 def partial_broadcast(*args):
@@ -145,3 +153,29 @@ def uniform_shapes(*args):
     max_len = np.max([len(s) for s in shapes])
     return [F.expand_dims(ar, axis=len(ar.shape)) if (len(ar.shape) == max_len-1) else ar
             for ar in args]
+
+
+def get_model_mapping(source_model, target_model):
+    model_mapping = {}
+    for p_var in target_model._flatten():
+        try:
+            model_mapping.update({source_model.get_variable(p_var.name): p_var})
+        except KeyError:
+            pass
+    return model_mapping
+
+
+def reassign_samples(samples, model_mapping=(), source_model=(), target_model=()):
+    out_sample = {}
+    if model_mapping:
+        pass
+    elif source_model and target_model:
+        model_mapping = get_model_mapping(source_model, target_model)
+    else:
+        raise ValueError("Either a model mapping or both source and target models have to be provided as input")
+    for key, value in samples.items():
+        try:
+            out_sample.update({model_mapping[key]: value})
+        except KeyError:
+            pass
+    return out_sample
