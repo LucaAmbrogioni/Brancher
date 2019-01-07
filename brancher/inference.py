@@ -136,7 +136,6 @@ class WassersteinVariationalGradientDescent(InferenceMethod): #TODO: Work in pro
                                                                      method="ELBO", input_values=input_values, for_gradient=True)
                             for subsampler in sampler_model])
         return particle_loss + sampler_loss
-        #return sampler_loss #TODO: Work in progress
 
     def get_particle_loss(self, joint_model, particle_list, sampler_model, number_samples, input_values): #TODO: Work in progress, no train sampler in second loss
         samples_list = [sampler._get_sample(number_samples, input_values=input_values)

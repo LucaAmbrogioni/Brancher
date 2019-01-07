@@ -15,6 +15,7 @@ def zip_dict(first_dict, second_dict):
     assert set(first_dict.keys()) == set(second_dict.keys()), "You can not zip two dictionaries with different keys"
     return {key: (value, second_dict[key]) for key, value in first_dict.items()}
 
+
 def split_dict(dic, condition):
     dict_1 = {}
     dict_2 = {}
@@ -38,7 +39,7 @@ def flatten_set(st):
 
 def join_dicts_list(dicts_list):
     if dicts_list:
-        return reduce(lambda d1,d2: {**d1, **d2}, dicts_list)
+        return reduce(lambda d1, d2: {**d1, **d2}, dicts_list)
     else:
         return {}
 
@@ -98,7 +99,7 @@ def get_diagonal(tensor):
     return F.reshape(subdiagonal, shape=(dim1, dim2, dim_matrix))
 
 
-def coerce_to_dtype(data, is_observed=False):
+def coerce_to_dtype(data, is_observed=False): #TODO: for Julia: Very important
     """Summary"""
     dtype = type(data)
     if dtype is chainer.Variable:

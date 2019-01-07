@@ -262,7 +262,7 @@ class DeterministicVariable(Variable):
         self.learnable = learnable
         if learnable:
             if not isinstance(self._current_value, collections.abc.Iterable):
-                self.link = L.Bias(axis=1, shape=self._current_value.shape[1:])
+                self.link = L.Bias(axis=1, shape=self._current_value.shape[1:]) #TODO: For Julia: this can be implemented as parameter
             else:
                 self.learnable = False #TODO: Warning?
 
@@ -289,7 +289,7 @@ class DeterministicVariable(Variable):
     def value(self):
         assert self._current_value is not None
         if self.learnable:
-            return self.link(self._current_value)
+            return self.link(self._current_value) #TODO: For Julia: this can be implemented as parameter
         return self._current_value
 
     @value.setter
@@ -308,7 +308,7 @@ class DeterministicVariable(Variable):
         if isinstance(value, chainer.Variable):
             return {self: tile_parameter(value, number_samples=number_samples)}
         else:
-            return {self: value} #TODO: This is for allowing discrete data, temporary?
+            return {self: value} #TODO: This is for allowing discrete data, temporary? (for Julia)
 
     def reset(self):
         pass
@@ -362,7 +362,7 @@ class RandomVariable(Variable):
     def is_observed(self):
         return self._observed
 
-    def _apply_link(self, parents_values):  #TODO: This is for allowing discrete data, temporary?
+    def _apply_link(self, parents_values):  #TODO: This is for allowing discrete data, temporary? (for julia) #For Julia: Very important method
         cont_values, discrete_values = split_dict(parents_values,
                                                   condition=lambda key, val: isinstance(val, chainer.Variable))
         if cont_values:
@@ -643,7 +643,7 @@ class ProbabilisticModel(BrancherClass):
                                                                     normalized=False)
         log_weights = (p_log_prob - q_log_prob).data
         alpha = np.max(log_weights)
-        weights = np.exp(log_weights - alpha)
+        weights = np.exp(log_weights - alpha) #TODO: for Julia: this should either be numpy or cupy
         weights /= np.sum(weights)
         return weights #TODO Return normalizations
 

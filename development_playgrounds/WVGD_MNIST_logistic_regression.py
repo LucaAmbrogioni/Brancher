@@ -15,9 +15,10 @@ from brancher.inference import WassersteinVariationalGradientDescent as WVGD
 number_pixels = 28*28
 number_output_classes = 10
 train, test = chainer.datasets.get_mnist()
-dataset_size = len(train)
-input_variable = np.array([np.reshape(image[0], newshape=(number_pixels, 1)) for image in train]).astype("float32")
-output_labels = np.array([image[1]*np.ones((1, 1)) for image in train]).astype("int32")
+#dataset_size = len(train)
+dataset_size = 100
+input_variable = np.array([np.reshape(image[0], newshape=(number_pixels, 1)) for image in train][0:dataset_size]).astype("float32")
+output_labels = np.array([image[1]*np.ones((1, 1)) for image in train][0:dataset_size]).astype("int32")
 
 # Data sampling model
 minibatch_size = 30
@@ -59,11 +60,11 @@ variational_samplers = [TruncatedNormalVariable(mu=initial_location_1, sigma=1.,
 # Inference
 inference.stochastic_variational_inference(model,
                                            inference_method=WVGD(),
-                                           number_iterations=700,
-                                           number_samples=20,
+                                           number_iterations=600,
+                                           number_samples=30,
                                            optimizer=chainer.optimizers.Adam(0.01),
                                            posterior_model=particle_locations,
-                                           sampler_model=variational_samplers) #TODO: You need the ensemble abstraction
+                                           sampler_model=variational_samplers)
 loss_list = model.diagnostics["loss curve"]
 
 # Local variational models
@@ -71,7 +72,7 @@ plt.plot(loss_list)
 plt.show()
 
 # Test accuracy
-num_images = 500
+num_images = 2000
 test_size = len(test)
 test_indices = RandomIndices(dataset_size=test_size, batch_size=1, name="test_indices", is_observed=True)
 test_images = EmpiricalVariable(np.array([np.reshape(image[0], newshape=(number_pixels, 1)) for image in test]).astype("float32"),

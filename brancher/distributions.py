@@ -147,7 +147,7 @@ class TruncatedDistribution(UnnormalizedDistribution): #TODO: Work in progress f
     def calculate_log_probability(self, x, **kwargs):
         return self.base_distribution.calculate_log_probability(x, **kwargs)
 
-    def get_sample(self, number_samples, max_depth=np.inf, **kwargs): #TODO: work in progress
+    def get_sample(self, number_samples, max_depth=20, **kwargs): #TODO: work in progress
         total_sampled_indices = set()
         while not total_sampled_indices:
             truncated_samples = {}

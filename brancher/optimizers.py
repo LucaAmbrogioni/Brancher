@@ -32,7 +32,7 @@ class ProbabilisticOptimizer(ABC):
         if optimizer is None:
             optimizer = self._get_default_optimizer()
         else:
-            self.optimizer = copy.deepcopy(optimizer)
+            self.optimizer = copy.deepcopy(optimizer) #TODO: this is very ugly (for Julia)
         self.link_set = set()
         self.chain = None
         self.setup(model)
