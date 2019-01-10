@@ -63,38 +63,36 @@ class VariableConstructor(RandomVariable):
                 kwargs.update({parameter_name: ranges[parameter_name].forward_transform(deterministic_parent, dim)})
 
 
-class UnnormalizedVariable(VariableConstructor):
-
-    def __init__(self, name, learnable, ranges, is_observed=False, **kwargs):
-        super().__init__(name, learnable, ranges, is_observed, **kwargs)
-
-    def calculate_unnormalized_log_probability(self, input_values, reevaluate=True,
-                                               for_gradient=False, include_parents=True):
-        return super().calculate_log_probability(input_values,
-                                                 reevaluate=reevaluate,
-                                                 for_gradient=for_gradient,
-                                                 include_parents=include_parents)
-
-    def calculate_log_probability(self, input_values, reevaluate=True, for_gradient=False,
-                                  include_parents=True, normalized=True):
-        num_samples = max([value.shape[0] for _, value in input_values.items()])
-        parent_values = {key: value for key, value in input_values.items() if key is not self}
-        norm_samples = super()._get_sample(num_samples, input_values=parent_values)[self]
-        norm_input_values = parent_values
-        norm_input_values.update({self: norm_samples})
-        unnormalized_log_probability = self.calculate_unnormalized_log_probability(input_values)
-        if not normalized:
-            return unnormalized_log_probability
-        else:
-            if for_gradient:
-                norm_input_values = {key: value.data for key, value in norm_input_values.items()}
-                normalization = -F.mean(self.calculate_unnormalized_log_probability(norm_input_values,
-                                                                                    include_parents=False))
-                return unnormalized_log_probability + normalization
-            else:
-                raise NotImplemented #TODO: Work in progress
-
-
+# class UnnormalizedVariable(VariableConstructor): #TODO: Refactopring in progress, this class will probably be eliminated
+#
+#     def __init__(self, name, learnable, ranges, is_observed=False, **kwargs):
+#         super().__init__(name, learnable, ranges, is_observed, **kwargs)
+#
+#     def calculate_unnormalized_log_probability(self, input_values, reevaluate=True,
+#                                                for_gradient=False, include_parents=True):
+#         return super().calculate_log_probability(input_values,
+#                                                  reevaluate=reevaluate,
+#                                                  for_gradient=for_gradient,
+#                                                  include_parents=include_parents)
+#
+#     def calculate_log_probability(self, input_values, reevaluate=True, for_gradient=False,
+#                                   include_parents=True, normalized=True):
+#         num_samples = max([value.shape[0] for _, value in input_values.items()])
+#         parent_values = {key: value for key, value in input_values.items() if key is not self}
+#         norm_samples = super()._get_sample(num_samples, input_values=parent_values)[self]
+#         norm_input_values = parent_values
+#         norm_input_values.update({self: norm_samples})
+#         unnormalized_log_probability = self.calculate_unnormalized_log_probability(input_values)
+#         if not normalized:
+#             return unnormalized_log_probability
+#         else:
+#             if for_gradient:
+#                 norm_input_values = {key: value.data for key, value in norm_input_values.items()}
+#                 normalization = -F.mean(self.calculate_unnormalized_log_probability(norm_input_values,
+#                                                                                     include_parents=False))
+#                 return unnormalized_log_probability + normalization
+#             else:
+#                 raise NotImplemented #TODO: Work in progress
 
 
 class EmpiricalVariable(VariableConstructor):
@@ -155,21 +153,21 @@ class NormalVariable(VariableConstructor):
         self.distribution = distributions.NormalDistribution()
 
 
-class TruncatedNormalVariable(UnnormalizedVariable):
-    """
-    Summary
-
-    Parameters
-    ----------
-    """
-    def __init__(self, mu, sigma, truncation_rule, name, learnable=False):
-        self._type = "Truncated Normal"
-        self.is_normalized = False
-        ranges = {"mu": geometric_ranges.UnboundedRange(),
-                  "sigma": geometric_ranges.RightHalfLine(0.)}
-        super().__init__(name, mu=mu, sigma=sigma, learnable=learnable, ranges=ranges)
-        self.distribution = distributions.TruncatedDistribution(base_distribution=distributions.NormalDistribution(),
-                                                                truncation_rule=truncation_rule)
+# class TruncatedNormalVariable(UnnormalizedVariable): #TODO: Refactopring in progress, this class will probably be eliminated
+#     """
+#     Summary
+#
+#     Parameters
+#     ----------
+#     """
+#     def __init__(self, mu, sigma, truncation_rule, name, learnable=False):
+#         self._type = "Truncated Normal"
+#         self.is_normalized = False
+#         ranges = {"mu": geometric_ranges.UnboundedRange(),
+#                   "sigma": geometric_ranges.RightHalfLine(0.)}
+#         super().__init__(name, mu=mu, sigma=sigma, learnable=learnable, ranges=ranges)
+#         self.distribution = distributions.TruncatedDistribution(base_distribution=distributions.NormalDistribution(),
+#                                                                 truncation_rule=truncation_rule)
 
 
 class CauchyVariable(VariableConstructor):

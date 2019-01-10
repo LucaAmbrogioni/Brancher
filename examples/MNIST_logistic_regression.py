@@ -12,12 +12,12 @@ number_pixels = 28*28
 number_output_classes = 10
 train, test = chainer.datasets.get_mnist()
 #dataset_size = len(train)
-dataset_size = 100
+dataset_size = 50
 input_variable = np.array([np.reshape(image[0], newshape=(number_pixels, 1)) for image in train][0:dataset_size]).astype("float32")
 output_labels = np.array([image[1]*np.ones((1, 1)) for image in train][0:dataset_size]).astype("int32")
 
 # Data sampling model
-minibatch_size = 30
+minibatch_size = 50
 minibatch_indices = RandomIndices(dataset_size=dataset_size, batch_size=minibatch_size, name="indices", is_observed=True)
 x = EmpiricalVariable(input_variable, indices=minibatch_indices, name="x", is_observed=True)
 labels = EmpiricalVariable(output_labels, indices=minibatch_indices, name="labels", is_observed=True)
@@ -44,8 +44,8 @@ model.set_posterior_model(variational_model)
 
 # Inference
 inference.stochastic_variational_inference(model,
-                                           number_iterations=1000,
-                                           number_samples=30,
+                                           number_iterations=1500,
+                                           number_samples=50,
                                            optimizer=chainer.optimizers.Adam(0.005))
 
 # Test accuracy

@@ -443,7 +443,7 @@ class RandomVariable(Variable):
         input_dict = {parent: parents_samples_dict[parent] for parent in var_to_sample.parents}
         parameters_dict = var_to_sample._apply_link(input_dict)
         sample = var_to_sample.distribution.get_sample(**parameters_dict, number_samples=number_samples)
-        self.samples.append(sample)
+        self.samples = [sample] #TODO: to fix
         return {**parents_samples_dict, self: sample}
 
     def observe(self, data, random_indices=()):
@@ -633,7 +633,8 @@ class ProbabilisticModel(BrancherClass):
         p_log_prob = self.calculate_log_probability(p_samples, for_gradient=for_gradient, normalized=normalized)
         return q_log_prob, p_log_prob
 
-    def get_importance_weights(self, q_samples, q_model, empirical_samples={}, for_gradient=False):
+    def get_importance_weights(self, q_samples, q_model, empirical_samples={},
+                               for_gradient=False, give_normalization=False):
         if not empirical_samples:
             empirical_samples = self.observed_submodel._get_sample(1, observed=True)
         q_log_prob, p_log_prob = self.get_p_and_q_log_probabilities(q_samples=q_samples,
@@ -643,9 +644,14 @@ class ProbabilisticModel(BrancherClass):
                                                                     normalized=False)
         log_weights = (p_log_prob - q_log_prob).data
         alpha = np.max(log_weights)
-        weights = np.exp(log_weights - alpha) #TODO: for Julia: this should either be numpy or cupy
-        weights /= np.sum(weights)
-        return weights #TODO Return normalizations
+        norm_log_weights = log_weights - alpha
+        weights = np.exp(norm_log_weights) #TODO: for Julia: this should either be numpy or cupy
+        norm = np.sum(weights)
+        weights /= norm
+        if not give_normalization:
+            return weights
+        else:
+            return weights, norm*np.exp(alpha)
 
     def estimate_log_model_evidence(self, number_samples, method="ELBO", input_values={}, for_gradient=False, posterior_model=()):
         if not posterior_model:

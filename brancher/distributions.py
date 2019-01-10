@@ -124,7 +124,7 @@ class EmpiricalDistribution(ImplicitDistribution):
             else:
                 raise IndexError("The indices of an empirical variable should be either a list of integers or a list of arrays")
         else:
-            sample = list(np.array(dataset)[indices]) # TODO: This is for allowing discrete data, temporary?
+            sample = list(np.array(dataset)[indices]) # TODO: This is for allowing discrete data, temporary? For julia
         return sample
 
 
@@ -133,8 +133,7 @@ class UnnormalizedDistribution(Distribution):
     pass
 
 
-class TruncatedDistribution(UnnormalizedDistribution): #TODO: Work in progress for the implementation of WVGD
-
+class TruncatedDistribution(UnnormalizedDistribution): #TODO: To be removed after refactoring, work in progress
     def __init__(self, base_distribution, truncation_rule):
         self.base_distribution = base_distribution
         self.truncation_rule = truncation_rule
@@ -147,7 +146,7 @@ class TruncatedDistribution(UnnormalizedDistribution): #TODO: Work in progress f
     def calculate_log_probability(self, x, **kwargs):
         return self.base_distribution.calculate_log_probability(x, **kwargs)
 
-    def get_sample(self, number_samples, max_depth=20, **kwargs): #TODO: work in progress
+    def get_sample(self, number_samples, max_depth=20, **kwargs):
         total_sampled_indices = set()
         while not total_sampled_indices:
             truncated_samples = {}

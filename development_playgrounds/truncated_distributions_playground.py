@@ -1,20 +1,22 @@
-import chainer
-import numpy as np
 import matplotlib.pyplot as plt
 
-from brancher.distributions import NormalDistribution, TruncatedDistribution
+from brancher.variables import ProbabilisticModel
+from brancher.standard_variables import NormalVariable, LogNormalVariable
 
-truncated_normal = TruncatedDistribution(base_distribution=NormalDistribution(), truncation_rule=lambda x: x > 0)
+from brancher.transformations import truncate_model
+from brancher.visualizations import plot_density
 
+# Normal model
+mu = NormalVariable(0., 1., "mu")
+x = NormalVariable(mu, 0.1, "x")
+model = ProbabilisticModel([x])
 
-num_samples = 500
-samples = truncated_normal.get_sample(num_samples, mu=chainer.Variable(0.5*np.ones((num_samples, 1, 1, 1))),
-                                       sigma=chainer.Variable(np.ones((1, 1, 1, 1))))
+# decision rule
+model_statistics = lambda dic: dic[x].data
+truncation_rule = lambda a: ((a > 0.5) & (a < 0.6)) | ((a > -0.6) & (a < -0.5))
 
-p = truncated_normal.calculate_log_probability(samples, mu=chainer.Variable(np.zeros((num_samples, 1, 1, 1))),
-                                                         sigma=chainer.Variable(np.ones((1, 1, 1, 1))))
+# Truncated model
+truncated_model = truncate_model(model, truncation_rule, model_statistics)
 
-print(samples.shape)
-
-plt.hist(np.reshape(samples.data, newshape=(num_samples,)), 25)
+plot_density(truncated_model, variables=["mu", "x"], number_samples=10000)
 plt.show()

@@ -4,51 +4,50 @@ import chainer
 
 from brancher.variables import DeterministicVariable, ProbabilisticModel
 from brancher.particle_inference_tools import VoronoiSet
-from brancher.standard_variables import EmpiricalVariable, TruncatedNormalVariable, NormalVariable
+from brancher.standard_variables import EmpiricalVariable, NormalVariable, LogNormalVariable
 from brancher import inference
 from brancher.inference import WassersteinVariationalGradientDescent as WVGD
 import brancher.functions as BF
+from brancher.visualizations import ensemble_histogram
 
 # Model
 dimensionality = 1
 theta = NormalVariable(mu=0., sigma=1., name="theta")
-x = NormalVariable(mu=theta**2 + 0.2*theta, sigma=0.4, name="x")
+x = NormalVariable(mu=theta**2, sigma=0.4, name="x")
 model = ProbabilisticModel([x, theta])
 
 # Generate data
-N = 10
+N = 4
 theta_real = 0.5
-x_real = NormalVariable(theta_real**2 + 0.2*theta_real, 0.4, "x")
+x_real = NormalVariable(theta_real**2, 0.4, "x")
 data = x_real._get_sample(number_samples=N)
 
 # Observe data
 x.observe(data[x_real][:, 0, :])
 
 # Variational model
-number_particles = 2
-#particle_locations = [DeterministicVariable(-1., name="theta_0", learnable=False),
-#                      DeterministicVariable(1., name="theta_1", learnable=False)]
-#Qtheta = EmpiricalVariable(dataset=BF.concat(particle_locations, axis=1), batch_size=1, weights=[0.1, 0.9],
-#                           name="theta", learnable=False)
-particle_1 = DeterministicVariable(-1., name="theta", learnable=True)
-particle_2 = DeterministicVariable(1., name="theta", learnable=True)
-particle_locations = [particle_1, particle_2]
+num_particles = 10
+initial_locations = [np.random.normal(0., 1.)
+                     for _ in range(num_particles)]
+particles = [ProbabilisticModel([DeterministicVariable(p, name="theta", learnable=True)])
+             for p in initial_locations]
 
 # Importance sampling distributions
-voranoi_set = VoronoiSet(particle_locations)
-variational_samplers = [TruncatedNormalVariable(mu=-1., sigma=0.5, truncation_rule=lambda a: voranoi_set(a, 0),
-                                                name="theta", learnable=True),
-                        TruncatedNormalVariable(mu=1., sigma=0.5, truncation_rule=lambda a: voranoi_set(a, 1),
-                                                name="theta", learnable=True)]
+variational_samplers = [ProbabilisticModel([NormalVariable(mu=location, sigma=0.1,
+                                                           name="theta", learnable=True)])
+                        for location in initial_locations]
 
 # Inference
+inference_method = WVGD(variational_samplers=variational_samplers,
+                        particles=particles,
+                        biased=False)
 inference.stochastic_variational_inference(model,
-                                           inference_method=WVGD(),
-                                           number_iterations=150,
+                                           inference_method=inference_method,
+                                           number_iterations=250,
                                            number_samples=50,
                                            optimizer=chainer.optimizers.Adam(0.005),
-                                           posterior_model=particle_locations,
-                                           sampler_model=variational_samplers) #TODO: You need the ensemble abstraction
+                                           posterior_model=particles,
+                                           pretraining_iterations=0)
 loss_list = model.diagnostics["loss curve"]
 
 # Local variational models
@@ -56,12 +55,14 @@ plt.plot(loss_list)
 plt.show()
 
 # Samples
-M = 800
-[sampler._get_sample(M) for sampler in variational_samplers]
-samples = [sampler.get_sample(M) for sampler in variational_samplers]
-samples[0].hist(bins=30)
-plt.show()
-samples[1].hist(bins=30)
+print(inference_method.weights)
+M = 2000
+[sampler._get_sample(M) for sampler in inference_method.sampler_model]
+samples = [sampler.get_sample(M) for sampler in inference_method.sampler_model]
+ensemble_histogram(samples, "theta", bins=100)
+# samples[0].hist(bins=30)
+# plt.show()
+# samples[1].hist(bins=30)
 plt.show()
 
 #samples = Qtheta.get_sample(50)

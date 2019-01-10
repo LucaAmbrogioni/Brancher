@@ -3,17 +3,38 @@ Utilities
 ---------
 Module description
 """
+import sys
 from functools import reduce
 from collections import abc
+from collections.abc import Iterable
 
 import numpy as np
 import chainer
 import chainer.functions as F
 
 
+def to_tuple(obj):
+    if isinstance(obj, Iterable):
+        return tuple(obj)
+    else:
+        return tuple([obj])
+
+
 def zip_dict(first_dict, second_dict):
-    assert set(first_dict.keys()) == set(second_dict.keys()), "You can not zip two dictionaries with different keys"
-    return {key: (value, second_dict[key]) for key, value in first_dict.items()}
+    keys = set(first_dict.keys()).intersection(set(second_dict.keys()))
+    return {k: to_tuple(first_dict[k]) + to_tuple(second_dict[k]) for k in keys}
+
+
+def zip_dict_list(dict_list):
+    if len(dict_list) == 0:
+        return {}
+    if len(dict_list) == 1:
+        return dict_list[0]
+    else:
+        zipped_dict = zip_dict(dict_list[-1], dict_list[-2])
+        new_dict_list = dict_list[:-2]
+        new_dict_list.append(zipped_dict)
+        return zip_dict_list(new_dict_list)
 
 
 def split_dict(dic, condition):
@@ -158,7 +179,11 @@ def uniform_shapes(*args):
 
 def get_model_mapping(source_model, target_model):
     model_mapping = {}
-    for p_var in target_model._flatten():
+    if isinstance(target_model, dict):
+        target_variables = list(target_model.keys())
+    else:
+        target_variables = target_model._flatten()
+    for p_var in target_variables:
         try:
             model_mapping.update({source_model.get_variable(p_var.name): p_var})
         except KeyError:
@@ -180,3 +205,49 @@ def reassign_samples(samples, model_mapping=(), source_model=(), target_model=()
         except KeyError:
             pass
     return out_sample
+
+
+def get_memory(obj, seen=None):
+    """Recursively finds size of objects"""
+    size = sys.getsizeof(obj)
+    if seen is None:
+        seen = set()
+    obj_id = id(obj)
+    if obj_id in seen:
+        return 0
+    # Important mark as seen *before* entering recursion to gracefully handle
+    # self-referential objects
+    seen.add(obj_id)
+    if isinstance(obj, dict):
+        size += sum([get_memory(v, seen) for v in obj.values()])
+        size += sum([get_memory(k, seen) for k in obj.keys()])
+    elif hasattr(obj, '__dict__'):
+        size += get_memory(obj.__dict__, seen)
+    elif hasattr(obj, '__iter__') and not isinstance(obj, (str, bytes, bytearray)):
+        size += sum([get_memory(i, seen) for i in obj])
+    return size
+
+
+#TODO: Truncation material, to be cleaned up
+
+def reject_samples(samples, model_statistics, truncation_rule): #TODO: Work in progress
+    decision_variable = model_statistics(samples) #samples -> tensor
+    sample_indices = [index for index, value in enumerate(decision_variable) if truncation_rule(value)]
+    num_accepted_samples = len(sample_indices)
+    if num_accepted_samples == 0:
+        return None, 0, 0.1 #TODO: Improve
+    else:
+        remaining_samples = {var: value[sample_indices, :] for var, value in samples.items()}
+
+        acceptance_probability = num_accepted_samples/float(decision_variable.shape[0])
+        return remaining_samples, num_accepted_samples, acceptance_probability
+
+
+def concatenate_samples(samples_list):
+    if len(samples_list) == 1:
+        return samples_list[0]
+    else:
+        paired_list = zip_dict_list(samples_list)
+        samples = {var: F.concat(tensor_tuple, axis=0)
+                   for var, tensor_tuple in paired_list.items()}
+        return samples

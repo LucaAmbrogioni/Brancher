@@ -25,15 +25,6 @@ class VoronoiSet(object):
         else:
             raise ValueError("The location of the particles should be inserted as a list of locations")
 
-    # def __call__(self, index):
-    #     def truncation_rule(x):
-    #         distances = [self.cost(x.data, y.data) for y in self.particles]
-    #         if np.argmin(distances) == index:
-    #             return True
-    #         else:
-    #             return False
-    #     return truncation_rule
-
     def __call__(self, x, index):
         self.update_locations()
         distances = [self.cost(x, y) for y in self.locations]
