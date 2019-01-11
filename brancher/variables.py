@@ -646,7 +646,7 @@ class ProbabilisticModel(BrancherClass):
         alpha = np.max(log_weights)
         norm_log_weights = log_weights - alpha
         weights = np.exp(norm_log_weights) #TODO: for Julia: this should either be numpy or cupy
-        norm = np.sum(weights)
+        norm = np.mean(weights)
         weights /= norm
         if not give_normalization:
             return weights

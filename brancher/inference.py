@@ -143,7 +143,7 @@ class WassersteinVariationalGradientDescent(InferenceMethod): #TODO: Work in pro
                  cost_function=None,
                  deviation_statistics=None,
                  biased=False,
-                 number_post_samples=5000): #TODO: Work in progress
+                 number_post_samples=8000): #TODO: Work in progress
         self.learnable_model = False #TODO: to implement later
         self.needs_sampler = True
         self.learnable_sampler = True
@@ -214,7 +214,7 @@ class WassersteinVariationalGradientDescent(InferenceMethod): #TODO: Work in pro
                         for sampler in self.sampler_model]
         self.weights = []
         for sampler, s in zip(self.sampler_model, sample_list):
-            a = sampler.get_acceptance_probability(samples=s)
+            a = sampler.get_acceptance_probability(number_samples=self.number_post_samples)
             _, Z = joint_model.get_importance_weights(q_samples=s,
                                                       q_model=sampler,
                                                       for_gradient=False,

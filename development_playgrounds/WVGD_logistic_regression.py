@@ -62,9 +62,9 @@ inference_method = WVGD(variational_samplers=variational_samplers,
                         biased=False)
 inference.stochastic_variational_inference(model,
                                            inference_method=inference_method,
-                                           number_iterations=400,
+                                           number_iterations=600,
                                            number_samples=100,
-                                           optimizer=chainer.optimizers.Adam(0.005),
+                                           optimizer=chainer.optimizers.Adam(0.0025),
                                            posterior_model=particles,
                                            pretraining_iterations=0)
 loss_list = model.diagnostics["loss curve"]
@@ -74,8 +74,8 @@ plt.plot(loss_list)
 plt.show()
 
 # Test accuracy
-num_images = len(ind[dataset_size:])
-test_size = num_images
+test_size =  len(ind[dataset_size:])
+num_images = test_size*3
 test_indices = RandomIndices(dataset_size=test_size, batch_size=1, name="test_indices", is_observed=True)
 test_images = EmpiricalVariable(dataset["data"][ind[dataset_size:], :].astype("float32"),
                                 indices=test_indices, name="x_test", is_observed=True)
@@ -109,7 +109,7 @@ for test_image, test_label in zip(test_image_list,test_label_list):
     model_output_list = []
     for model_index in range(num_particles):
         model.set_posterior_model(inference_method.sampler_model[model_index])
-        model_output_list.append(np.reshape(np.mean(model._get_posterior_sample(10, input_values={x: test_image})[k].data, axis=0), newshape=(number_output_classes,)))
+        model_output_list.append(np.reshape(np.mean(model._get_posterior_sample(30, input_values={x: test_image})[k].data, axis=0), newshape=(number_output_classes,)))
 
     model_output = sum([output*w for output, w in zip(model_output_list, inference_method.weights)])
 
