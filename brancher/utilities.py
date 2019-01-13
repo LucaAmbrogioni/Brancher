@@ -76,7 +76,7 @@ def join_sets_list(sets_list):
 
 def sum_from_dim(tensor, dim_index):
     ''' replaced with torch.sum'''
-    assert torch.is_tensor(tensor), 'object is not torch tensor'
+    assert torch.is_tensor(tensor), 'object is not torch tensor' #TODO: later, either remove or replace with check for bracher tensor
     data_dim = len(tensor.shape)
     for dim in reversed(range(dim_index, data_dim)):
         tensor = tensor.sum(dim=dim)
