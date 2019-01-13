@@ -11,6 +11,7 @@ from collections.abc import Iterable
 import numpy as np
 import chainer
 import chainer.functions as F
+
 import torch
 
 
@@ -105,14 +106,24 @@ def partial_broadcast_chainer(*args):
 
 
 def broadcast_and_squeeze(*args):
+    ''' replaced with torch.tensor.reshape()'''
+    assert all([torch.is_tensor(ar) for ar in args]), 'at least 1 object is not torch tensor'
     if all([np.prod(val.shape[2:]) == 1 for val in args]):
-        args = [F.reshape(val, shape=val.shape[:2] + tuple([1, 1])) for val in args] #TODO: Work in progress #TODO: replace F.broadcast
-    uniformed_values = uniform_shapes(*args) #TODO: replace with torch
+        args = [val.reshape(shape=val.shape[:2] + tuple([1, 1])) for val in args] #TODO: Work in progress
+    uniformed_values = uniform_shapes(*args)
+    broadcasted_values = F.broadcast(*uniformed_values) #TODO: replace F.broadcast
+    return broadcasted_values
+
+def broadcast_and_squeeze_chainer(*args):
+    if all([np.prod(val.shape[2:]) == 1 for val in args]):
+        args = [F.reshape(val, shape=val.shape[:2] + tuple([1, 1])) for val in args] #TODO: Work in progress
+    uniformed_values = uniform_shapes(*args)
     broadcasted_values = F.broadcast(*uniformed_values) #TODO: replace F.broadcast
     return broadcasted_values
 
 
 def broadcast_parent_values(parents_values):
+    ''' replaced with torch.tensor.reshape()'''
     keys_list, values_list = zip(*[(key, value) for key, value in parents_values.items()])
     broadcasted_values = partial_broadcast(*values_list)
     original_shapes = [val.shape for val in broadcasted_values]
@@ -120,7 +131,18 @@ def broadcast_parent_values(parents_values):
     number_samples, number_datapoints = original_shapes[0][0:2]
     newshapes = [tuple([number_samples * number_datapoints]) + s
                  for s in data_shapes]
-    reshaped_values = [F.reshape(val, shape=s) for val, s in zip(broadcasted_values, newshapes)] #TODO: replace F.reshape
+    reshaped_values = [val.reshape(shape=s) for val, s in zip(broadcasted_values, newshapes)]
+    return {key: value for key, value in zip(keys_list, reshaped_values)}, number_samples, number_datapoints
+
+def broadcast_parent_values_chainer(parents_values):
+    keys_list, values_list = zip(*[(key, value) for key, value in parents_values.items()])
+    broadcasted_values = partial_broadcast(*values_list)
+    original_shapes = [val.shape for val in broadcasted_values]
+    data_shapes = [s[2:] for s in original_shapes]
+    number_samples, number_datapoints = original_shapes[0][0:2]
+    newshapes = [tuple([number_samples * number_datapoints]) + s
+                 for s in data_shapes]
+    reshaped_values = [F.reshape(val, shape=s) for val, s in zip(broadcasted_values, newshapes)]
     return {key: value for key, value in zip(keys_list, reshaped_values)}, number_samples, number_datapoints
 
 

@@ -61,5 +61,8 @@ print([i.shape for i in xl])
 print([i.numpy().shape for i in xt])
 print([i.shape for i in xc])
 
-##
+## broadcast_and_squeeze
+
+
+## broadcast_parent_values
 
