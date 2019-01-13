@@ -6,7 +6,7 @@ import chainer.functions as F
 from brancher.variables import var2link
 from brancher.variables import Variable, PartialLink
 
-
+##
 class BrancherFunction(object):
 
     def __init__(self, fn):

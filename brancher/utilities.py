@@ -11,6 +11,7 @@ from collections.abc import Iterable
 import numpy as np
 import chainer
 import chainer.functions as F
+import torch
 
 
 def to_tuple(obj):
@@ -72,7 +73,15 @@ def join_sets_list(sets_list):
         return set()
 
 
-def sum_from_dim(var, dim_index):
+def sum_from_dim(tensor, dim_index):
+    ''' replaced with torch.sum'''
+    assert torch.is_tensor(tensor), 'object is not torch tensor'
+    data_dim = len(tensor.shape)
+    for dim in reversed(range(dim_index, data_dim)):
+        tensor = tensor.sum(dim=dim)
+    return tensor
+
+def sum_from_dim_chainer(var, dim_index):
     data_dim = len(var.shape)
     for dim in reversed(range(dim_index, data_dim)):
         var = F.sum(var, axis=dim)
@@ -82,8 +91,14 @@ def sum_from_dim(var, dim_index):
 def sum_data_dimensions(var):
     return sum_from_dim(var, dim_index=2)
 
-
 def partial_broadcast(*args):
+    ''' replaced with torch.tensor.expand()'''
+    assert all([torch.is_tensor(ar) for ar in args]), 'at least 1 object is not torch tensor'
+    shapes0, shapes1 = zip(*[(x.shape[0], x.shape[1]) for x in args])
+    s0, s1 = np.max(shapes0), np.max(shapes1)
+    return [x.expand((s0, s1) + x.shape[2:]) for x in args]
+
+def partial_broadcast_chainer(*args):
     shapes0, shapes1 = zip(*[(x.shape[0], x.shape[1]) for x in args])
     s0, s1 = np.max(shapes0), np.max(shapes1)
     return [F.broadcast_to(x, shape=(s0, s1) + x.shape[2:]) for x in args]
@@ -91,9 +106,9 @@ def partial_broadcast(*args):
 
 def broadcast_and_squeeze(*args):
     if all([np.prod(val.shape[2:]) == 1 for val in args]):
-        args = [F.reshape(val, shape=val.shape[:2] + tuple([1, 1])) for val in args] #TODO: Work in progress
-    uniformed_values = uniform_shapes(*args)
-    broadcasted_values = F.broadcast(*uniformed_values)
+        args = [F.reshape(val, shape=val.shape[:2] + tuple([1, 1])) for val in args] #TODO: Work in progress #TODO: replace F.broadcast
+    uniformed_values = uniform_shapes(*args) #TODO: replace with torch
+    broadcasted_values = F.broadcast(*uniformed_values) #TODO: replace F.broadcast
     return broadcasted_values
 
 
@@ -105,11 +120,24 @@ def broadcast_parent_values(parents_values):
     number_samples, number_datapoints = original_shapes[0][0:2]
     newshapes = [tuple([number_samples * number_datapoints]) + s
                  for s in data_shapes]
-    reshaped_values = [F.reshape(val, shape=s) for val, s in zip(broadcasted_values, newshapes)]
+    reshaped_values = [F.reshape(val, shape=s) for val, s in zip(broadcasted_values, newshapes)] #TODO: replace F.reshape
     return {key: value for key, value in zip(keys_list, reshaped_values)}, number_samples, number_datapoints
 
 
 def get_diagonal(tensor):
+    ''' replaced with torch.tensor.reshape()'''
+    assert torch.is_tensor(tensor), 'object is not torch tensor' #TODO: should be more checks here, what does it do?
+    assert tensor.ndimension() == 4, 'ndim should be equal 4'
+    dim1, dim2, dim_matrix, _ = tensor.shape
+    diag_ind = list(range(dim_matrix))
+    expanded_diag_ind = dim1*dim2*diag_ind
+    axis12_ind = [a for a in range(dim1*dim2) for _ in range(dim_matrix)]
+    reshaped_tensor = tensor.reshape(shape=(dim1*dim2, dim_matrix, dim_matrix))
+    ind = (np.array(axis12_ind), np.array(expanded_diag_ind), np.array(expanded_diag_ind))
+    subdiagonal = reshaped_tensor[ind]
+    return subdiagonal.reshape(shape=(dim1, dim2, dim_matrix))
+
+def get_diagonal_chainer(tensor):
     dim1, dim2, dim_matrix, _ = tensor.shape
     diag_ind = list(range(dim_matrix))
     expanded_diag_ind = dim1*dim2*diag_ind
@@ -120,7 +148,7 @@ def get_diagonal(tensor):
     return F.reshape(subdiagonal, shape=(dim1, dim2, dim_matrix))
 
 
-def coerce_to_dtype(data, is_observed=False): #TODO: for Julia: Very important
+def coerce_to_dtype(data, is_observed=False): #TODO: for Julia: Very important, add type checking: Tensor or Structure
     """Summary"""
     dtype = type(data)
     if dtype is chainer.Variable:
@@ -154,7 +182,19 @@ def coerce_to_dtype(data, is_observed=False): #TODO: for Julia: Very important
     return result
 
 
-def tile_parameter(value, number_samples):
+def tile_parameter(tensor, number_samples):
+    ''' replaced with torch.tensor.repeat()'''
+    assert torch.is_tensor(tensor), 'object is not torch tensor'
+    value_shape = tensor.shape
+    if value_shape[0] == number_samples:
+        return tensor
+    elif value_shape[0] == 1:
+        reps = tuple([number_samples] + [1] * len(value_shape[1:]))
+        return tensor.repeat(repeats=reps)
+    else:
+        raise ValueError("The parameter cannot be broadcasted to the rerquired number of samples")
+
+def tile_parameter_chainer(value, number_samples):
     value_shape = value.shape
     if value_shape[0] == number_samples:
         return value
@@ -164,18 +204,24 @@ def tile_parameter(value, number_samples):
     else:
         raise ValueError("The parameter cannot be broadcasted to the rerquired number of samples")
 
-
 def reformat_sampler_input(sample_input, number_samples):
     return {var: tile_parameter(coerce_to_dtype(value, is_observed=var.is_observed), number_samples=number_samples)
             for var, value in sample_input.items()}
 
 
 def uniform_shapes(*args):
+    ''' replaced with torch.tensor.unsqueeze()'''
+    assert all([torch.is_tensor(ar) for ar in args]), 'at least 1 object is not torch tensor'
+    shapes = [ar.shape for ar in args]
+    max_len = np.max([len(s) for s in shapes])
+    return [ar.unsqueeze(dim=len(ar.shape)) if (len(ar.shape) == max_len-1) else ar
+            for ar in args] #TODO: currently only works with unpacked input, should be flexible?
+
+def uniform_shapes_chainer(*args):
     shapes = [ar.shape for ar in args]
     max_len = np.max([len(s) for s in shapes])
     return [F.expand_dims(ar, axis=len(ar.shape)) if (len(ar.shape) == max_len-1) else ar
             for ar in args]
-
 
 def get_model_mapping(source_model, target_model):
     model_mapping = {}
@@ -244,10 +290,11 @@ def reject_samples(samples, model_statistics, truncation_rule): #TODO: Work in p
 
 
 def concatenate_samples(samples_list):
+    ''' replaced with torch.cat'''
     if len(samples_list) == 1:
         return samples_list[0]
     else:
         paired_list = zip_dict_list(samples_list)
-        samples = {var: F.concat(tensor_tuple, axis=0)
+        samples = {var: torch.cat(tensor_tuple, dim=0)
                    for var, tensor_tuple in paired_list.items()}
         return samples

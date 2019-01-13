@@ -14,6 +14,8 @@ import chainer.links as L
 import chainer.functions as F
 import numpy as np
 
+import torch
+
 from brancher.utilities import join_dicts_list, join_sets_list
 from brancher.utilities import flatten_list
 from brancher.utilities import partial_broadcast
@@ -29,6 +31,16 @@ from brancher.pandas_interface import reformat_sample_to_pandas
 from brancher.pandas_interface import reformat_model_summary
 from brancher.pandas_interface import pandas_frame2dict
 from brancher.pandas_interface import pandas_frame2value
+
+class Tensor(torch.Tensor):
+    """
+    Tensor datatype: differentiable, inherited from torch.Tensor
+    """
+
+class Structure():
+    """
+    Structure datatype: non-differentiable, iter data type
+    """
 
 class BrancherClass(ABC):
     """
