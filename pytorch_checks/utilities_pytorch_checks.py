@@ -22,6 +22,7 @@ xc = F.expand_dims(x, axis=dim)
 equal_tensor_variable(xt, xc)
 
 ##
+tensor_tuple = (torch.randn(10, 5), torch.randn(40, 5))
 outt = utilities.uniform_shapes(tensor_tuple[0], tensor_tuple[1])
 outc = utilities.uniform_shapes_chainer(chainer.Variable(tensor_tuple[0].numpy()), chainer.Variable(tensor_tuple[1].numpy()))
 all([equal_tensor_variable(xt, xc) for xt, xc in zip(outt, outc)])
@@ -65,4 +66,8 @@ print([i.shape for i in xc])
 
 
 ## broadcast_parent_values
+import torch as T
+import numpy as np
+x = T.tensor(np.random.normal(size=(4, 2)))
 
+# no T.expand, no T.repeat

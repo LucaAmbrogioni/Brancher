@@ -12,7 +12,7 @@ import numpy as np
 import chainer
 import chainer.functions as F
 
-import torch
+import torch as T
 
 
 def to_tuple(obj):
@@ -94,7 +94,7 @@ def sum_data_dimensions(var):
 
 def partial_broadcast(*args):
     ''' replaced with torch.tensor.expand()'''
-    assert all([torch.is_tensor(ar) for ar in args]), 'at least 1 object is not torch tensor'
+    assert all([T.is_tensor(ar) for ar in args]), 'at least 1 object is not torch tensor'
     shapes0, shapes1 = zip(*[(x.shape[0], x.shape[1]) for x in args])
     s0, s1 = np.max(shapes0), np.max(shapes1)
     return [x.expand((s0, s1) + x.shape[2:]) for x in args]
@@ -107,7 +107,7 @@ def partial_broadcast_chainer(*args):
 
 def broadcast_and_squeeze(*args):
     ''' replaced with torch.tensor.reshape()'''
-    assert all([torch.is_tensor(ar) for ar in args]), 'at least 1 object is not torch tensor'
+    assert all([T.is_tensor(ar) for ar in args]), 'at least 1 object is not torch tensor'
     if all([np.prod(val.shape[2:]) == 1 for val in args]):
         args = [val.reshape(shape=val.shape[:2] + tuple([1, 1])) for val in args] #TODO: Work in progress
     uniformed_values = uniform_shapes(*args)
@@ -131,7 +131,7 @@ def broadcast_parent_values(parents_values):
     number_samples, number_datapoints = original_shapes[0][0:2]
     newshapes = [tuple([number_samples * number_datapoints]) + s
                  for s in data_shapes]
-    reshaped_values = [val.reshape(shape=s) for val, s in zip(broadcasted_values, newshapes)]
+    reshaped_values = [T.reshape(val, shape=s) for val, s in zip(broadcasted_values, newshapes)]
     return {key: value for key, value in zip(keys_list, reshaped_values)}, number_samples, number_datapoints
 
 def broadcast_parent_values_chainer(parents_values):
@@ -147,17 +147,17 @@ def broadcast_parent_values_chainer(parents_values):
 
 
 def get_diagonal(tensor):
-    ''' replaced with torch.tensor.reshape()'''
-    assert torch.is_tensor(tensor), 'object is not torch tensor' #TODO: should be more checks here, what does it do?
+    ''' replaced with torch.reshape()'''
+    assert T.is_tensor(tensor), 'object is not torch tensor' #TODO: should be more checks here, what does it do?
     assert tensor.ndimension() == 4, 'ndim should be equal 4'
     dim1, dim2, dim_matrix, _ = tensor.shape
     diag_ind = list(range(dim_matrix))
     expanded_diag_ind = dim1*dim2*diag_ind
     axis12_ind = [a for a in range(dim1*dim2) for _ in range(dim_matrix)]
-    reshaped_tensor = tensor.reshape(shape=(dim1*dim2, dim_matrix, dim_matrix))
+    reshaped_tensor = T.reshape(tensor, shape=(dim1*dim2, dim_matrix, dim_matrix))
     ind = (np.array(axis12_ind), np.array(expanded_diag_ind), np.array(expanded_diag_ind))
     subdiagonal = reshaped_tensor[ind]
-    return subdiagonal.reshape(shape=(dim1, dim2, dim_matrix))
+    return T.reshape(subdiagonal, shape=(dim1, dim2, dim_matrix))
 
 def get_diagonal_chainer(tensor):
     dim1, dim2, dim_matrix, _ = tensor.shape
@@ -206,7 +206,7 @@ def coerce_to_dtype(data, is_observed=False): #TODO: for Julia: Very important, 
 
 def tile_parameter(tensor, number_samples):
     ''' replaced with torch.tensor.repeat()'''
-    assert torch.is_tensor(tensor), 'object is not torch tensor'
+    assert T.is_tensor(tensor), 'object is not torch tensor'
     value_shape = tensor.shape
     if value_shape[0] == number_samples:
         return tensor
@@ -232,11 +232,11 @@ def reformat_sampler_input(sample_input, number_samples):
 
 
 def uniform_shapes(*args):
-    ''' replaced with torch.tensor.unsqueeze()'''
-    assert all([torch.is_tensor(ar) for ar in args]), 'at least 1 object is not torch tensor'
+    ''' replaced with torch.unsqueeze()'''
+    assert all([T.is_tensor(ar) for ar in args]), 'at least 1 object is not torch tensor'
     shapes = [ar.shape for ar in args]
     max_len = np.max([len(s) for s in shapes])
-    return [ar.unsqueeze(dim=len(ar.shape)) if (len(ar.shape) == max_len-1) else ar
+    return [T.unsqueeze(ar, dim=len(ar.shape)) if (len(ar.shape) == max_len-1) else ar
             for ar in args] #TODO: currently only works with unpacked input, should be flexible?
 
 def uniform_shapes_chainer(*args):
@@ -317,6 +317,7 @@ def concatenate_samples(samples_list):
         return samples_list[0]
     else:
         paired_list = zip_dict_list(samples_list)
-        samples = {var: torch.cat(tensor_tuple, dim=0)
+        samples = {var: T.cat(tensor_tuple, dim=0)
                    for var, tensor_tuple in paired_list.items()}
         return samples
+

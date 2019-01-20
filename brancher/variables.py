@@ -32,7 +32,7 @@ from brancher.pandas_interface import reformat_model_summary
 from brancher.pandas_interface import pandas_frame2dict
 from brancher.pandas_interface import pandas_frame2value
 
-class Tensor(torch.Tensor):
+class Tensor(torch.Tensor): #TODO: create a separate module (Values or InputTypes)
     """
     Tensor datatype: differentiable, inherited from torch.Tensor
     """
