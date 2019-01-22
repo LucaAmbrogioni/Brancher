@@ -72,3 +72,6 @@ print([i.shape for i in xc])
 
 
 # no torch.expand, no torch.repeat, no torch.view
+
+##
+x = np.random.normal(size=(10,4))

@@ -33,7 +33,7 @@ from brancher.pandas_interface import reformat_model_summary
 from brancher.pandas_interface import pandas_frame2dict
 from brancher.pandas_interface import pandas_frame2value
 
-from brancher.input_datatypes import Tensor, Structure
+from brancher.value_datatypes import Tensor, Structure
 
 
 class BrancherClass(ABC):
@@ -267,8 +267,11 @@ class DeterministicVariable(Variable):
         self._type = "Deterministic"
         self.learnable = learnable
         if learnable:
+            print(not isinstance(self._current_value, collections.abc.Iterable)) # list / set
             if not isinstance(self._current_value, collections.abc.Iterable):
+                print(self.learnable)
                 self.link = L.Bias(axis=1, shape=self._current_value.shape[1:]) #TODO: For Julia: this can be implemented as parameter
+                print(self.link)
             else:
                 self.learnable = False #TODO: Warning?
 

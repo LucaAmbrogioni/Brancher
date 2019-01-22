@@ -23,7 +23,8 @@ from brancher.functions import BrancherFunction
 import brancher.functions as BF
 #import brancher.links as BL
 
-a = DeterministicVariable(1.5, 'a')
+a = DeterministicVariable(data=1.5, name='a', learnable=True)
+##
 b = DeterministicVariable(0.3, 'b')
 c = DeterministicVariable(0.3, 'c')
 d = NormalVariable((a*b + c), c + a**2, 'd')

@@ -11,7 +11,7 @@ from collections.abc import Iterable
 import numpy as np
 import torch
 
-from brancher.input_datatypes import Tensor, Structure
+from brancher.value_datatypes import Tensor, Discrete
 
 
 def to_tuple(obj):
@@ -197,16 +197,16 @@ def coerce_to_dtype(data, is_observed=False): #TODO: move all this under class i
     #     return result
 
     dtype = type(data)
-    if dtype is Tensor or dtype is Structure:
+    if dtype is Tensor or dtype is Discrete:
         result = data
     elif dtype is float or dtype is np.float32 or dtype is np.float64:
-        result = Tensor(data * np.ones(shape=(1, 1), dtype=data.dtype)) # TODO: preserve original dtype? pytorch can handle float64
+        result = torch.tensor(data * np.ones(shape=(1, 1)), dtype=torch.float32) # TODO: preserve original dtype? pytorch can handle float64
     elif dtype is int or dtype is np.int32 or dtype is np.int64:
-        result = Tensor(data * np.ones(shape=(1, 1), dtype=data.dtype))
+        result = torch.tensor(data * np.ones(shape=(1, 1)), dtype=torch.int32)
     elif dtype is np.ndarray:
-        result = Tensor(data)
+        result = torch.tensor(data)
     elif issubclass(dtype, abc.Iterable):
-        result = Structure(data)  # TODO: This is for allowing discrete data, temporary?
+        result = Discrete(data)  # TODO: This is for allowing discrete data, temporary?
         return result
     else:
         raise TypeError("Invalid input dtype {} - expected float, integer, np.ndarray, or torch var.".format(dtype))
