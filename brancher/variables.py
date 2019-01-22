@@ -16,6 +16,7 @@ import numpy as np
 
 import torch
 
+
 from brancher.utilities import join_dicts_list, join_sets_list
 from brancher.utilities import flatten_list
 from brancher.utilities import partial_broadcast
@@ -32,15 +33,8 @@ from brancher.pandas_interface import reformat_model_summary
 from brancher.pandas_interface import pandas_frame2dict
 from brancher.pandas_interface import pandas_frame2value
 
-class Tensor(torch.Tensor): #TODO: create a separate module (Values or InputTypes)
-    """
-    Tensor datatype: differentiable, inherited from torch.Tensor
-    """
+from brancher.input_datatypes import Tensor, Structure
 
-class Structure():
-    """
-    Structure datatype: non-differentiable, iter data type
-    """
 
 class BrancherClass(ABC):
     """
@@ -301,7 +295,7 @@ class DeterministicVariable(Variable):
     def value(self):
         assert self._current_value is not None
         if self.learnable:
-            return self.link(self._current_value) #TODO: For Julia: this can be implemented as parameter
+            return self.link(self._current_value)
         return self._current_value
 
     @value.setter
@@ -317,7 +311,7 @@ class DeterministicVariable(Variable):
             value = input_values[self]
         else:
             value = self.value
-        if isinstance(value, chainer.Variable):
+        if isinstance(value, Tensor):
             return {self: tile_parameter(value, number_samples=number_samples)}
         else:
             return {self: value} #TODO: This is for allowing discrete data, temporary? (for Julia)
@@ -376,15 +370,15 @@ class RandomVariable(Variable):
 
     def _apply_link(self, parents_values):  #TODO: This is for allowing discrete data, temporary? (for julia) #For Julia: Very important method
         cont_values, discrete_values = split_dict(parents_values,
-                                                  condition=lambda key, val: isinstance(val, chainer.Variable))
+                                                  condition=lambda key, val: isinstance(val, Tensor))
         if cont_values:
             reshaped_dict, number_samples, number_datapoints = broadcast_parent_values(cont_values)
             reshaped_dict.update(discrete_values)
         else:
             reshaped_dict = discrete_values
         reshaped_output = self.link(reshaped_dict)
-        output = {key: F.reshape(val, (number_samples, number_datapoints) + val.shape[1:])
-                  if isinstance(val, chainer.Variable) else val
+        output = {key: val.view(size=(number_samples, number_datapoints) + val.shape[1:])
+                  if isinstance(val, Tensor) else val
                   for key, val in reshaped_output.items()}
         return output
 
@@ -424,8 +418,8 @@ class RandomVariable(Variable):
                                                                         normalized=normalized)
                                        for parent in self.parents])
         if self.is_observed:
-            log_probability = F.sum(log_probability, axis=1, keepdims=True)
-        if type(log_probability) is chainer.Variable and type(parents_log_probability) is chainer.Variable:
+            log_probability = log_probability.sum(dim=1, keepdims=True)
+        if torch.is_tensor(log_probability) and torch.is_tensor(parents_log_probability):
             log_probability, parents_log_probability = partial_broadcast(log_probability, parents_log_probability)
         if include_parents:
             return log_probability + parents_log_probability

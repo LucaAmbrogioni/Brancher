@@ -63,11 +63,12 @@ print([i.numpy().shape for i in xt])
 print([i.shape for i in xc])
 
 ## broadcast_and_squeeze
+tensor_list = [torch.randn(10, 5), torch.randn(10, 5)]
+xt = utilities.broadcast_and_squeeze(*tensor_list)
+xc = utilities.broadcast_and_squeeze_chainer(*[chainer.Variable(x.numpy()) for x in tensor_list])
+
+print([i.numpy().shape for i in xt])
+print([i.shape for i in xc])
 
 
-## broadcast_parent_values
-import torch as T
-import numpy as np
-x = T.tensor(np.random.normal(size=(4, 2)))
-
-# no T.expand, no T.repeat
+# no torch.expand, no torch.repeat, no torch.view
