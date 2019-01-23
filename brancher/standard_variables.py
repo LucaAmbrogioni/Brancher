@@ -2,14 +2,31 @@ import numbers
 import warnings
 
 import numpy as np
-import chainer
-import chainer.functions as F
+import torch.nn as nn
 
 import brancher.distributions as distributions
 import brancher.geometric_ranges as geometric_ranges
 from brancher.variables import var2link, Variable, DeterministicVariable, RandomVariable, PartialLink
 from brancher.utilities import join_sets_list
 import brancher.functions as BF
+
+
+class LinkConstructor(nn.ModuleList):
+    """
+    Summary
+
+    Parameters
+    ----------
+    """
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+        modules = [link
+                 for partial_link in kwargs.values()
+                 for link in var2link(partial_link).links]
+        super().__init__(modules)
+
+    def __call__(self, values):
+        return {k: var2link(x).fn(values) for k, x in self.kwargs.items()}
 
 
 class VariableConstructor(RandomVariable):
@@ -20,19 +37,6 @@ class VariableConstructor(RandomVariable):
     ----------
     """
     def __init__(self, name, learnable, ranges, is_observed=False, **kwargs):
-
-        class VarLink(chainer.ChainList):
-
-            def __init__(self):
-                self.kwargs = kwargs
-                links = [link
-                         for partial_link in kwargs.values()
-                         for link in var2link(partial_link).links]
-                super().__init__(*links)
-
-            def __call__(self, values):
-                return {k: var2link(x).fn(values) for k, x in self.kwargs.items()}
-
         self.name = name
         self._evaluated = False
         self._observed = is_observed
@@ -40,7 +44,7 @@ class VariableConstructor(RandomVariable):
         self._current_value = None
         self.construct_deterministic_parents(learnable, ranges, kwargs)
         self.parents = join_sets_list([var2link(x).vars for x in kwargs.values()])
-        self.link = VarLink()
+        self.link = LinkConstructor(**kwargs)
         self.samples = []
         self.ranges = {}
         self.dataset = None

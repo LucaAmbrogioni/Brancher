@@ -9,13 +9,9 @@ import numbers
 import collections
 from collections.abc import Iterable
 
-import chainer
-import chainer.links as L
-import chainer.functions as F
 import numpy as np
 
 import torch
-
 
 from brancher.utilities import join_dicts_list, join_sets_list
 from brancher.utilities import flatten_list
@@ -27,13 +23,13 @@ from brancher.utilities import reformat_sampler_input
 from brancher.utilities import tile_parameter
 from brancher.utilities import get_model_mapping
 from brancher.utilities import reassign_samples
+from brancher.utilities import is_discrete, is_tensor
 
 from brancher.pandas_interface import reformat_sample_to_pandas
 from brancher.pandas_interface import reformat_model_summary
 from brancher.pandas_interface import pandas_frame2dict
 from brancher.pandas_interface import pandas_frame2value
 
-from brancher.value_datatypes import Tensor, Structure
 
 
 class BrancherClass(ABC):
@@ -267,11 +263,9 @@ class DeterministicVariable(Variable):
         self._type = "Deterministic"
         self.learnable = learnable
         if learnable:
-            print(not isinstance(self._current_value, collections.abc.Iterable)) # list / set
-            if not isinstance(self._current_value, collections.abc.Iterable):
-                print(self.learnable)
-                self.link = L.Bias(axis=1, shape=self._current_value.shape[1:]) #TODO: For Julia: this can be implemented as parameter
-                print(self.link)
+            if ~is_discrete(self._current_value):
+                #self.link = L.Bias(axis=1, shape=self._current_value.shape[1:])
+                self.link = torch.nn.Parameter(torch.empty(self._current_value.shape[1:]), requires_grad=True)
             else:
                 self.learnable = False #TODO: Warning?
 
@@ -314,7 +308,7 @@ class DeterministicVariable(Variable):
             value = input_values[self]
         else:
             value = self.value
-        if isinstance(value, Tensor):
+        if ~is_discrete(value):
             return {self: tile_parameter(value, number_samples=number_samples)}
         else:
             return {self: value} #TODO: This is for allowing discrete data, temporary? (for Julia)
@@ -373,7 +367,7 @@ class RandomVariable(Variable):
 
     def _apply_link(self, parents_values):  #TODO: This is for allowing discrete data, temporary? (for julia) #For Julia: Very important method
         cont_values, discrete_values = split_dict(parents_values,
-                                                  condition=lambda key, val: isinstance(val, Tensor))
+                                                  condition=lambda key, val: ~is_discrete(val))
         if cont_values:
             reshaped_dict, number_samples, number_datapoints = broadcast_parent_values(cont_values)
             reshaped_dict.update(discrete_values)
@@ -381,7 +375,7 @@ class RandomVariable(Variable):
             reshaped_dict = discrete_values
         reshaped_output = self.link(reshaped_dict)
         output = {key: val.view(size=(number_samples, number_datapoints) + val.shape[1:])
-                  if isinstance(val, Tensor) else val
+                  if is_tensor(val) else val
                   for key, val in reshaped_output.items()}
         return output
 
@@ -422,7 +416,7 @@ class RandomVariable(Variable):
                                        for parent in self.parents])
         if self.is_observed:
             log_probability = log_probability.sum(dim=1, keepdims=True)
-        if torch.is_tensor(log_probability) and torch.is_tensor(parents_log_probability):
+        if is_tensor(log_probability) and is_tensor(parents_log_probability):
             log_probability, parents_log_probability = partial_broadcast(log_probability, parents_log_probability)
         if include_parents:
             return log_probability + parents_log_probability
@@ -674,7 +668,8 @@ class ProbabilisticModel(BrancherClass):
                                                                                     empirical_samples=empirical_samples,
                                                                                     for_gradient=for_gradient,
                                                                                     q_model=posterior_model)
-            log_model_evidence = F.mean(joint_log_prob - posterior_log_prob)
+            #log_model_evidence = F.mean(joint_log_prob - posterior_log_prob)
+            log_model_evidence = torch.mean(joint_log_prob - posterior_log_prob)
             return log_model_evidence
         else:
             raise NotImplementedError("The requested estimation method is currently not implemented.")
@@ -733,9 +728,9 @@ def var2link(var):
 class PartialLink(BrancherClass): #TODO: This should become "ProbabilisticProgram?"
 
     def __init__(self, vars, fn, links):
-        self.vars = vars
+        self.vars = vars # parents, all input
         self.fn = fn
-        self.links = links
+        self.links = links # all that needs to be optimized; all operations on variables produce a partial link;
 
     def _apply_operator(self, other, op):
         other = var2link(other)

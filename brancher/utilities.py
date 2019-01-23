@@ -11,7 +11,13 @@ from collections.abc import Iterable
 import numpy as np
 import torch
 
-from brancher.value_datatypes import Tensor, Discrete
+
+def is_tensor(data):
+    return torch.is_tensor(data)
+
+
+def is_discrete(data):
+    return type(data) in [list, set, tuple, dict, str]
 
 
 def to_tuple(obj):
@@ -75,7 +81,7 @@ def join_sets_list(sets_list):
 
 def sum_from_dim(tensor, dim_index):
     ''' replaced with torch.sum'''
-    assert torch.is_tensor(tensor), 'object is not torch tensor' #TODO: later, either remove or replace with check for bracher tensor
+    assert is_tensor(tensor), 'object is not torch tensor' #TODO: later, either remove or replace with check for bracher tensor
     data_dim = len(tensor.shape)
     for dim in reversed(range(dim_index, data_dim)):
         tensor = tensor.sum(dim=dim)
@@ -91,9 +97,10 @@ def sum_from_dim(tensor, dim_index):
 def sum_data_dimensions(var):
     return sum_from_dim(var, dim_index=2)
 
+
 def partial_broadcast(*args):
     ''' replaced with torch.tensor.expand()'''
-    assert all([torch.is_tensor(ar) for ar in args]), 'at least 1 object is not torch tensor'
+    assert all([is_tensor(ar) for ar in args]), 'at least 1 object is not torch tensor'
     shapes0, shapes1 = zip(*[(x.shape[0], x.shape[1]) for x in args])
     s0, s1 = np.max(shapes0), np.max(shapes1)
     return [x.expand((s0, s1) + x.shape[2:]) for x in args]
@@ -106,7 +113,7 @@ def partial_broadcast(*args):
 
 def broadcast_and_squeeze(*args):
     ''' replaced with torch.tensor.view()'''
-    assert all([torch.is_tensor(ar) for ar in args]), 'at least 1 object is not torch tensor'
+    assert all([is_tensor(ar) for ar in args]), 'at least 1 object is not torch tensor'
     if all([np.prod(val.shape[2:]) == 1 for val in args]):
         args = [val.view(size=val.shape[:2] + tuple([1, 1])) for val in args]
     uniformed_values = uniform_shapes(*args)
@@ -132,6 +139,7 @@ def broadcast_parent_values(parents_values):
                  for s in data_shapes]
     reshaped_values = [val.view(size=s) for val, s in zip(broadcasted_values, newshapes)]
     return {key: value for key, value in zip(keys_list, reshaped_values)}, number_samples, number_datapoints
+
 
 # def broadcast_parent_values_chainer(parents_values):
 #     keys_list, values_list = zip(*[(key, value) for key, value in parents_values.items()])
@@ -196,18 +204,15 @@ def coerce_to_dtype(data, is_observed=False): #TODO: move all this under class i
     #         result = F.expand_dims(F.expand_dims(result, axis=0), axis=1)
     #     return result
 
-    dtype = type(data)
-    if dtype is Tensor or dtype is Discrete:
+    dtype = type(data) ##TODO: do we need any additional shape checking?
+    if dtype is torch.Tensor: # to tensor
         result = data
-    elif dtype is float or dtype is np.float32 or dtype is np.float64:
-        result = torch.tensor(data * np.ones(shape=(1, 1)), dtype=torch.float32) # TODO: preserve original dtype? pytorch can handle float64
-    elif dtype is int or dtype is np.int32 or dtype is np.int64:
-        result = torch.tensor(data * np.ones(shape=(1, 1)), dtype=torch.int32)
-    elif dtype is np.ndarray:
-        result = torch.tensor(data)
-    elif issubclass(dtype, abc.Iterable):
-        result = Discrete(data)  # TODO: This is for allowing discrete data, temporary?
-        return result
+    elif dtype is np.ndarray: # to tensor
+        result = torch.tensor(data, dtype=data.dtype)
+    elif dtype in [float, int] or dtype.__base__ in [np.floating, np.signedinteger]: # to tensor
+        result = torch.tensor(data * np.ones(shape=(1, 1)))
+    elif dtype in [list, set, tuple, dict, str]: # to discrete
+        result = data
     else:
         raise TypeError("Invalid input dtype {} - expected float, integer, np.ndarray, or torch var.".format(dtype))
 
@@ -216,7 +221,7 @@ def coerce_to_dtype(data, is_observed=False): #TODO: move all this under class i
 
 def tile_parameter(tensor, number_samples):
     ''' replaced with torch.tensor.repeat()'''
-    assert torch.is_tensor(tensor), 'object is not torch tensor'
+    assert is_tensor(tensor), 'object is not torch tensor'
     value_shape = tensor.shape
     if value_shape[0] == number_samples:
         return tensor
@@ -245,7 +250,7 @@ def reformat_sampler_input(sample_input, number_samples):
 
 def uniform_shapes(*args):
     ''' replaced with torch.unsqueeze()'''
-    assert all([torch.is_tensor(ar) for ar in args]), 'at least 1 object is not torch tensor'
+    assert all([is_tensor(ar) for ar in args]), 'at least 1 object is not torch tensor'
     shapes = [ar.shape for ar in args]
     max_len = np.max([len(s) for s in shapes])
     return [torch.unsqueeze(ar, dim=len(ar.shape)) if (len(ar.shape) == max_len-1) else ar

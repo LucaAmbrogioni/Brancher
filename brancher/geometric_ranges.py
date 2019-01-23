@@ -4,8 +4,6 @@
 from abc import ABC, abstractmethod
 import numpy as np
 
-import chainer
-
 import brancher.functions as BF
 from brancher.utilities import partial_broadcast
 

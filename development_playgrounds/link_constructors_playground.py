@@ -23,17 +23,21 @@ from brancher.functions import BrancherFunction
 import brancher.functions as BF
 #import brancher.links as BL
 
-a = DeterministicVariable(data=1.5, name='a', learnable=True)
 ##
+a = DeterministicVariable(data=1.5, name='a', learnable=True)
 b = DeterministicVariable(0.3, 'b')
 c = DeterministicVariable(0.3, 'c')
 d = NormalVariable((a*b + c), c + a**2, 'd')
+
+##
 e1 = BF.concat((a, b), 2)
 e2 = BF.concat((a, c), 2)
 f = NormalVariable(e1**2, e2**1, 'f')
 
+##
 f._get_sample(10)
 
+##
 a_val = chainer.Variable(0.25*np.pi*np.ones((1,1), dtype = "float32"))
 b_val = chainer.Variable(0.25*np.pi*np.ones((1,1), dtype = "float32"))
 c_val = chainer.Variable(2*np.ones((1,1), dtype = "float32"))
