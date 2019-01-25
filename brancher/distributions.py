@@ -12,10 +12,14 @@ import chainer.functions as F
 import numpy as np
 from scipy.special import binom
 
+import torch
+from torch import distributions
+
 from brancher.utilities import broadcast_and_squeeze
 from brancher.utilities import sum_data_dimensions
 from brancher.utilities import get_diagonal
 from brancher.utilities import broadcast_parent_values
+from brancher.utilities import is_discrete, is_tensor
 
 # TODO: This module is messy with ad hoc solutions for every distribution. You need to make everything more standardized.
 
@@ -94,7 +98,7 @@ class EmpiricalDistribution(ImplicitDistribution):
                 p = p/np.sum(p)
             else:
                 p = None
-            if isinstance(dataset, chainer.Variable):
+            if is_tensor(dataset):
                 if self.is_observed:
                     dataset_size = dataset.shape[1]
                 else:
@@ -103,18 +107,20 @@ class EmpiricalDistribution(ImplicitDistribution):
                 dataset_size = len(dataset)
             if dataset_size < self.batch_size:
                 raise ValueError("It is impossible to have more samples than the size of the dataset without replacement")
-            if isinstance(dataset, Iterable): # TODO: This is for allowing discrete data, temporary?
+            if is_discrete(dataset): # TODO: This is for allowing discrete data, temporary?
                 indices = np.random.choice(range(dataset_size), size=self.batch_size, replace=False, p=p)
             else:
                 indices = [np.random.choice(range(dataset_size), size=self.batch_size, replace=False, p=p)
                            for _ in range(number_samples)]
 
-        if isinstance(dataset, chainer.Variable):
+        if is_tensor(dataset):
             if isinstance(indices, list) and isinstance(indices[0], np.ndarray):
                 if self.is_observed:
-                    sample = F.concat([F.expand_dims(dataset[n, k, :], axis=0) for n, k in enumerate(indices)], axis=0)
+                    # sample = F.concat([F.expand_dims(dataset[n, k, :], axis=0) for n, k in enumerate(indices)], axis=0)
+                    sample = torch.cat([dataset[n, k, :].unsqueeze(dim=0) for n, k in enumerate(indices)], dim=0)
                 else:
-                    sample = F.concat([F.expand_dims(dataset[n, :, k, :], axis=0) for n, k in enumerate(indices)], axis=0)
+                    # sample = F.concat([F.expand_dims(dataset[n, :, k, :], axis=0) for n, k in enumerate(indices)], axis=0)
+                    sample = torch.cat([dataset[n, :, k, :].unsqueeze(dim=0) for n, k in enumerate(indices)], dim=0)
 
             elif isinstance(indices, list) and isinstance(indices[0], (int, np.int32, np.int64)):
                 if self.is_observed:
@@ -139,8 +145,8 @@ class TruncatedDistribution(UnnormalizedDistribution): #TODO: To be removed afte
         self.truncation_rule = truncation_rule
 
     def _reject_samples(self, samples, remaining_indices):
-        sample_list, sample_indices = zip(*[(F.expand_dims(s, axis=0), index)
-                                            for index, s in enumerate(samples) if self.truncation_rule(s.data)])
+        sample_list, sample_indices = zip(*[(s.unsqueeze(dim=0), index)
+                                            for index, s in enumerate(samples) if self.truncation_rule(s.numpy())])
         return sample_list, [remaining_indices[index] for index in sample_indices]
 
     def calculate_log_probability(self, x, **kwargs):
@@ -170,7 +176,7 @@ class TruncatedDistribution(UnnormalizedDistribution): #TODO: To be removed afte
                 except ValueError:
                     iteration_index += 1
                     pass
-        return F.concat([value for (key, value) in sorted(truncated_samples.items())], axis=0)
+        return torch.cat([value for (key, value) in sorted(truncated_samples.items())], axis=0)
 
 
 ## Univariate distributions ##
@@ -182,6 +188,7 @@ class NormalDistribution(UnivariateDistribution):
     """
     Summary
     """
+
     def calculate_log_probability(self, x, mu, sigma):
         """
         One line description
@@ -193,7 +200,8 @@ class NormalDistribution(UnivariateDistribution):
         -------
         """
         x, mu, sigma = broadcast_and_squeeze(x, mu, sigma)
-        log_probability = -0.5*F.log(2*np.pi*sigma**2) - 0.5*(x-mu)**2/(sigma**2)
+        # log_probability = -0.5*F.log(2*np.pi*sigma**2) - 0.5*(x-mu)**2/(sigma**2)
+        log_probability = distributions.normal.Normal(loc=mu, scale=sigma).log_prob(x)
         return sum_data_dimensions(log_probability)
 
     def get_sample(self, mu, sigma, number_samples):
@@ -206,8 +214,10 @@ class NormalDistribution(UnivariateDistribution):
         Returns
         -------
         """
-        mean, var = broadcast_and_squeeze(mu, sigma)
-        sample = mean + sigma*np.random.normal(0, 1, size=mean.shape)
+        # mean, var = broadcast_and_squeeze(mu, sigma)
+        # sample = mean + sigma*np.random.normal(0, 1, size=mean.shape)
+        mu, sigma = broadcast_and_squeeze(mu, sigma) #TODO: is there a reason to create new vars? var was not used
+        sample = distributions.normal.Normal(loc=mu, scale=sigma).sample()
         return sample
 
 
@@ -226,7 +236,7 @@ class CauchyDistribution(UnivariateDistribution):
         -------
         """
         x, mu, sigma = broadcast_and_squeeze(x, mu, sigma)
-        log_probability = -F.log(1 + (x-mu)**2/sigma**2)
+        log_probability = -torch.log(1 + (x-mu)**2/sigma**2)
         return sum_data_dimensions(log_probability)
 
     def get_sample(self, mu, sigma, number_samples):
@@ -240,7 +250,7 @@ class CauchyDistribution(UnivariateDistribution):
         -------
         """
         mu, sigma = broadcast_and_squeeze(mu, sigma)
-        sample = mu + sigma*F.tan(np.pi*np.random.uniform(0, 1, size=mu.shape).astype(np.float32))
+        sample = mu + sigma*torch.tan(np.pi*np.random.uniform(0, 1, size=mu.shape).astype(np.float32))
         return sample
 
 
@@ -259,7 +269,7 @@ class LogNormalDistribution(UnivariateDistribution):
         -------
         """
         x, mu, sigma = broadcast_and_squeeze(x, mu, sigma)
-        log_probability = -0.5*np.log(2*np.pi) - F.log(x) - F.log(sigma) - 0.5*(F.log(x)-mu)**2/(sigma**2)
+        log_probability = -0.5*np.log(2*np.pi) - torch.log(x) - torch.log(sigma) - 0.5*(torch.log(x)-mu)**2/(sigma**2)
         return sum_data_dimensions(log_probability)
 
     def get_sample(self, mu, sigma, number_samples):
@@ -274,7 +284,7 @@ class LogNormalDistribution(UnivariateDistribution):
         """
         mu, sigma = broadcast_and_squeeze(mu, sigma)
         log_sample = mu + sigma*np.random.normal(0,1,size=mu.shape)
-        return F.exp(log_sample)
+        return torch.exp(log_sample)
 
 
 class LogitNormalDistribution(UnivariateDistribution):
@@ -292,9 +302,9 @@ class LogitNormalDistribution(UnivariateDistribution):
         -------
         """
         def logit(p):
-            return F.log(p) - F.log(1-p)
+            return torch.log(p) - torch.log(1-p)
         x, mu, sigma = broadcast_and_squeeze(x, mu, sigma)
-        log_probability = -0.5*np.log(2*np.pi) - F.log(x) - F.log(1-x) - F.log(sigma) - 0.5*(logit(x)-mu)**2/(sigma**2)
+        log_probability = -0.5*np.log(2*np.pi) - torch.log(x) - torch.log(1-x) - torch.log(sigma) - 0.5*(logit(x)-mu)**2/(sigma**2)
         return sum_data_dimensions(log_probability)
 
     def get_sample(self, mu, sigma, number_samples):
@@ -309,7 +319,7 @@ class LogitNormalDistribution(UnivariateDistribution):
         """
         mu, sigma = broadcast_and_squeeze(mu, sigma)
         logit_sample = mu + sigma*np.random.normal(0, 1, size=mu.shape)
-        return F.sigmoid(logit_sample)
+        return torch.sigmoid(logit_sample)
 
 
 class BinomialDistribution(UnivariateDistribution):
@@ -327,8 +337,8 @@ class BinomialDistribution(UnivariateDistribution):
         -------
         """
         x, n, p = broadcast_and_squeeze(x, n, p)
-        x, n = x.data, n.data
-        log_probability = np.log(binom(n, x)) + x*F.log(p) + (n-x)*F.log(1-p)
+        x, n = x.numpy(), n.numpy()
+        log_probability = np.log(binom(n, x)) + x*torch.log(p) + (n-x)*torch.log(1-p)
         return sum_data_dimensions(log_probability)
 
     def get_sample(self, n, p, number_samples):
@@ -342,8 +352,8 @@ class BinomialDistribution(UnivariateDistribution):
         -------
         """
         n, p = broadcast_and_squeeze(n, p)
-        binomial_sample = np.random.binomial(n.data, p.data) #TODO: Not reparametrizable (Gumbel?)
-        return chainer.Variable(binomial_sample.astype("int32"))
+        binomial_sample = np.random.binomial(n.numpy(), p.numpy()) #TODO: Not reparametrizable (Gumbel?)
+        return torch.tensor(binomial_sample.astype("int32"))
 
 
 class LogitBinomialDistribution(UnivariateDistribution):
@@ -361,11 +371,11 @@ class LogitBinomialDistribution(UnivariateDistribution):
         -------
         """
         x, n, z = broadcast_and_squeeze(x, n, z)
-        x, n = x.data, n.data
-        alpha = F.relu(-z).data
-        beta = F.relu(z).data
-        success_term = x*alpha - x*F.log(np.exp(alpha) + F.exp(alpha-z))
-        failure_term = (n-x)*beta - (n-x)*F.log(np.exp(beta) + F.exp(beta+z))
+        x, n = x.numpy(), n.numpy()
+        alpha = torch.relu(-z).numpy()
+        beta = torch.relu(z).numpy()
+        success_term = x*alpha - x*torch.log(np.exp(alpha) + torch.exp(alpha-z))
+        failure_term = (n-x)*beta - (n-x)*torch.log(np.exp(beta) + torch.exp(beta+z))
         log_probability = np.log(binom(n, x)) + success_term + failure_term
         return sum_data_dimensions(log_probability)
 
@@ -380,8 +390,8 @@ class LogitBinomialDistribution(UnivariateDistribution):
         -------
         """
         n, z = broadcast_and_squeeze(n, z)
-        binomial_sample = np.random.binomial(n.data, F.sigmoid(z).data) #TODO: Not reparametrizable (Gumbel?)
-        return chainer.Variable(binomial_sample.astype("int32"))
+        binomial_sample = np.random.binomial(n.numpy(), torch.sigmoid(z).numpy()) #TODO: Not reparametrizable (Gumbel?)
+        return torch.tensor(binomial_sample.astype("int32"))
 
 
 ## Multivariate distributions ##
@@ -404,9 +414,9 @@ class CholeskyMultivariateNormal(MultivariateDistribution): #TODO: This needs to
         Returns
         -------
         """
-        log_det = 2*F.sum(F.log(get_diagonal(chol_cov)), axis=2)
-        whitened_input = F.matmul(F.transpose(chol_cov, axes=(1, 2, 4, 3)), x)
-        exponent = F.sum(whitened_input**2, axis=2)
+        log_det = 2*torch.sum(torch.log(get_diagonal(chol_cov)), axis=2)
+        whitened_input = torch.matmul(torch.transpose(chol_cov, axes=(1, 2, 4, 3)), x)
+        exponent = torch.sum(whitened_input**2, axis=2)
         log_probability = -0.5*np.log(2*np.pi) -0.5*log_det -0.5*exponent
         return sum_data_dimensions(log_probability)
 
@@ -421,7 +431,7 @@ class CholeskyMultivariateNormal(MultivariateDistribution): #TODO: This needs to
             -------
             """
             random_vector = np.random.normal(0,1,size=mu.shape).astype("float32")
-            return mu + F.matmul(chol_cov, random_vector)
+            return mu + torch.matmul(chol_cov, random_vector)
 
 class CategoricalDistribution(MultivariateDistribution):
     """
@@ -438,8 +448,8 @@ class CategoricalDistribution(MultivariateDistribution):
         -------
         """
         x, p = broadcast_and_squeeze(x, p)
-        x = x.data
-        log_probability = F.sum(x*F.log(p), axis=2)
+        x = x.numpy()
+        log_probability = torch.sum(x*torch.log(p), axis=2)
         return sum_data_dimensions(log_probability)
 
     def get_sample(self, p, number_samples):
@@ -452,12 +462,12 @@ class CategoricalDistribution(MultivariateDistribution):
         Returns
         -------
         """
-        p_values = p.data
+        p_values = p.numpy()
         p_shape = p_values.shape
         sample = np.swapaxes(np.array([[np.random.multinomial(1, p_values[j, k, :])
                                         for j in range(p_shape[0])]
                                        for k in range(p_shape[1])]), axis1=0, axis2=1)
-        return chainer.Variable(sample.astype("int32"))
+        return torch.tensor(sample.astype("int32"))
 
 
 class SoftmaxCategoricalDistribution(MultivariateDistribution): #TODO: Work in progress!!!
@@ -476,9 +486,9 @@ class SoftmaxCategoricalDistribution(MultivariateDistribution): #TODO: Work in p
         -------
         """
         reshaped_dict, n_samples, n_datapoints = broadcast_parent_values({"x": x, "z": z})
-        labels = np.reshape(reshaped_dict["x"].data, newshape=(n_samples*n_datapoints, 1))
-        log_probability = -F.softmax_cross_entropy(reshaped_dict["z"], labels, reduce="no")
-        log_probability = F.reshape(log_probability, shape=(n_samples, n_datapoints))
+        labels = np.reshape(reshaped_dict["x"].numpy(), newshape=(n_samples*n_datapoints, 1))
+        log_probability = -torch.softmax_cross_entropy(reshaped_dict["z"], labels, reduce="no")
+        log_probability = torch.reshape(log_probability, shape=(n_samples, n_datapoints))
         return log_probability
 
     def get_sample(self, z, number_samples):
@@ -493,14 +503,14 @@ class SoftmaxCategoricalDistribution(MultivariateDistribution): #TODO: Work in p
         """
         # import matplotlib.pyplot as plt
         # [plt.plot(z.data[k, 0, :, 0]) for k in range(10)] #TODO: Work in progress
-        p_values = F.softmax(z, axis=2).data
+        p_values = torch.softmax(z, axis=2).numpy()
         p_shape = p_values.shape
         p_values = np.reshape(p_values.astype("float64"), newshape=p_shape[:2] + tuple([np.prod(p_shape[2:])])) #TODO: This should go in a more general class (Future refactoring)
         sample = np.swapaxes(np.array([[np.random.multinomial(1, p_values[j, k, :]/np.sum(p_values[j, k, :]))
                                         for j in range(p_shape[0])]
                                        for k in range(p_shape[1])]), axis1=0, axis2=1)
         sample = np.reshape(sample, newshape=p_shape)
-        return chainer.Variable(sample.astype("int32"))
+        return torch.tensor(sample.astype("int32"))
 
 
 class ConcreteDistribution(MultivariateDistribution):
@@ -519,8 +529,8 @@ class ConcreteDistribution(MultivariateDistribution):
         """
         dim = p.shape[2]
         #p, tau = F.broadcast(p, tau)
-        normalization = F.log(F.sum(p*x**(-tau-1), axis=2))
-        log_probability = (F.sum(np.log(dim + 1) + (dim - 1)*F.log(tau), axis=2) + F.sum(F.log(p) + (-tau + 1)*F.log(x), axis=2)
+        normalization = torch.log(torch.sum(p*x**(-tau-1), axis=2))
+        log_probability = (torch.sum(np.log(dim + 1) + (dim - 1)*torch.log(tau), axis=2) + torch.sum(torch.log(p) + (-tau + 1)*torch.log(x), axis=2)
                            - dim*normalization)
         return log_probability
 
@@ -534,9 +544,9 @@ class ConcreteDistribution(MultivariateDistribution):
         Returns
         -------
         """
-        p, tau = F.broadcast(p, tau)
+        p, tau = torch.broadcast_tensors(p, tau)
         gumbel_sample = np.random.gumbel(0, 1, size=p.shape)
-        return F.softmax((F.log(p) + gumbel_sample)/tau, axis=2)
+        return torch.softmax((torch.log(p) + gumbel_sample)/tau, axis=2)
 
 
 # StochasticProcesses #

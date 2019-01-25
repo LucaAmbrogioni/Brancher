@@ -349,7 +349,7 @@ class RandomVariable(Variable):
 
         self._evaluated = False
         self._observed = False # RandomVariable: observed value + link
-        self._observed_value = None
+        self._observed_value = None # need this?
         self.dataset = None
         self.has_random_dataset = False
         self.has_observed_value = False
