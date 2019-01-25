@@ -7,8 +7,6 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterable
 import copy
 
-import chainer
-import chainer.functions as F
 import numpy as np
 from scipy.special import binom
 
