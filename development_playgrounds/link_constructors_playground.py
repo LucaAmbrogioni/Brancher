@@ -30,8 +30,12 @@ c = DeterministicVariable(0.3, 'c')
 d = NormalVariable((a*b + c), c + a**2, 'd')
 
 ##
-e1 = BF.concat((a, b), 2)
-e2 = BF.concat((a, c), 2)
+a._get_sample(10)
+
+
+##
+e1 = BF.cat((a, b), 2)
+e2 = BF.cat((a, c), 2)
 f = NormalVariable(e1**2, e2**1, 'f')
 
 ##

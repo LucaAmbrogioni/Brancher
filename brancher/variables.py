@@ -10,8 +10,9 @@ import collections
 from collections.abc import Iterable
 
 import numpy as np
-
 import torch
+
+import warnings
 
 from brancher.utilities import join_dicts_list, join_sets_list
 from brancher.utilities import flatten_list
@@ -252,22 +253,23 @@ class DeterministicVariable(Variable):
 
     name : String. The name of the variable.
 
-    learnable : Bool. This boolean value specify if the value of the DeterministicVariable can be updated during treaning.
+    learnable : Bool. This boolean value specify if the value of the DeterministicVariable can be updated during traning.
 
     """
     def __init__(self, data, name, learnable=False, is_observed=False):
-        self._current_value = coerce_to_dtype(data, is_observed)
         self.name = name
         self._observed = is_observed
         self.parents = ()
         self._type = "Deterministic"
         self.learnable = learnable
-        if learnable:
-            if ~is_discrete(self._current_value):
-                #self.link = L.Bias(axis=1, shape=self._current_value.shape[1:])
-                self.link = torch.nn.Parameter(torch.empty(self._current_value.shape[1:]), requires_grad=True)
+        self.value = coerce_to_dtype(data, is_observed)
+        if self.learnable:
+            if ~is_discrete(data):
+                self.value = torch.nn.Parameter(coerce_to_dtype(data, is_observed), requires_grad=True)
+                self.link = self.value # add to optimizer; opt checks links
             else:
-                self.learnable = False #TODO: Warning?
+                self.learnable = False
+                warnings.warn('Currently discrete parameters are not learnable. Learnable set to False')
 
 
     def calculate_log_probability(self, values, reevaluate=True, for_gradient=False, normalized=True):
@@ -286,18 +288,20 @@ class DeterministicVariable(Variable):
         Returns:
             chainer.Variable. the log probability of the input values given the model.
         """
+
         return 0.
 
-    @property
-    def value(self):
-        assert self._current_value is not None
-        if self.learnable:
-            return self.link(self._current_value)
-        return self._current_value
-
-    @value.setter
-    def value(self, val):
-        self._current_value = coerce_to_dtype(val, is_observed=self.is_observed)
+    # @property
+    # def value(self):
+    #     assert self._current_value is not None
+    #     if self.learnable:
+    #         return self.link#(self._current_value) #
+    #     return self._current_value
+    #
+    # @value.setter
+    # def value(self, val):
+    #     '''Set initial value to the Parameter; call parameter, set initial value'''
+    #     self._current_value = coerce_to_dtype(val, is_observed=self.is_observed)
 
     @property
     def is_observed(self):
@@ -344,9 +348,8 @@ class RandomVariable(Variable):
         self.samples = []
 
         self._evaluated = False
-        self._observed = False
+        self._observed = False # RandomVariable: observed value + link
         self._observed_value = None
-        self._current_value = None
         self.dataset = None
         self.has_random_dataset = False
         self.has_observed_value = False
@@ -355,11 +358,12 @@ class RandomVariable(Variable):
     def value(self):
         if self._observed:
             return self._observed_value
-        return self._current_value
+        else:
+            raise AttributeError('RandomVariable has to be observed to receive value.')
 
-    @value.setter
-    def value(self, val):
-        self._current_value = coerce_to_dtype(val)
+    # @value.setter
+    # def value(self, val):
+    #     self._current_value = coerce_to_dtype(val)
 
     @property
     def is_observed(self):
@@ -534,13 +538,13 @@ class ProbabilisticModel(BrancherClass):
         self._set_summary()
         return self._model_summary
 
-    @property
-    def value(self):
-        return tuple(var.value for var in self.variables)
-
-    @value.setter
-    def value(self, val):
-        raise AttributeError("The value of a probabilistic model cannot be explicitly set.")
+    # @property
+    # def value(self):
+    #     return tuple(var.value for var in self.variables)
+    #
+    # @value.setter
+    # def value(self, val):
+    #     raise AttributeError("The value of a probabilistic model cannot be explicitly set.")
 
     @property
     def is_observed(self):
