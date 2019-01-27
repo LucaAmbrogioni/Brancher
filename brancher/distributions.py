@@ -212,10 +212,10 @@ class NormalDistribution(UnivariateDistribution):
         Returns
         -------
         """
-        # mean, var = broadcast_and_squeeze(mu, sigma)
-        # sample = mean + sigma*np.random.normal(0, 1, size=mean.shape)
-        mu, sigma = broadcast_and_squeeze(mu, sigma) #TODO: is there a reason to create new vars? var was not used
-        sample = distributions.normal.Normal(loc=mu, scale=sigma).sample()
+        mu, sigma = broadcast_and_squeeze(mu, sigma)
+        sample = mu + sigma*torch.tensor(np.random.normal(0, 1, size=mu.shape))
+        # mu, sigma = broadcast_and_squeeze(mu, sigma) #TODO: is there a reason to create new vars? var was not used
+        # sample = distributions.normal.Normal(loc=mu, scale=sigma).sample()
         return sample
 
 

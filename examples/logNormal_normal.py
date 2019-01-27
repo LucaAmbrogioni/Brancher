@@ -36,7 +36,7 @@ model.set_posterior_model(ProbabilisticModel([Qmu, Qnu]))
 # Inference
 inference.stochastic_variational_inference(model,
                                             number_iterations=10000,
-                                            number_samples=50,
+                                            number_samples=100,
                                             optimizer='Adam')
 loss_list = model.diagnostics["loss curve"]
 
