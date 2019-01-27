@@ -13,9 +13,11 @@ class BrancherFunction(object):
     def __init__(self, fn):
         self.fn = fn
         #if isinstance(fn, (chainer.Link, chainer.Chain, chainer.ChainList)):
-        #    self.links = {fn}
-        #else:
-        self.links = set()
+        if isinstance(fn, (torch.nn.Module, torch.nn.Sequential, torch.nn.ModuleList, torch.nn.ModuleDict,
+                           torch.nn.Parameter, torch.nn.ParameterDict, torch.nn.ParameterList)): #TODO: all optimizable types in nn
+            self.links = {fn}
+        else:
+            self.links = set()
 
     def __call__(self, *args, **kwargs):
         link_args = [var2link(arg) for arg in args]

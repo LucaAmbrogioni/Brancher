@@ -32,16 +32,19 @@ c = DeterministicVariable(0.3, 'c')
 d = NormalVariable((a*b + c), c + a**2, 'd')
 
 ##
-a._get_sample(10)
+print(a._get_sample(10))
 
 
 ##
-e1 = BF.cat((a, b), 2)
+e1 = BF.cat((a, b), 2) #TODO: to change later, so that user does not have to specify dim explicitly (adjust cat)
 e2 = BF.cat((a, c), 2)
 f = NormalVariable(e1**2, e2**1, 'f')
+g = NormalVariable(BF.relu(f), 1., 'g')
 
 ##
-f._get_sample(10)
+print(g._get_sample(10))
+
+
 
 ##
 a_val = torch.tensor(0.25*np.pi*np.ones((1,1), dtype = "float32"))

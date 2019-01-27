@@ -9,6 +9,8 @@ import numbers
 import collections
 from collections.abc import Iterable
 
+from brancher.chains import ParameterModule
+
 import numpy as np
 import torch
 
@@ -262,11 +264,12 @@ class DeterministicVariable(Variable):
         self.parents = ()
         self._type = "Deterministic"
         self.learnable = learnable
-        self.value = coerce_to_dtype(data, is_observed)
+        self.link = None
+        self._value = coerce_to_dtype(data, is_observed)
         if self.learnable:
-            if ~is_discrete(data):
-                self.value = torch.nn.Parameter(coerce_to_dtype(data, is_observed), requires_grad=True)
-                self.link = self.value # add to optimizer; opt checks links
+            if not is_discrete(data):
+                self._value = torch.nn.Parameter(coerce_to_dtype(data, is_observed), requires_grad=True)
+                self.link = ParameterModule(self._value) # add to optimizer; opt checks links
             else:
                 self.learnable = False
                 warnings.warn('Currently discrete parameters are not learnable. Learnable set to False')
@@ -291,12 +294,11 @@ class DeterministicVariable(Variable):
 
         return 0.
 
-    # @property
-    # def value(self):
-    #     assert self._current_value is not None
-    #     if self.learnable:
-    #         return self.link#(self._current_value) #
-    #     return self._current_value
+    @property
+    def value(self):
+        if self.learnable:
+            return self.link()
+        return self._value
     #
     # @value.setter
     # def value(self, val):
@@ -419,7 +421,7 @@ class RandomVariable(Variable):
                                                                         normalized=normalized)
                                        for parent in self.parents])
         if self.is_observed:
-            log_probability = log_probability.sum(dim=1, keepdims=True)
+            log_probability = log_probability.sum(dim=1, keepdim=True)
         if is_tensor(log_probability) and is_tensor(parents_log_probability):
             log_probability, parents_log_probability = partial_broadcast(log_probability, parents_log_probability)
         if include_parents:

@@ -3,6 +3,8 @@ import chainer.functions as F
 import matplotlib.pyplot as plt
 import numpy as np
 
+import torch
+
 from brancher.distributions import NormalDistribution, LogNormalDistribution
 from brancher.variables import DeterministicVariable, RandomVariable, ProbabilisticModel
 from brancher.standard_variables import NormalVariable, LogNormalVariable
@@ -33,15 +35,15 @@ model.set_posterior_model(ProbabilisticModel([Qmu, Qnu]))
 
 # Inference
 inference.stochastic_variational_inference(model,
-                                            number_iterations=100,
+                                            number_iterations=10000,
                                             number_samples=50,
-                                            optimizer=chainer.optimizers.Adam(0.1))
+                                            optimizer='Adam')
 loss_list = model.diagnostics["loss curve"]
 
 # Statistics
 posterior_samples = model._get_posterior_sample(5000)
-nu_posterior_samples = posterior_samples[nu].data.flatten()
-mu_posterior_samples = posterior_samples[mu].data.flatten()
+nu_posterior_samples = posterior_samples[nu].detach().numpy().flatten()
+mu_posterior_samples = posterior_samples[mu].detach().numpy().flatten()
 
 # Two subplots, unpack the axes array immediately
 f, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4)

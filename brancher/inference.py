@@ -12,6 +12,8 @@ import chainer.functions as F
 import numpy as np
 from tqdm import tqdm
 
+import torch
+
 from brancher.optimizers import ProbabilisticOptimizer
 from brancher.variables import DeterministicVariable, Variable, ProbabilisticModel
 from brancher.transformations import truncate_model
@@ -45,7 +47,7 @@ from brancher.utilities import sum_from_dim
 
 
 def stochastic_variational_inference(joint_model, number_iterations, number_samples,
-                                     optimizer=chainer.optimizers.Adam(0.001),
+                                     optimizer='Adam', opt_params={},
                                      input_values={}, inference_method=None,
                                      posterior_model=None, sampler_model=None,
                                      pretraining_iterations=0): #TODO: input values
@@ -72,11 +74,17 @@ def stochastic_variational_inference(joint_model, number_iterations, number_samp
 
     joint_model.update_observed_submodel()
 
-    optimizers_list = [ProbabilisticOptimizer(posterior_model, optimizer)]
+    def append_prob_optimizer(model, optimizer, **opt_params):
+        prob_opt = ProbabilisticOptimizer(model, optimizer, **opt_params) # TODO: this should be better!!! handling models with no params
+        if prob_opt.optimizer:
+            optimizers_list.append(prob_opt)
+
+    optimizers_list = []
+    append_prob_optimizer(posterior_model, optimizer, **opt_params)
     if inference_method.learnable_model:
-        optimizers_list.append(ProbabilisticOptimizer(joint_model, optimizer))
+        append_prob_optimizer(joint_model, optimizer, **opt_params)
     if inference_method.learnable_sampler:
-        optimizers_list.append(ProbabilisticOptimizer(sampler_model, optimizer))
+        append_prob_optimizer(sampler_model, optimizer, **opt_params)
 
     loss_list = []
 
@@ -85,15 +93,15 @@ def stochastic_variational_inference(joint_model, number_iterations, number_samp
     for iteration in tqdm(range(number_iterations)):
         loss = inference_method.compute_loss(joint_model, posterior_model, sampler_model, number_samples)
 
-        if np.isfinite(loss.data).all():
-            [opt.chain.cleargrads() for opt in optimizers_list]
+        if np.isfinite(loss.detach().numpy()).all(): #TODO: numpy()
+            [opt.zero_grad() for opt in optimizers_list]
             loss.backward()
             optimizers_list[0].update()
             if iteration > pretraining_iterations:
                 [opt.update() for opt in optimizers_list[1:]]
         else:
             warnings.warn("Numerical error, skipping sample")
-        loss_list.append(loss.data)
+        loss_list.append(loss.detach().numpy()) #TODO: make sure this works: detach()?
     joint_model.diagnostics.update({"loss curve": np.array(loss_list)})
 
     inference_method.post_process(joint_model) #TODO: this could be implemented with a with block
@@ -163,7 +171,7 @@ class WassersteinVariationalGradientDescent(InferenceMethod): #TODO: Work in pro
             reassigned_particles = [reassign_samples(p._get_sample(num_samples), source_model=p, target_model=dic)
                                     for p in particles]
 
-            statistics = [self.deviation_statistics([self.cost_function(value_pair[0], value_pair[1]).data
+            statistics = [self.deviation_statistics([self.cost_function(value_pair[0], value_pair[1]).detach().numpy() #TODO: same as above + GPU
                                                      for var, value_pair in zip_dict(dic, p).items()])
                           for p in reassigned_particles]
             return np.array(statistics).transpose()
@@ -204,7 +212,7 @@ class WassersteinVariationalGradientDescent(InferenceMethod): #TODO: Work in pro
         pair_list = [zip_dict(particle._get_sample(1), samples)
                      for particle, samples in zip(particle_list, reassigned_samples_list)]
 
-        particle_loss = sum([F.sum(w*self.deviation_statistics([self.cost_function(value_pair[0], value_pair[1].data)
+        particle_loss = sum([torch.sum(w*self.deviation_statistics([self.cost_function(value_pair[0], value_pair[1].detach().numpy()) #TODO: numpy()
                                                                 for var, value_pair in particle.items()]))
                              for particle, w in zip(pair_list, importance_weights)])
         return particle_loss

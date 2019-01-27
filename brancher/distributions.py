@@ -281,7 +281,7 @@ class LogNormalDistribution(UnivariateDistribution):
         -------
         """
         mu, sigma = broadcast_and_squeeze(mu, sigma)
-        log_sample = mu + sigma*np.random.normal(0,1,size=mu.shape)
+        log_sample = mu + sigma*torch.tensor(np.random.normal(0,1,size=mu.shape))
         return torch.exp(log_sample)
 
 

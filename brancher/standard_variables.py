@@ -23,7 +23,7 @@ class LinkConstructor(nn.ModuleList):
         modules = [link
                  for partial_link in kwargs.values()
                  for link in var2link(partial_link).links]
-        super().__init__(modules)
+        super().__init__(modules) #TODO: asserts that specified links are valid pytorch modules
 
     def __call__(self, values):
         return {k: var2link(x).fn(values) for k, x in self.kwargs.items()}
