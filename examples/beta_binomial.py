@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from brancher.variables import ProbabilisticModel
-from brancher.standard_variables import LogitNormalVariable, BinomialVariable
+from brancher.standard_variables import BetaVariable, BinomialVariable
 from brancher import inference
 import brancher.functions as BF
 
@@ -12,11 +12,11 @@ plt.close("all")
 
 #Real model
 number_samples = 1
-p_real = 0.8
+p_real = 0.99
 k_real = BinomialVariable(number_samples, p=p_real, name="k")
 
 # LogitNormal/Binomial model
-p = LogitNormalVariable(0.2, 2., "p")
+p = BetaVariable(1., 1., "p")
 k = BinomialVariable(number_samples, p=p, name="k")
 model = ProbabilisticModel([k])
 
@@ -24,17 +24,17 @@ model = ProbabilisticModel([k])
 data = k_real._get_sample(number_samples=50)
 
 # Observe data
-k.observe(data[k_real][:,0,:])
+k.observe(data[k_real][:, 0, :])
 
 # Variational distribution
-Qp = LogitNormalVariable(0.2, 2., "p", learnable=True)
+Qp = BetaVariable(1., 1., "p", learnable=True)
 model.set_posterior_model(ProbabilisticModel([Qp]))
 
 # Inference
 inference.stochastic_variational_inference(model,
-                                           number_iterations=150,
+                                           number_iterations=20000,
                                            number_samples=100,
-                                           optimizer=chainer.optimizers.Adam(0.05))
+                                           optimizer='Adam')
 loss_list = model.diagnostics["loss curve"]
 
 # Statistics

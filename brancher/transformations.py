@@ -4,7 +4,6 @@ import numpy as np
 import chainer.functions as F
 
 from brancher.variables import RandomVariable, ProbabilisticModel
-
 from brancher.utilities import concatenate_samples, reject_samples
 
 

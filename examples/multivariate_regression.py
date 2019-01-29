@@ -43,26 +43,24 @@ y.observe(data)
 
 # Inference
 inference.stochastic_variational_inference(model,
-                                           number_iterations=200,
+                                           number_iterations=5000,
                                            number_samples=100,
-                                           optimizer=chainer.optimizers.Adam(0.05)) #0.05
-
-#post_samples = model._get_posterior_sample(2) #TODO: Work in progress
+                                           optimizer='Adam')
 
 # Plot
-plt.plot(model.diagnostics["loss curve"])
-plt.show()
+#plt.plot(model.diagnostics["loss curve"])
+#plt.show()
 
 n_post_samples = 1000
 post_samples = model._get_posterior_sample(n_post_samples)
-s_x1 = np.reshape(x1.value.data, newshape=(n,))
-s_x2 = np.reshape(x2.value.data, newshape=(n,))
+s_x1 = np.reshape(x1.value.detach().numpy(), newshape=(n,))
+s_x2 = np.reshape(x2.value.detach().numpy(), newshape=(n,))
 post_mean = 0.
 for k in range(n_post_samples):
-    s_b = float(post_samples[b].data[k,:])
-    s_w1 = float(post_samples[w1].data[k,:])
-    s_w2 = float(post_samples[w2].data[k,:])
-    s_w12 = float(post_samples[w12].data[k,:])
+    s_b = float(post_samples[b].detach().numpy()[k, :])
+    s_w1 = float(post_samples[w1].detach().numpy()[k, :])
+    s_w2 = float(post_samples[w2].detach().numpy()[k, :])
+    s_w12 = float(post_samples[w12].detach().numpy()[k, :])
     sample_function = s_b + s_w1*s_x1 + s_w2*s_x2 + s_w12*s_x1*s_x2
     post_mean += sample_function
     plt.plot(np.reshape(x_range, newshape=(n,)), sample_function, c="b", alpha=0.05)

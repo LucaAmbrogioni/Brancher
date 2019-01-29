@@ -1,25 +1,19 @@
-import chainer
-import chainer.functions as F
 import matplotlib.pyplot as plt
 import numpy as np
 
-import torch
-
-from brancher.distributions import NormalDistribution, LogNormalDistribution
-from brancher.variables import DeterministicVariable, RandomVariable, ProbabilisticModel
-from brancher.standard_variables import NormalVariable, LogNormalVariable
+from brancher.variables import ProbabilisticModel
+from brancher.standard_variables import NormalVariable, LaplaceVariable, CauchyVariable, LogNormalVariable
 from brancher import inference
-import brancher.functions as BF
 
 # Real model
 nu_real = 1.
 mu_real = -2.
-x_real = NormalVariable(mu_real, nu_real, "x_real")
+x_real = LaplaceVariable(mu_real, nu_real, "x_real")
 
 # Normal model
 nu = LogNormalVariable(0., 1., "nu")
 mu = NormalVariable(0., 10., "mu")
-x = NormalVariable(mu, nu, "x")
+x = LaplaceVariable(mu, nu, "x")
 model = ProbabilisticModel([x])
 
 # # Generate data
@@ -35,9 +29,9 @@ model.set_posterior_model(ProbabilisticModel([Qmu, Qnu]))
 
 # Inference
 inference.stochastic_variational_inference(model,
-                                            number_iterations=10000,
-                                            number_samples=100,
-                                            optimizer='Adam')
+                                           number_iterations=3000,
+                                           number_samples=100,
+                                           optimizer='Adam')
 loss_list = model.diagnostics["loss curve"]
 
 # Statistics

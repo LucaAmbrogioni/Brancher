@@ -120,6 +120,16 @@ def broadcast_and_squeeze(*args):
     broadcasted_values = torch.broadcast_tensors(*uniformed_values)
     return broadcasted_values
 
+
+def broadcast_and_squeeze_mixed(tpl, dic):
+    tpl_len = len(tpl)
+    dict_keys, dict_values = zip(*dic.items())
+    broadcasted_values = broadcast_and_squeeze(*(tpl + dict_values))
+    if tpl_len > 0:
+        return broadcasted_values[:tpl_len], {k: v for k, v in zip(dict_keys, broadcasted_values[tpl_len:])}
+    else:
+        return {k: v for k, v in zip(dict_keys, broadcasted_values[tpl_len:])}
+
 # def broadcast_and_squeeze_chainer(*args):
 #     if all([np.prod(val.shape[2:]) == 1 for val in args]):
 #         args = [F.reshape(val, shape=val.shape[:2] + tuple([1, 1])) for val in args]
@@ -137,7 +147,7 @@ def broadcast_parent_values(parents_values):
     number_samples, number_datapoints = original_shapes[0][0:2]
     newshapes = [tuple([number_samples * number_datapoints]) + s
                  for s in data_shapes]
-    reshaped_values = [val.view(size=s) for val, s in zip(broadcasted_values, newshapes)]
+    reshaped_values = [val.contiguous().view(size=s) for val, s in zip(broadcasted_values, newshapes)]
     return {key: value for key, value in zip(keys_list, reshaped_values)}, number_samples, number_datapoints
 
 
@@ -180,7 +190,7 @@ def get_diagonal(tensor): # what does it do? output with torch needs to be teste
 def coerce_to_dtype(data, is_observed=False): #TODO: move all this under class initialize Tensor and Structure?
                                               #TODO: add type checking everywhere: Tensor or Structure
     """Summary"""
-    def check_observed(result):
+    def reformat_tensor(result):
         if is_observed:
             result = torch.unsqueeze(result, dim=0)
             result_shape = result.shape
@@ -208,15 +218,15 @@ def coerce_to_dtype(data, is_observed=False): #TODO: move all this under class i
     if dtype is torch.Tensor: # to tensor
         result = data
     elif dtype is np.ndarray: # to tensor
-        result = torch.tensor(data, dtype=data.dtype)
+        result = torch.tensor(data)
     elif dtype in [float, int] or dtype.__base__ in [np.floating, np.signedinteger]: # to tensor
         result = torch.tensor(data * np.ones(shape=(1, 1)))
     elif dtype in [list, set, tuple, dict, str]: # to discrete
-        result = data
+        return data
     else:
         raise TypeError("Invalid input dtype {} - expected float, integer, np.ndarray, or torch var.".format(dtype))
 
-    return check_observed(result)
+    return reformat_tensor(result)
 
 
 def tile_parameter(tensor, number_samples):

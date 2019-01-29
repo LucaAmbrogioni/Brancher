@@ -10,14 +10,8 @@ import copy
 import torch
 
 from brancher.standard_variables import LinkConstructor
-from brancher.chains import ParameterModule, EmptyModule
+from brancher.modules import ParameterModule, EmptyModule
 from brancher.variables import BrancherClass, Variable, ProbabilisticModel
-
-
-# PO_DEFAULT_APLHA = 0.001
-# PO_DEFAULT_BETA1 = 0.9
-# PO_DEFAULT_BETA2 = 0.999
-# PO_DEFAULT_EPS = 1e-08
 
 
 class ProbabilisticOptimizer(ABC):

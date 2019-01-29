@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from brancher.variables import DeterministicVariable, RandomVariable, ProbabilisticModel
-from brancher.standard_variables import NormalVariable, LogNormalVariable, LogitNormalVariable
+from brancher.standard_variables import NormalVariable, LogNormalVariable, BetaVariable
 from brancher import inference
 import brancher.functions as BF
 
@@ -12,13 +12,13 @@ T = 100
 
 nu = LogNormalVariable(0.3, 1., 'nu')
 x0 = NormalVariable(0., 1., 'x0')
-b = LogitNormalVariable(0.5, 1.5, 'b')
+b = BetaVariable(0.5, 1.5, 'b')
 
 x = [x0]
 names = ["x0"]
 for t in range(1,T):
     names.append("x{}".format(t))
-    x.append(NormalVariable(BF.tanh(b*x[t-1]), nu, names[t]))
+    x.append(NormalVariable(b*x[t-1], nu, names[t]))
 AR_model = ProbabilisticModel(x)
 
 # Generate data #
@@ -33,7 +33,7 @@ print("The true coefficient is: {}".format(float(true_b)))
 
 # Variational distribution #
 Qnu = LogNormalVariable(0.5, 1., "nu", learnable=True)
-Qb = LogitNormalVariable(0.5, 0.5, "b", learnable=True)
+Qb = BetaVariable(0.5, 0.5, "b", learnable=True)
 variational_posterior = ProbabilisticModel([Qb, Qnu])
 AR_model.set_posterior_model(variational_posterior)
 
@@ -41,14 +41,15 @@ AR_model.set_posterior_model(variational_posterior)
 inference.stochastic_variational_inference(AR_model,
                                            number_iterations=100,
                                            number_samples=300,
-                                           optimizer=chainer.optimizers.Adam(0.05))
+                                           optimizer='Adam',
+                                           lr=0.05)
 loss_list = AR_model.diagnostics["loss curve"]
 
 
 # Statistics
 posterior_samples = AR_model._get_posterior_sample(2000)
-nu_posterior_samples = posterior_samples[nu].data.flatten()
-b_posterior_samples = posterior_samples[b].data.flatten()
+nu_posterior_samples = posterior_samples[nu].detach().numpy().flatten()
+b_posterior_samples = posterior_samples[b].detach().numpy().flatten()
 b_mean = np.mean(b_posterior_samples)
 b_sd = np.sqrt(np.var(b_posterior_samples))
 print("The estimated coefficient is: {} +- {}".format(b_mean, b_sd))

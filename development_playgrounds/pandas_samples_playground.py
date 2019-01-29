@@ -1,13 +1,8 @@
 import chainer
-import chainer.functions as F
-import matplotlib.pyplot as plt
-import numpy as np
 
-from brancher.distributions import NormalDistribution, LogNormalDistribution
-from brancher.variables import DeterministicVariable, RandomVariable, ProbabilisticModel
+from brancher.variables import ProbabilisticModel
 from brancher.standard_variables import NormalVariable, LogNormalVariable
 from brancher import inference
-import brancher.functions as BF
 
 # Real model
 nu_real = 1.

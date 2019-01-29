@@ -9,7 +9,7 @@ import numbers
 import collections
 from collections.abc import Iterable
 
-from brancher.chains import ParameterModule
+from brancher.modules import ParameterModule
 
 import numpy as np
 import torch
@@ -451,7 +451,7 @@ class RandomVariable(Variable):
                                                 for parent in var_to_sample.parents])
         input_dict = {parent: parents_samples_dict[parent] for parent in var_to_sample.parents}
         parameters_dict = var_to_sample._apply_link(input_dict)
-        sample = var_to_sample.distribution.get_sample(**parameters_dict, number_samples=number_samples)
+        sample = var_to_sample.distribution.get_sample(**parameters_dict)
         self.samples = [sample] #TODO: to fix
         return {**parents_samples_dict, self: sample}
 

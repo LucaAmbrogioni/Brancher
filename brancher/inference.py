@@ -47,10 +47,10 @@ from brancher.utilities import sum_from_dim
 
 
 def stochastic_variational_inference(joint_model, number_iterations, number_samples,
-                                     optimizer='Adam', opt_params={},
-                                     input_values={}, inference_method=None,
+                                     optimizer='Adam', input_values={},
+                                     inference_method=None,
                                      posterior_model=None, sampler_model=None,
-                                     pretraining_iterations=0): #TODO: input values
+                                     pretraining_iterations=0, **opt_params): #TODO: input values
     """
     Summary
 
