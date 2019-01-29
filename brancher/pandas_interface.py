@@ -26,11 +26,11 @@ def pandas_frame2value(dataframe, index):
 
 def reformat_value(value):
     if np.prod(value.shape) == 1:
-        return float(value.data)
+        return float(value.detach().numpy())
     elif value.shape[0] == 1:
-        return value.data[0, :]
+        return value.detach().numpy()[0, :]
     else:
-        return value.data
+        return value.detach().numpy()
 
 
 def reformat_sample_to_pandas(sample, number_samples): #TODO: Work in progress

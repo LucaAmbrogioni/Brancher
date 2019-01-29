@@ -214,8 +214,8 @@ class BinomialVariable(VariableConstructor):
             self.distribution = distributions.BinomialDistribution()
         elif logit_p is not None and p is None:
             ranges = {"n": geometric_ranges.UnboundedRange(),
-                      "z": geometric_ranges.UnboundedRange()}
-            super().__init__(name, n=n, z=logit_p, learnable=learnable, ranges=ranges)
+                      "logit_p": geometric_ranges.UnboundedRange()}
+            super().__init__(name, n=n, logit_p=logit_p, learnable=learnable, ranges=ranges)
             self.distribution = distributions.LogitBinomialDistribution()
         else:
             raise ValueError("Either p or " +

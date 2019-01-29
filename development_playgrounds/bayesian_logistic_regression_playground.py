@@ -39,21 +39,23 @@ model.set_posterior_model(variational_model)
 inference.stochastic_variational_inference(model,
                                            number_iterations=200,
                                            number_samples=100,
-                                           optimizer=chainer.optimizers.Adam(0.05))
+                                           optimizer='Adam',
+                                           lr=0.05)
+
 loss_list = model.diagnostics["loss curve"]
 
 # Statistics
 posterior_samples = model._get_posterior_sample(100)
-weights_posterior_samples = posterior_samples[weights].data
+weights_posterior_samples = posterior_samples[weights].detach().numpy()
 
 # Two subplots, unpack the axes array immediately
 f, (ax1, ax2) = plt.subplots(1, 2)
 ax1.plot(np.array(loss_list))
 ax1.set_title("Convergence")
 ax1.set_xlabel("Iteration")
-ax2.scatter(input_variable[:,0,0], input_variable[:,1,0], c=labels.flatten())
+ax2.scatter(input_variable[:, 0, 0], input_variable[:, 1, 0], c=labels.flatten())
 for w in weights_posterior_samples:
-    coeff = -float(w[0,0,0])/float(w[0,0,1])
+    coeff = -float(w[0, 0, 0])/float(w[0,0,1])
     x_range = np.linspace(-2,2,200)
     plt.plot(x_range, coeff*x_range, alpha=0.3)
 ax2.set_xlim(-2,2)

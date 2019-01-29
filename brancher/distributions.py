@@ -352,3 +352,35 @@ class BinomialDistribution(UnivariateDistribution, DiscreteDistribution):
         """
         return distributions.binomial.Binomial(total_count=parameters["n"],
                                                probs=parameters["p"]).sample()
+
+
+class LogitBinomialDistribution(UnivariateDistribution, DiscreteDistribution):
+    """
+    Summary
+    """
+    def _calculate_log_probability(self, x, **parameters):
+        """
+        One line description
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        """
+        log_prob = distributions.binomial.Binomial(total_count=parameters["n"],
+                                                   logits=parameters["logit_p"]).log_prob(x)
+        return log_prob
+
+    def _get_sample(self, **parameters):
+        """
+        One line description
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        """
+        return distributions.binomial.Binomial(total_count=parameters["n"],
+                                               logits=parameters["logit_p"]).sample()
