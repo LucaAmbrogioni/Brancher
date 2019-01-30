@@ -314,7 +314,7 @@ class DeterministicVariable(Variable):
             value = input_values[self]
         else:
             value = self.value
-        if ~is_discrete(value):
+        if not is_discrete(value):
             return {self: tile_parameter(value, number_samples=number_samples)}
         else:
             return {self: value} #TODO: This is for allowing discrete data, temporary? (for Julia)
@@ -373,7 +373,7 @@ class RandomVariable(Variable):
 
     def _apply_link(self, parents_values):  #TODO: This is for allowing discrete data, temporary? (for julia) #For Julia: Very important method
         cont_values, discrete_values = split_dict(parents_values,
-                                                  condition=lambda key, val: ~is_discrete(val))
+                                                  condition=lambda key, val: not is_discrete(val))
         if cont_values:
             reshaped_dict, number_samples, number_datapoints = broadcast_parent_values(cont_values)
             reshaped_dict.update(discrete_values)

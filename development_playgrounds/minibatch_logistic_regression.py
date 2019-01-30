@@ -45,14 +45,15 @@ model.set_posterior_model(ProbabilisticModel([Qweights]))
 inference.stochastic_variational_inference(model,
                                            number_iterations=200,
                                            number_samples=100,
-                                           optimizer=chainer.optimizers.Adam(0.05))
+                                           optimizer='Adam',
+                                           lr=0.05)
 loss_list = model.diagnostics["loss curve"]
 plt.plot(loss_list)
 plt.show()
 
 # Statistics
 posterior_samples = model._get_posterior_sample(50)
-weights_posterior_samples = posterior_samples[weights].data
+weights_posterior_samples = posterior_samples[weights].detach().numpy()
 
 # Two subplots, unpack the axes array immediately
 f, (ax1, ax2) = plt.subplots(1, 2)

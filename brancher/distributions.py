@@ -19,6 +19,8 @@ from brancher.utilities import get_diagonal
 from brancher.utilities import broadcast_parent_values
 from brancher.utilities import is_discrete, is_tensor
 
+#TODO: We need asserts checking for the right parameters
+
 class Distribution(ABC):
     """
     Summary
@@ -93,7 +95,7 @@ class ImplicitDistribution(Distribution):
         return sample
 
     def _calculate_log_probability(self, x, **parameters):
-        return np.zeros((1, 1)).astype("float32") #TODO: Implement some checks here
+        return torch.tensor(np.zeros((1, 1))) #TODO: Implement some checks here
 
 
 class MultivariateDistribution(Distribution):
@@ -103,11 +105,11 @@ class MultivariateDistribution(Distribution):
     pass
 
 
-class EmpiricalDistribution(ImplicitDistribution): #TODO: This needs a clean up!
+class EmpiricalDistribution(ImplicitDistribution): #TODO: The logic of this cluss is very ugly. It needs to be reworked.
     """
     Summary
     """
-    def _get_sample(self, dataset, indices, number_samples, weights=None):
+    def _get_sample(self, **parameters):
         """
         One line description
 
@@ -117,8 +119,10 @@ class EmpiricalDistribution(ImplicitDistribution): #TODO: This needs a clean up!
         -------
         Without replacement
         """
-        if not indices:
-            if weights:
+        dataset = parameters["dataset"]
+        if "indices" not in parameters:
+            if "weights" in parameters:
+                weights = parameters["weights"]
                 p = np.array(weights).astype("float64")
                 p = p/np.sum(p)
             else:
@@ -136,7 +140,9 @@ class EmpiricalDistribution(ImplicitDistribution): #TODO: This needs a clean up!
                 indices = np.random.choice(range(dataset_size), size=self.batch_size, replace=False, p=p)
             else:
                 indices = [np.random.choice(range(dataset_size), size=self.batch_size, replace=False, p=p)
-                           for _ in range(number_samples)]
+                           for _ in range(number_samples)] #TODO IMPORTANT!: This needs to be fixed
+        else:
+            indices = parameters["indices"]
 
         if is_tensor(dataset):
             if isinstance(indices, list) and isinstance(indices[0], np.ndarray):
