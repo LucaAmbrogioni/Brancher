@@ -4,9 +4,11 @@ import numpy as np
 import torch.nn as nn
 
 import brancher.distributions as distributions
+import brancher.functions as BF
 import brancher.geometric_ranges as geometric_ranges
 from brancher.variables import var2link, Variable, DeterministicVariable, RandomVariable, PartialLink
 from brancher.utilities import join_sets_list
+
 
 
 class LinkConstructor(nn.ModuleList):
@@ -49,6 +51,7 @@ class VariableConstructor(RandomVariable):
         self.has_random_dataset = False
         self.has_observed_value = False
         self.is_normalized = True
+        self.partial_links = {name: var2link(link) for name, link in kwargs.items()}
 
 
     def construct_deterministic_parents(self, learnable, ranges, kwargs):
@@ -122,6 +125,14 @@ class NormalVariable(VariableConstructor):
                   "scale": geometric_ranges.RightHalfLine(0.)}
         super().__init__(name, loc=loc, scale=scale, learnable=learnable, ranges=ranges)
         self.distribution = distributions.NormalDistribution()
+
+    def __add__(self, other):
+        if isinstance(other, NormalVariable):
+            return NormalVariable(self.partial_links["loc"] + other.partial_links["loc"],
+                                  scale=BF.sqrt(self.partial_links["scale"]**2 + other.partial_links["scale"]**2),
+                                  name=self.name + " + " + other.name, learnable=False)
+        else:
+            return super().__add__(other)
 
 
 class CauchyVariable(VariableConstructor):
