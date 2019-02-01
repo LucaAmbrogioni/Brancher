@@ -218,7 +218,7 @@ def coerce_to_dtype(data, is_observed=False): #TODO: move all this under class i
     if dtype is torch.Tensor: # to tensor
         result = data
     elif dtype is np.ndarray: # to tensor
-        result = torch.tensor(data)
+        result = torch.tensor(data.astype("float64"))
     elif dtype in [float, int] or dtype.__base__ in [np.floating, np.signedinteger]: # to tensor
         result = torch.tensor(data * np.ones(shape=(1, 1)))
     elif dtype in [list, set, tuple, dict, str]: # to discrete
@@ -349,4 +349,7 @@ def concatenate_samples(samples_list):
         samples = {var: torch.cat(tensor_tuple, dim=0)
                    for var, tensor_tuple in paired_list.items()}
         return samples
+
+def tensor_range(tensor):
+    return set(np.ndarray.tolist(tensor.detach().numpy().flatten()))
 

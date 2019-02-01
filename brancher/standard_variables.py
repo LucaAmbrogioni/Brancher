@@ -72,24 +72,25 @@ class EmpiricalVariable(VariableConstructor):
     Parameters
     ----------
     """
-    def __init__(self, dataset, name, learnable=False, is_observed=False, batch_size=(), indices=(), weights=()):
+    def __init__(self, dataset, name, learnable=False, is_observed=False, batch_size=None, indices=None, weights=None): #TODO: Ugly logic
         self._type = "Empirical"
-        ranges = {"dataset": geometric_ranges.UnboundedRange(),
-                  "batch_size": geometric_ranges.UnboundedRange(),
-                  "indices": geometric_ranges.UnboundedRange(),
-                  "weights": geometric_ranges.UnboundedRange()}
-        super().__init__(name, dataset=dataset, indices=indices, weights=weights,
-                         learnable=learnable, ranges=ranges, is_observed=is_observed)
-        self.distribution = distributions.EmpiricalDistribution()
-        self.distribution.is_observed = is_observed #TODO: Clean up here?
-        if batch_size:
-            self.distribution.batch_size = batch_size
-            self.batch_size = batch_size
-        elif indices:
-            self.distribution.batch_size = len(indices)
-            self.batch_size = batch_size #TODO: Clean up here?
-        else:
-            raise ValueError("Either the indices or the batch size has to be given as input")
+        input_parameters = {"dataset": dataset, "batch_size": batch_size, "indices": indices, "weights": weights}
+        ranges = {par_name: geometric_ranges.UnboundedRange()
+                  for par_name, par_value in input_parameters.items()
+                  if par_value is not None}
+        kwargs = {par_name: par_value
+                  for par_name, par_value in input_parameters.items()
+                  if par_value is not None}
+        super().__init__(name, **kwargs, learnable=learnable, ranges=ranges, is_observed=is_observed)
+
+        if not batch_size:
+            if indices:
+                batch_size = len(indices)
+            else:
+                raise ValueError("Either the indices or the batch size has to be given as input")
+
+        self.batch_size = batch_size
+        self.distribution = distributions.EmpiricalDistribution(batch_size=batch_size, is_observed=is_observed)
 
 
 class RandomIndices(EmpiricalVariable):
@@ -216,7 +217,7 @@ class BinomialVariable(VariableConstructor):
             ranges = {"n": geometric_ranges.UnboundedRange(),
                       "logit_p": geometric_ranges.UnboundedRange()}
             super().__init__(name, n=n, logit_p=logit_p, learnable=learnable, ranges=ranges)
-            self.distribution = distributions.LogitBinomialDistribution()
+            self.distribution = distributions.BinomialDistribution()
         else:
             raise ValueError("Either p or " +
                              "logit_p needs to be provided as input")
@@ -236,9 +237,9 @@ class CategoricalVariable(VariableConstructor): #TODO: Work in progress
             super().__init__(name, p=p, learnable=learnable, ranges=ranges)
             self.distribution = distributions.CategoricalDistribution()
         elif softmax_p is not None and p is None:
-            ranges = {"z": geometric_ranges.UnboundedRange()}
-            super().__init__(name, z=softmax_p, learnable=learnable, ranges=ranges)
-            self.distribution = distributions.SoftmaxCategoricalDistribution()
+            ranges = {"softmax_p": geometric_ranges.UnboundedRange()}
+            super().__init__(name, softmax_p=softmax_p, learnable=learnable, ranges=ranges)
+            self.distribution = distributions.CategoricalDistribution()
         else:
             raise ValueError("Either p or " +
                              "softmax_p needs to be provided as input")
