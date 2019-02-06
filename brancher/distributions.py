@@ -120,32 +120,35 @@ class ImplicitDistribution(Distribution):
         return log_pro
 
 
-class VectorDistribution(Distribution):#TODO: Work in progress
+class VectorDistribution(Distribution):
     """
     Summary
     """
-    # def __init__(self, dimension):
-    #     self.dimension = dimension
-    #     super().__init__()
-
-    def _preprocess_parameters_for_sampling(self, **parameters): #TODO: the batch dimensions need to be reshaped
-        #parameters = broadcast_and_squeeze_mixed((), parameters)
-        parameters, number_samples, number_datapoints = broadcast_parent_values(parameters)
+    def _preproces_vector_input(self, vector_input_dict, vector_names):
         shapes_dict = {par_name: list(par_value.shape)
-                       for par_name, par_value in parameters.items()
-                       if par_name in self.vector_parameters}
-        reshaped_parameters = {par_name: par_value.contiguous().view(size=(shapes_dict[par_name][0], np.prod(shapes_dict[par_name][1:]))) if par_name in self.vector_parameters else par_value
-                               for par_name, par_value in parameters.items()}
-        shape = tuple([number_samples, number_datapoints] + list(shapes_dict.values())[0][1:])
+                       for par_name, par_value in vector_input_dict.items()
+                       if par_name in vector_names}
+        reshaped_parameters = {par_name: par_value.contiguous().view(size=(shapes_dict[par_name][0], np.prod(
+            shapes_dict[par_name][1:]))) if par_name in vector_names else par_value
+                               for par_name, par_value in vector_input_dict.items()}
+        tensor_shape = list(shapes_dict.values())[0][1:]
+        return reshaped_parameters, tensor_shape
+
+    def _preprocess_parameters_for_sampling(self, **parameters):
+        parameters, number_samples, number_datapoints = broadcast_parent_values(parameters)
+        reshaped_parameters, tensor_shape = self._preproces_vector_input(parameters, self.vector_parameters)
+        shape = tuple([number_samples, number_datapoints] + tensor_shape)
         return reshaped_parameters, shape
 
     def _preprocess_parameters_for_log_prob(self, x, **parameters):
-        #tuple_x, parameters = broadcast_and_squeeze_mixed(tuple([x]), parameters)
         parameters_and_data = parameters
         parameters_and_data.update({"x_data": x})
         parameters_and_data, number_samples, number_datapoints = broadcast_parent_values(parameters_and_data)
-        x = parameters_and_data.pop("x_data")
-        return x, parameters_and_data, number_samples, number_datapoints
+        vector_names = self.vector_parameters
+        vector_names.add("x_data")
+        reshaped_parameters_and_data, _ = self._preproces_vector_input(parameters_and_data, vector_names)
+        x = reshaped_parameters_and_data.pop("x_data")
+        return x, reshaped_parameters_and_data, number_samples, number_datapoints
 
     def _postprocess_sample(self, sample, shape):
         return sample.contiguous().view(size=shape)
@@ -176,14 +179,18 @@ class CategoricalDistribution(VectorDistribution):
         Returns
         -------
         """
+        vector_shape = parameters["p"].shape if "p" in parameters else parameters["softmax_p"].shape
+        if x.shape == vector_shape and tensor_range(x) == {0, 1}:
+            dist = distributions.one_hot_categorical.OneHotCategorical
+        else:
+            dist = distributions.categorical.Categorical
+
         if "p" in parameters:
-            log_prob = distributions.one_hot_categorical.OneHotCategorical(probs=parameters["p"]).log_prob(x)
+            log_prob = dist(probs=parameters["p"]).log_prob(x[:, 0])
 
         elif "softmax_p" in parameters:
-            if x.shape == parameters["softmax_p"].shape and tensor_range(x) == {0, 1}:
-                log_prob = distributions.one_hot_categorical.OneHotCategorical(logits=parameters["softmax_p"][:, :, 0]).log_prob(x[:, :, 0])
-            else:
-                log_prob = distributions.categorical.Categorical(logits=parameters["softmax_p"][:, :, 0]).log_prob(x[:, 0, 0])
+            log_prob = dist(logits=parameters["softmax_p"]).log_prob(x[:, 0])
+
         else:
             raise ValueError("Either p or " +
                              "softmax_p needs to be provided as input")
@@ -206,6 +213,67 @@ class CategoricalDistribution(VectorDistribution):
         else:
             raise ValueError("Either p or " +
                              "softmax_p needs to be provided as input")
+        return sample
+
+
+class MultivariateNormalDistribution(VectorDistribution): #TODO: Work in progress
+    """
+    Summary
+    """
+    def __init__(self):
+        self.required_parameters = {"loc", ("covariance_matrix", "precision_matrix", "cholesky_factor")}
+        self.optional_parameters = {}
+        self.vector_parameters = {"loc"}
+        self.matrix_parameters = {}
+        self.scalar_parameters = {}
+        super().__init__()
+
+    def _calculate_log_probability(self, x, **parameters):
+        """
+        One line description
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        """
+        if "covariance_matrix" in parameters:
+            log_prob = torch.distributions.multivariate_normal.MultivariateNormal(loc=parameters["loc"],
+                                                                                  covariance_matrix=parameters["covariance_matrix"]).log_prob(x)
+        elif "precision_matrix" in parameters:
+            log_prob = torch.distributions.multivariate_normal.MultivariateNormal(loc=parameters["loc"],
+                                                                                  precision_matrix=parameters["precision_matrix"]).log_prob(x)
+        elif "cholesky_factor" in parameters:
+            log_prob = torch.distributions.multivariate_normal.MultivariateNormal(loc=parameters["loc"],
+                                                                                  scale_tril=parameters["cholesky_factor"]).log_prob(x)
+        else:
+            raise ValueError("Either covariance_matrix or precision_matrix or" +
+                             "cholesky_factor needs to be provided as input")
+        return log_prob
+
+    def _get_sample(self, **parameters):
+        """
+        One line description
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        """
+        if "covariance_matrix" in parameters:
+            sample = torch.distributions.multivariate_normal.MultivariateNormal(loc=parameters["loc"],
+                                                                                covariance_matrix=parameters["covariance_matrix"]).rsample()
+        elif "precision_matrix" in parameters:
+            sample = torch.distributions.multivariate_normal.MultivariateNormal(loc=parameters["loc"],
+                                                                                precision_matrix=parameters["precision_matrix"]).rsample()
+        elif "cholesky_factor" in parameters:
+            sample = torch.distributions.multivariate_normal.MultivariateNormal(loc=parameters["loc"],
+                                                                                scale_tril=parameters["cholesky_factor"]).rsample()
+        else:
+            raise ValueError("Either covariance_matrix or precision_matrix or" +
+                             "cholesky_factor needs to be provided as input")
         return sample
 
 
@@ -270,7 +338,7 @@ class EmpiricalDistribution(ImplicitDistribution): #TODO: It needs to be reworke
             else:
                 raise IndexError("The indices of an empirical variable should be either a list of integers or a list of arrays")
         else:
-            sample = list(np.array(dataset)[indices]) # TODO: This is for allowing discrete data, temporary? For julia
+            sample = list(np.array(dataset)[indices])
         return sample
 
 
@@ -509,41 +577,5 @@ class BinomialDistribution(UnivariateDistribution, DiscreteDistribution):
         else:
             raise ValueError("Either p or " +
                              "logit_p needs to be provided as input")
-        return  sample
+        return sample
 
-
-# class LogitBinomialDistribution(UnivariateDistribution, DiscreteDistribution):
-#     """
-#     Summary
-#     """
-#     def __init__(self):
-#         self.required_parameters = {"n", "logit_p"}
-#         self.optional_parameters = {}
-#         super().__init__()
-#
-#     def _calculate_log_probability(self, x, **parameters):
-#         """
-#         One line description
-#
-#         Parameters
-#         ----------
-#
-#         Returns
-#         -------
-#         """
-#         log_prob = distributions.binomial.Binomial(total_count=parameters["n"],
-#                                                    logits=parameters["logit_p"]).log_prob(x)
-#         return log_prob
-#
-#     def _get_sample(self, **parameters):
-#         """
-#         One line description
-#
-#         Parameters
-#         ----------
-#
-#         Returns
-#         -------
-#         """
-#         return distributions.binomial.Binomial(total_count=parameters["n"],
-#                                                logits=parameters["logit_p"]).sample()

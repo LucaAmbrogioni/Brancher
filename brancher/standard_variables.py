@@ -278,18 +278,26 @@ class MultivariateNormalVariable(VariableConstructor):
     Parameters
     ----------
     """
-    def __init__(self, mu, cov=None, chol_cov=None, diag_cov=None, name="Multivariate Normal", learnable=False):
+    def __init__(self, loc, covariance_matrix=None, precision_matrix=None, cholesky_factor=None, name="Multivariate Normal", learnable=False):
         self._type = "Multivariate Normal"
-        if chol_cov is not None and diag_cov is None:
-            ranges = {"mu": geometric_ranges.UnboundedRange(),
-                      "chol_cov": geometric_ranges.UnboundedRange()}
-            super().__init__(name, mu=mu, chol_cov=chol_cov, learnable=learnable, ranges=ranges)
-            self.distribution = distributions.CholeskyMultivariateNormal()
-        elif diag_cov is not None and chol_cov is None:
-            ranges = {"mean": geometric_ranges.UnboundedRange(),
-                      "var": geometric_ranges.RightHalfLine(0.)}
-            super().__init__(name, mean=mu, var=diag_cov, learnable=learnable, ranges=ranges)
-            self.distribution = distributions.NormalDistribution()
+        if cholesky_factor is not None and covariance_matrix is None and precision_matrix is None:
+            ranges = {"loc": geometric_ranges.UnboundedRange(),
+                      "cholesky_factor": geometric_ranges.UnboundedRange()}
+            super().__init__(name, loc=loc, cholesky_factor=cholesky_factor, learnable=learnable, ranges=ranges)
+            self.distribution = distributions.MultivariateNormalDistribution()
+
+        elif cholesky_factor is None and covariance_matrix is not None and precision_matrix is None:
+            ranges = {"loc": geometric_ranges.UnboundedRange(),
+                      "covariance_matrix": geometric_ranges.PositiveDefiniteMatrix()}
+            super().__init__(name, loc=loc, covariance_matrix=covariance_matrix, learnable=learnable, ranges=ranges)
+            self.distribution = distributions.MultivariateNormalDistribution()
+
+        elif cholesky_factor is None and covariance_matrix is None and precision_matrix is not None:
+            ranges = {"loc": geometric_ranges.UnboundedRange(),
+                      "precision_matrix": geometric_ranges.UnboundedRange()}
+            super().__init__(name, loc=loc, precision_matrix=precision_matrix, learnable=learnable, ranges=ranges)
+            self.distribution = distributions.MultivariateNormalDistribution()
+
         else:
-            raise ValueError("Either chol_cov (cholesky factor of the covariance matrix) or "+
-                             "diag_cov (diagonal of the covariance matrix) need to be provided as input")
+            raise ValueError("Either covariance_matrix or precision_matrix or"+
+                             "cholesky_factor needs to be provided as input")

@@ -44,7 +44,7 @@ model.set_posterior_model(variational_model)
 
 # Inference
 inference.stochastic_variational_inference(model,
-                                           number_iterations=2000,
+                                           number_iterations=1000,
                                            number_samples=10,
                                            optimizer="Adam",
                                            lr=0.005)
@@ -52,9 +52,6 @@ inference.stochastic_variational_inference(model,
 # Loss Curve
 plt.plot(model.diagnostics["loss curve"])
 plt.show()
-
-#Test
-sample = model._get_posterior_sample(30)
 
 # Test accuracy
 num_images = 2000

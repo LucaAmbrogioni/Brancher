@@ -42,7 +42,7 @@ class BrancherFunction(object):
 
 fn_set = {}
 for name in dir(torch._C._VariableFunctions):
-    if name.startswith('__'):
+    if name.startswith('_'):
         continue
     fn_set[name] = getattr(torch.torch._C._VariableFunctions, name)
 
@@ -52,6 +52,8 @@ for name, fun in torch.nn.functional.__dict__.items():
 is_backend_fn = lambda k, v: type(v) in [types.FunctionType, types.BuiltinFunctionType] and not k.startswith('_') #TODO: Work in progress
 brancher_fns = {name: BrancherFunction(v) for name, v in fn_set.items() if is_backend_fn(name, v)}
 globals().update(brancher_fns)
+
+## Custom functions ##
 
 # is_chainer_fn = lambda k, v: type(v) is types.FunctionType and not k.startswith('_') #TODO: Work in progress
 # brancher_fns = {name: BrancherFunction(v) for name, v in F.__dict__.items() if is_chainer_fn(name, v)}
