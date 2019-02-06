@@ -15,7 +15,7 @@ import brancher.functions as BF
 
 # Data
 image_size = 28*28
-latent_size = 10
+latent_size = 5
 
 train, test = chainer.datasets.get_mnist()
 dataset_size = len(train)
@@ -36,7 +36,7 @@ class EncoderArchitecture(nn.Module):
         self.softplus = nn.Softplus()
 
     def __call__(self, x):
-        h = self.relu(self.l1(x[:,:,0]))
+        h = self.relu(self.l1(x[:, :, 0])) #TODO: to be fixed
         output_mean = self.l2(h)
         output_log_sd = self.l3(h)
         return {"mean": output_mean, "sd": self.softplus(output_log_sd) + 0.01}
