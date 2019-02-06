@@ -292,18 +292,13 @@ class DeterministicVariable(Variable):
             chainer.Variable. the log probability of the input values given the model.
         """
 
-        return 0.
+        return torch.tensor(np.zeros((1,1))).float()
 
     @property
     def value(self):
         if self.learnable:
             return self.link()
         return self._value
-    #
-    # @value.setter
-    # def value(self, val):
-    #     '''Set initial value to the Parameter; call parameter, set initial value'''
-    #     self._current_value = coerce_to_dtype(val, is_observed=self.is_observed)
 
     @property
     def is_observed(self):

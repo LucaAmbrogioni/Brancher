@@ -198,29 +198,19 @@ def coerce_to_dtype(data, is_observed=False): #TODO: move all this under class i
                 result = result.view(size=result_shape + tuple([1, 1]))
             elif len(result_shape) == 3:
                 result = result.view(size=result_shape + tuple([1]))
+            #if len(result_shape) == 2:
+            #   result = result.view(size=result_shape + tuple([1]))
         else:
             result = torch.unsqueeze(torch.unsqueeze(result, dim=0), dim=1)
         return result
 
-    # def check_observed_chainer(result):
-    #     if is_observed:
-    #         result = F.expand_dims(result, axis=0)
-    #         result_shape = result.shape
-    #         if len(result_shape) == 2:
-    #             result = F.reshape(result, shape=result_shape + tuple([1, 1]))
-    #         elif len(result_shape) == 3:
-    #             result = F.reshape(result, shape=result_shape + tuple([1]))
-    #     else:
-    #         result = F.expand_dims(F.expand_dims(result, axis=0), axis=1)
-    #     return result
-
     dtype = type(data) ##TODO: do we need any additional shape checking?
     if dtype is torch.Tensor: # to tensor
-        result = data
+        result = data.float()
     elif dtype is np.ndarray: # to tensor
-        result = torch.tensor(data.astype("float64"))
+        result = torch.tensor(data).float()
     elif dtype in [float, int] or dtype.__base__ in [np.floating, np.signedinteger]: # to tensor
-        result = torch.tensor(data * np.ones(shape=(1, 1)))
+        result = torch.tensor(data * np.ones(shape=(1, 1))).float()
     elif dtype in [list, set, tuple, dict, str]: # to discrete
         return data
     else:

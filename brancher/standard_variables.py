@@ -53,7 +53,6 @@ class VariableConstructor(RandomVariable):
         self.is_normalized = True
         self.partial_links = {name: var2link(link) for name, link in kwargs.items()}
 
-
     def construct_deterministic_parents(self, learnable, ranges, kwargs):
         for parameter_name, value in kwargs.items():
             if not isinstance(value, (Variable, PartialLink)):

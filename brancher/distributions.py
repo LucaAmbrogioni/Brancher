@@ -114,7 +114,7 @@ class ImplicitDistribution(Distribution):
         return sample
 
     def _calculate_log_probability(self, x, **parameters):
-        return torch.tensor(np.zeros((1, 1))) #TODO: Implement some checks here
+        return torch.tensor(np.zeros((1,1))).float() #TODO: Implement some checks here
 
     def _postprocess_log_prob(self, log_pro, number_samples, number_datapoints):
         return log_pro
@@ -318,8 +318,9 @@ class EmpiricalDistribution(ImplicitDistribution): #TODO: It needs to be reworke
             if is_discrete(dataset): #
                 indices = np.random.choice(range(dataset_size), size=self.batch_size, replace=False, p=p)
             else:
+                number_samples = dataset.shape[0]
                 indices = [np.random.choice(range(dataset_size), size=self.batch_size, replace=False, p=p)
-                           for _ in range(number_samples)] #TODO IMPORTANT!: This needs to be fixed
+                           for _ in range(number_samples)]
         else:
             indices = parameters["indices"]
 

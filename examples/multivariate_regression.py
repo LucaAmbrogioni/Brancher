@@ -38,7 +38,7 @@ model.set_posterior_model(variational_model)
 ground_samples = model._get_sample(1)
 
 # Observe data
-data = np.reshape(ground_samples[y].data, newshape=(n, 1, 1))
+data = np.reshape(ground_samples[y].detach().numpy(), newshape=(n, 1, 1))
 y.observe(data)
 
 # Inference
