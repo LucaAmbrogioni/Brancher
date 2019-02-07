@@ -5,8 +5,8 @@ Brancher allows design and train differentiable Bayesian models using stochastic
 ## Building probabilistic models ##
 Probabilistic models are defined symbolically. Random variables can be created as follows:
 ```python
-a = NormalVariable(mu = 0., sigma = 1., name = 'a')
-b = NormalVariable(mu = 0., sigma = 1., name = 'b')
+a = NormalVariable(loc = 0., scale = 1., name = 'a')
+b = NormalVariable(loc = 0., scale = 1., name = 'b')
 ```
 It is possible to chain together random variables by using arithmetic and mathematical functions:
 ```python
