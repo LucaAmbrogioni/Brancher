@@ -195,6 +195,9 @@ class Variable(BrancherClass):
 
         return PartialLink(vars=vars, fn=fn, links=links)
 
+    def __neg__(self):
+        return -1*self
+
     def __add__(self, other):
         return self._apply_operator(other, operator.add)
 
@@ -217,7 +220,7 @@ class Variable(BrancherClass):
         return self._apply_operator(other, operator.truediv)
 
     def __rtruediv__(self, other):
-        raise NotImplementedError
+        return self.__truediv__(other) ** (-1)
 
     def __pow__(self, other):
         return self._apply_operator(other, operator.pow)
@@ -716,7 +719,7 @@ def var2link(var):
         vars = {var}
         fn = lambda values: values[var]
     elif isinstance(var, (numbers.Number, np.ndarray)):
-        vars = {}
+        vars = set()
         fn = lambda values: var
     elif isinstance(var, (tuple, list)) and all([isinstance(v, (Variable, PartialLink)) for v in var]):
         vars = join_sets_list([{v} if isinstance(v, Variable) else v.vars for v in var])
@@ -726,18 +729,21 @@ def var2link(var):
     return PartialLink(vars=vars, fn=fn, links=set())
 
 
-class PartialLink(BrancherClass): #TODO: This should become "ProbabilisticProgram?"
+class PartialLink(BrancherClass):
 
     def __init__(self, vars, fn, links):
-        self.vars = vars # parents, all input
+        self.vars = vars
         self.fn = fn
-        self.links = links # all that needs to be optimized; all operations on variables produce a partial link;
+        self.links = links
 
     def _apply_operator(self, other, op):
         other = var2link(other)
         return PartialLink(vars=self.vars.union(other.vars),
                            fn=lambda values: op(self.fn(values), other.fn(values)),
                            links=self.links.union(other.links))
+
+    def __neg__(self):
+        return -1*self
 
     def __add__(self, other):
         return self._apply_operator(other, operator.add)
@@ -761,7 +767,7 @@ class PartialLink(BrancherClass): #TODO: This should become "ProbabilisticProgra
         return self._apply_operator(other, operator.truediv)
 
     def __rtruediv__(self, other):
-        raise NotImplementedError
+        return self.__truediv__(other)**(-1)
 
     def __pow__(self, other):
         return self._apply_operator(other, operator.pow)
