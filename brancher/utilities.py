@@ -340,6 +340,20 @@ def concatenate_samples(samples_list):
                    for var, tensor_tuple in paired_list.items()}
         return samples
 
+
 def tensor_range(tensor):
     return set(np.ndarray.tolist(tensor.detach().numpy().flatten()))
+
+
+def batch_meshgrid(tensor1, tensor2):
+    tensor1_shape = tensor1.shape
+    tensor2_shape = tensor2.shape
+    new_shape = [tensor1_shape[0], tensor1_shape[1], tensor2_shape[1]]
+
+    assert (len(tensor1_shape) == 2 and len(tensor2_shape) == 2), "You can use batch_,eshgrid only on 2D tensor (The first dimension is the batch dimension)"
+
+    tensor1.unsqueeze(dim=2).expand(*new_shape)
+    tensor2.unsqueeze(dim=1).expand(*new_shape)
+    return tensor1, tensor2
+
 

@@ -3,6 +3,7 @@ import torch
 
 from brancher.variables import var2link
 from brancher.variables import Variable, PartialLink
+from brancher.utilities import batch_meshgrid as torch_batch_meshgrid
 
 class BrancherFunction(object):
     """
@@ -54,6 +55,7 @@ brancher_fns = {name: BrancherFunction(v) for name, v in fn_set.items() if is_ba
 globals().update(brancher_fns)
 
 ## Custom functions ##
+batch_meshgrid = BrancherFunction(torch_batch_meshgrid)
 
 # is_chainer_fn = lambda k, v: type(v) is types.FunctionType and not k.startswith('_') #TODO: Work in progress
 # brancher_fns = {name: BrancherFunction(v) for name, v in F.__dict__.items() if is_chainer_fn(name, v)}

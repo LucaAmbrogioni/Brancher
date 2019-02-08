@@ -786,7 +786,7 @@ class PartialLink(BrancherClass):
             raise ValueError("The input to __getitem__ is neither numeric nor a hashabble key")
 
         vars = self.vars
-        fn = lambda values: self.fn(values)[variable_slice]
+        fn = lambda values: self.fn(values)[variable_slice] if is_tensor(self.fn(values)) else self.fn(values)[key] #TODO: this should be a def not a lambda
         links = set()
         return PartialLink(vars=vars,
                            fn=fn,

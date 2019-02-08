@@ -43,7 +43,7 @@ class CovarianceFunction(ABC):
     def __call__(self, query_points1, query_points2=None): #TODO: Possible input: arrays, deterministic variables (list?, numeric?)
         if not query_points2:
             query_points2 = query_points1
-        query_grid = BF.meshgrid([query_points1, query_points2]) #TODO: This needs to be fixed to include the batch dimension
+        query_grid = BF.batch_meshgrid(query_points1, query_points2) #TODO: This needs to be fixed to include the batch dimension
         return self.covariance(query_grid[0], query_grid[1])
 
     def __add__(self, other):
