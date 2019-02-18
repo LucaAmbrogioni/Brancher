@@ -1,5 +1,3 @@
-import chainer
-import chainer.functions as F
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -32,13 +30,13 @@ model.set_posterior_model(ProbabilisticModel([Qp]))
 
 # Inference
 inference.stochastic_variational_inference(model,
-                                           number_iterations=20000,
+                                           number_iterations=2000,
                                            number_samples=100,
                                            optimizer='Adam')
 loss_list = model.diagnostics["loss curve"]
 
 # Statistics
-p_posterior_samples = model._get_posterior_sample(2000)[p].data.flatten()
+p_posterior_samples = model._get_posterior_sample(2000)[p].cpu().detach().numpy().flatten()
 
 # Two subplots, unpack the axes array immediately
 f, (ax1, ax2) = plt.subplots(1, 2)

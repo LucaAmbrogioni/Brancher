@@ -19,6 +19,8 @@ from brancher.utilities import sum_data_dimensions
 from brancher.utilities import is_discrete, is_tensor
 from brancher.utilities import tensor_range
 
+from brancher.config import device
+
 #TODO: We need asserts checking for the right parameters
 
 class Distribution(ABC):
@@ -114,7 +116,7 @@ class ImplicitDistribution(Distribution):
         return sample
 
     def _calculate_log_probability(self, x, **parameters):
-        return torch.tensor(np.zeros((1,1))).float() #TODO: Implement some checks here
+        return torch.tensor(np.zeros((1,1))).float().to(device) #TODO: Implement some checks here
 
     def _postprocess_log_prob(self, log_pro, number_samples, number_datapoints):
         return log_pro

@@ -13,7 +13,6 @@ class BrancherFunction(object):
 
     def __init__(self, fn):
         self.fn = fn
-        #if isinstance(fn, (chainer.Link, chainer.Chain, chainer.ChainList)):
         if isinstance(fn, (torch.nn.Module, torch.nn.Sequential, torch.nn.ModuleList, torch.nn.ModuleDict,
                            torch.nn.Parameter, torch.nn.ParameterDict, torch.nn.ParameterList)): #TODO: all optimizable types in nn
             self.links = {fn}
@@ -42,13 +41,14 @@ class BrancherFunction(object):
 # comprises most operations on tensors, including math, reshashing, broadcasting and nn functions
 
 fn_set = {}
+
+for name, fun in torch.nn.functional.__dict__.items():
+    fn_set[name] = getattr(torch.torch.nn.functional, name)
+
 for name in dir(torch._C._VariableFunctions):
     if name.startswith('_'):
         continue
     fn_set[name] = getattr(torch.torch._C._VariableFunctions, name)
-
-for name, fun in torch.nn.functional.__dict__.items():
-    fn_set[name] = getattr(torch.torch.nn.functional, name)
 
 is_backend_fn = lambda k, v: type(v) in [types.FunctionType, types.BuiltinFunctionType] and not k.startswith('_') #TODO: Work in progress
 brancher_fns = {name: BrancherFunction(v) for name, v in fn_set.items() if is_backend_fn(name, v)}
@@ -56,11 +56,6 @@ globals().update(brancher_fns)
 
 ## Custom functions ##
 batch_meshgrid = BrancherFunction(torch_batch_meshgrid)
-
-# is_chainer_fn = lambda k, v: type(v) is types.FunctionType and not k.startswith('_') #TODO: Work in progress
-# brancher_fns = {name: BrancherFunction(v) for name, v in F.__dict__.items() if is_chainer_fn(name, v)}
-# globals().update(brancher_fns)
-
 
 
 ##

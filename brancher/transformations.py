@@ -1,7 +1,7 @@
 import copy
 
 import numpy as np
-import chainer.functions as F
+import torch
 
 from brancher.variables import RandomVariable, ProbabilisticModel
 from brancher.utilities import concatenate_samples, reject_samples
@@ -17,7 +17,7 @@ def truncate_model(model, truncation_rule, model_statistics):
         else:
             if for_gradient:
                 nondiff_values = {var: value.data for var, value in rv_values.items()}
-                normalization = -F.mean(model.calculate_log_probability(nondiff_values,
+                normalization = -torch.mean(model.calculate_log_probability(nondiff_values,
                                                                         for_gradient=False, normalized=True))
                 return unnormalized_log_probability + normalization
             else:

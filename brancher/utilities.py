@@ -11,6 +11,8 @@ from collections.abc import Iterable
 import numpy as np
 import torch
 
+from brancher.config import device
+
 
 def is_tensor(data):
     return torch.is_tensor(data)
@@ -80,18 +82,11 @@ def join_sets_list(sets_list):
 
 
 def sum_from_dim(tensor, dim_index):
-    ''' replaced with torch.sum'''
-    assert is_tensor(tensor), 'object is not torch tensor' #TODO: later, either remove or replace with check for bracher tensor
+    assert is_tensor(tensor), 'object is not torch tensor'
     data_dim = len(tensor.shape)
     for dim in reversed(range(dim_index, data_dim)):
         tensor = tensor.sum(dim=dim)
     return tensor
-
-# def sum_from_dim_chainer(var, dim_index):
-#     data_dim = len(var.shape)
-#     for dim in reversed(range(dim_index, data_dim)):
-#         var = F.sum(var, axis=dim)
-#     return var
 
 
 def sum_data_dimensions(var):
@@ -99,23 +94,16 @@ def sum_data_dimensions(var):
 
 
 def partial_broadcast(*args):
-    ''' replaced with torch.tensor.expand()'''
     assert all([is_tensor(ar) for ar in args]), 'at least 1 object is not torch tensor'
     shapes0, shapes1 = zip(*[(x.shape[0], x.shape[1]) for x in args])
     s0, s1 = np.max(shapes0), np.max(shapes1)
     return [x.expand((s0, s1) + x.shape[2:]) for x in args]
 
-# def partial_broadcast_chainer(*args):
-#     shapes0, shapes1 = zip(*[(x.shape[0], x.shape[1]) for x in args])
-#     s0, s1 = np.max(shapes0), np.max(shapes1)
-#     return [F.broadcast_to(x, shape=(s0, s1) + x.shape[2:]) for x in args]
-
 
 def broadcast_and_squeeze(*args):
-    ''' replaced with torch.tensor.view()'''
     assert all([is_tensor(ar) for ar in args]), 'at least 1 object is not torch tensor'
     if all([np.prod(val.shape[2:]) == 1 for val in args]):
-        args = [val.view(size=val.shape[:2] + tuple([1, 1])) for val in args]
+        args = [val.contiguous().view(size=val.shape[:2] + tuple([1, 1])) for val in args]
     uniformed_values = uniform_shapes(*args)
     broadcasted_values = torch.broadcast_tensors(*uniformed_values)
     return broadcasted_values
@@ -130,16 +118,8 @@ def broadcast_and_squeeze_mixed(tpl, dic):
     else:
         return {k: v for k, v in zip(dict_keys, broadcasted_values[tpl_len:])}
 
-# def broadcast_and_squeeze_chainer(*args):
-#     if all([np.prod(val.shape[2:]) == 1 for val in args]):
-#         args = [F.reshape(val, shape=val.shape[:2] + tuple([1, 1])) for val in args]
-#     uniformed_values = uniform_shapes_chainer(*args)
-#     broadcasted_values = F.broadcast(*uniformed_values)
-#     return broadcasted_values
-
 
 def broadcast_parent_values(parents_values):
-    ''' replaced with torch.tensor.view()'''
     keys_list, values_list = zip(*[(key, value) for key, value in parents_values.items()])
     broadcasted_values = partial_broadcast(*values_list)
     original_shapes = [val.shape for val in broadcasted_values]
@@ -151,55 +131,31 @@ def broadcast_parent_values(parents_values):
     return {key: value for key, value in zip(keys_list, reshaped_values)}, number_samples, number_datapoints
 
 
-# def broadcast_parent_values_chainer(parents_values):
-#     keys_list, values_list = zip(*[(key, value) for key, value in parents_values.items()])
-#     broadcasted_values = partial_broadcast(*values_list)
-#     original_shapes = [val.shape for val in broadcasted_values]
-#     data_shapes = [s[2:] for s in original_shapes]
-#     number_samples, number_datapoints = original_shapes[0][0:2]
-#     newshapes = [tuple([number_samples * number_datapoints]) + s
-#                  for s in data_shapes]
-#     reshaped_values = [F.reshape(val, shape=s) for val, s in zip(broadcasted_values, newshapes)]
-#     return {key: value for key, value in zip(keys_list, reshaped_values)}, number_samples, number_datapoints
-
-
-def get_diagonal(tensor): # what does it do? output with torch needs to be tested
-    ''' replaced with torch.tensor.view()'''
-    assert torch.is_tensor(tensor), 'object is not torch tensor' #TODO: should be more checks here, what does it do?
+def get_diagonal(tensor):
+    assert torch.is_tensor(tensor), 'object is not torch tensor'
     assert tensor.ndimension() == 4, 'ndim should be equal 4'
     dim1, dim2, dim_matrix, _ = tensor.shape
     diag_ind = list(range(dim_matrix))
     expanded_diag_ind = dim1*dim2*diag_ind
     axis12_ind = [a for a in range(dim1*dim2) for _ in range(dim_matrix)]
-    reshaped_tensor = tensor.view(size=(dim1*dim2, dim_matrix, dim_matrix))
+    reshaped_tensor = tensor.contiguous().view(size=(dim1*dim2, dim_matrix, dim_matrix))
     ind = (np.array(axis12_ind), np.array(expanded_diag_ind), np.array(expanded_diag_ind))
     subdiagonal = reshaped_tensor[ind]
     return subdiagonal.view(size=(dim1, dim2, dim_matrix))
 
-# def get_diagonal_chainer(tensor):
-#     dim1, dim2, dim_matrix, _ = tensor.shape
-#     diag_ind = list(range(dim_matrix))
-#     expanded_diag_ind = dim1*dim2*diag_ind
-#     axis12_ind = [a for a in range(dim1*dim2) for _ in range(dim_matrix)]
-#     reshaped_tensor = F.reshape(tensor, shape = (dim1*dim2, dim_matrix, dim_matrix))
-#     ind = (np.array(axis12_ind), np.array(expanded_diag_ind), np.array(expanded_diag_ind))
-#     subdiagonal = reshaped_tensor[ind]
-#     return F.reshape(subdiagonal, shape=(dim1, dim2, dim_matrix))
 
-
-def coerce_to_dtype(data, is_observed=False): #TODO: move all this under class initialize Tensor and Structure?
-                                              #TODO: add type checking everywhere: Tensor or Structure
+def coerce_to_dtype(data, is_observed=False):
     """Summary"""
     def reformat_tensor(result):
         if is_observed:
             result = torch.unsqueeze(result, dim=0)
             result_shape = result.shape
             if len(result_shape) == 2:
-                result = result.view(size=result_shape + tuple([1, 1]))
+                result = result.contiguous().view(size=result_shape + tuple([1, 1]))
             elif len(result_shape) == 3:
-                result = result.view(size=result_shape + tuple([1]))
+                result = result.contiguous().view(size=result_shape + tuple([1]))
             #if len(result_shape) == 2:
-            #   result = result.view(size=result_shape + tuple([1]))
+            #   result = result.contiguous().view(size=result_shape + tuple([1]))
         else:
             result = torch.unsqueeze(torch.unsqueeze(result, dim=0), dim=1)
         return result
@@ -216,11 +172,11 @@ def coerce_to_dtype(data, is_observed=False): #TODO: move all this under class i
     else:
         raise TypeError("Invalid input dtype {} - expected float, integer, np.ndarray, or torch var.".format(dtype))
 
-    return reformat_tensor(result)
+    result = reformat_tensor(result)
+    return result.to(device)
 
 
 def tile_parameter(tensor, number_samples):
-    ''' replaced with torch.tensor.repeat()'''
     assert is_tensor(tensor), 'object is not torch tensor'
     value_shape = tensor.shape
     if value_shape[0] == number_samples:
@@ -232,36 +188,17 @@ def tile_parameter(tensor, number_samples):
         raise ValueError("The parameter cannot be broadcasted to the rerquired number of samples")
 
 
-# def tile_parameter_chainer(value, number_samples):
-#     value_shape = value.shape
-#     if value_shape[0] == number_samples:
-#         return value
-#     elif value_shape[0] == 1:
-#         reps = tuple([number_samples] + [1] * len(value_shape[1:]))
-#         return F.tile(value, reps=reps)
-#     else:
-#         raise ValueError("The parameter cannot be broadcasted to the rerquired number of samples")
-
-
 def reformat_sampler_input(sample_input, number_samples):
     return {var: tile_parameter(coerce_to_dtype(value, is_observed=var.is_observed), number_samples=number_samples)
             for var, value in sample_input.items()}
 
 
 def uniform_shapes(*args):
-    ''' replaced with torch.unsqueeze()'''
     assert all([is_tensor(ar) for ar in args]), 'at least 1 object is not torch tensor'
     shapes = [ar.shape for ar in args]
     max_len = np.max([len(s) for s in shapes])
     return [torch.unsqueeze(ar, dim=len(ar.shape)) if (len(ar.shape) == max_len-1) else ar
-            for ar in args] #TODO: currently only works with unpacked input, should be flexible?
-
-
-# def uniform_shapes_chainer(*args):
-#     shapes = [ar.shape for ar in args]
-#     max_len = np.max([len(s) for s in shapes])
-#     return [F.expand_dims(ar, axis=len(ar.shape)) if (len(ar.shape) == max_len-1) else ar
-#             for ar in args]
+            for ar in args]
 
 
 def get_model_mapping(source_model, target_model):
@@ -331,7 +268,6 @@ def reject_samples(samples, model_statistics, truncation_rule): #TODO: Work in p
 
 
 def concatenate_samples(samples_list):
-    ''' replaced with torch.cat'''
     if len(samples_list) == 1:
         return samples_list[0]
     else:
@@ -357,3 +293,5 @@ def batch_meshgrid(tensor1, tensor2):
     return tensor1, tensor2
 
 
+def get_tensor_data(tensor):
+    return tensor.cpu().detach().numpy()

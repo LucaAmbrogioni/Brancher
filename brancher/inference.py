@@ -7,8 +7,6 @@ import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
 
-import chainer
-import chainer.functions as F
 import numpy as np
 from tqdm import tqdm
 
@@ -93,7 +91,7 @@ def stochastic_variational_inference(joint_model, number_iterations, number_samp
     for iteration in tqdm(range(number_iterations)):
         loss = inference_method.compute_loss(joint_model, posterior_model, sampler_model, number_samples)
 
-        if np.isfinite(loss.detach().numpy()).all(): #TODO: numpy()
+        if torch.isfinite(loss.detach()).all().item(): #np.isfinite(loss.detach().numpy()).all(): #TODO: numpy()
             [opt.zero_grad() for opt in optimizers_list]
             loss.backward()
             optimizers_list[0].update()
@@ -101,7 +99,7 @@ def stochastic_variational_inference(joint_model, number_iterations, number_samp
                 [opt.update() for opt in optimizers_list[1:]]
         else:
             warnings.warn("Numerical error, skipping sample")
-        loss_list.append(loss.detach().numpy()) #TODO: make sure this works: detach()?
+        loss_list.append(loss.cpu().detach().numpy()) #TODO: make sure this works: detach()?
     joint_model.diagnostics.update({"loss curve": np.array(loss_list)})
 
     inference_method.post_process(joint_model) #TODO: this could be implemented with a with block

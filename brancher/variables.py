@@ -33,7 +33,7 @@ from brancher.pandas_interface import reformat_model_summary
 from brancher.pandas_interface import pandas_frame2dict
 from brancher.pandas_interface import pandas_frame2value
 
-
+from brancher.config import device
 
 class BrancherClass(ABC):
     """
@@ -295,7 +295,7 @@ class DeterministicVariable(Variable):
             chainer.Variable. the log probability of the input values given the model.
         """
 
-        return torch.tensor(np.zeros((1,1))).float()
+        return torch.tensor(np.zeros((1,1))).float().to(device)
 
     @property
     def value(self):
@@ -672,7 +672,6 @@ class ProbabilisticModel(BrancherClass):
                                                                                     empirical_samples=empirical_samples,
                                                                                     for_gradient=for_gradient,
                                                                                     q_model=posterior_model)
-            #log_model_evidence = F.mean(joint_log_prob - posterior_log_prob)
             log_model_evidence = torch.mean(joint_log_prob - posterior_log_prob)
             return log_model_evidence
         else:

@@ -13,6 +13,7 @@ from brancher.standard_variables import LinkConstructor
 from brancher.modules import ParameterModule, EmptyModule
 from brancher.variables import BrancherClass, Variable, ProbabilisticModel
 
+from brancher.config import device
 
 class ProbabilisticOptimizer(ABC):
     """
@@ -27,7 +28,7 @@ class ProbabilisticOptimizer(ABC):
         assert isinstance(optimizer, str), 'Optimizer should be a name of available pytoch optimizers' #TODO: improve, list optim?
         self.link_set = set()
         self.module = None
-        self.setup(model, optimizer, **kwargs) #TODO: add assers for checking the params dictionary
+        self.setup(model, optimizer, **kwargs) #TODO: add asserts for checking the params dictionary
 
     # @staticmethod
     # def _get_default_optimizer(self, **kwargs):
@@ -66,10 +67,11 @@ class ProbabilisticOptimizer(ABC):
             [self.add_variable2module(submodel) for submodel in model]
         else:
             raise ValueError("Only brancher variables and iterable of variables can be added to a probabilistic optimizer")
-        if  list(self.module.parameters()):
+        if list(self.module.parameters()):
             self.optimizer = optimizer_class(self.module.parameters(), **kwargs)
         else:
             self.optimizer = None
+        self.module.to(device)
 
 
     def update(self):
