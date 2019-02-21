@@ -1,9 +1,6 @@
-import chainer
-import chainer.functions as F
-import chainer.links as L
-
 import torch
 import torch.nn as nn
+import torchvision
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -13,14 +10,16 @@ from brancher.standard_variables import NormalVariable, EmpiricalVariable
 from brancher import inference
 import brancher.functions as BF
 
+from brancher.config import device
+
 # Data
 image_size = 28*28
 latent_size = 5
 
-train, test = chainer.datasets.get_mnist()
+train = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=None)
+test = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=None)
 dataset_size = len(train)
-dataset = torch.Tensor(np.array([np.reshape(image[0], newshape=(image_size, 1))
-                                 for image in train])).double()
+dataset = torch.Tensor(np.reshape(train.train_data.numpy(), newshape=(dataset_size, image_size, 1))).double().to(device)
 
 # Neural architectures
 

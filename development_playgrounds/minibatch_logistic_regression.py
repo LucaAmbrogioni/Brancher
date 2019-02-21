@@ -1,4 +1,3 @@
-import chainer
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -6,6 +5,9 @@ from brancher.variables import DeterministicVariable, ProbabilisticModel
 from brancher.standard_variables import NormalVariable, BinomialVariable, EmpiricalVariable, RandomIndices
 from brancher import inference
 import brancher.functions as BF
+
+from brancher.config import device
+print('Device used: ' + device.type)
 
 # Data #TODO: Implement minibatch correction
 number_regressors = 2
@@ -53,7 +55,7 @@ plt.show()
 
 # Statistics
 posterior_samples = model._get_posterior_sample(50)
-weights_posterior_samples = posterior_samples[weights].detach().numpy()
+weights_posterior_samples = posterior_samples[weights].cpu().detach().numpy()
 
 # Two subplots, unpack the axes array immediately
 f, (ax1, ax2) = plt.subplots(1, 2)

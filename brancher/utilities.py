@@ -10,6 +10,7 @@ from collections.abc import Iterable
 
 import numpy as np
 import torch
+import pandas as pd
 
 from brancher.config import device
 
@@ -165,6 +166,8 @@ def coerce_to_dtype(data, is_observed=False):
         result = data.float()
     elif dtype is np.ndarray: # to tensor
         result = torch.tensor(data).float()
+    elif dtype is pd.DataFrame:
+        result = torch.tensor(data.values).float()
     elif dtype in [float, int] or dtype.__base__ in [np.floating, np.signedinteger]: # to tensor
         result = torch.tensor(data * np.ones(shape=(1, 1))).float()
     elif dtype in [list, set, tuple, dict, str]: # to discrete
