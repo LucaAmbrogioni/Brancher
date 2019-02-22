@@ -24,10 +24,20 @@ def is_discrete(data):
 
 
 def to_tuple(obj):
-    if isinstance(obj, Iterable):
+    if isinstance(obj, Iterable) and not isinstance(obj, torch.Tensor):
         return tuple(obj)
     else:
         return tuple([obj])
+
+
+def to_tensor(arr):
+    if isinstance(arr, torch.Tensor):
+        return arr
+    elif isinstance(arr, np.ndarray):
+        return torch.Tensor(arr)
+    else:
+        raise ValueError("The input should be either a torch.Tensor or a np.array")
+
 
 
 def zip_dict(first_dict, second_dict):
@@ -255,9 +265,7 @@ def get_memory(obj, seen=None):
     return size
 
 
-#TODO: Truncation material, to be cleaned up
-
-def reject_samples(samples, model_statistics, truncation_rule): #TODO: Work in progress
+def reject_samples(samples, model_statistics, truncation_rule):
     decision_variable = model_statistics(samples) #samples -> tensor
     sample_indices = [index for index, value in enumerate(decision_variable) if truncation_rule(value)]
     num_accepted_samples = len(sample_indices)
@@ -271,11 +279,13 @@ def reject_samples(samples, model_statistics, truncation_rule): #TODO: Work in p
 
 
 def concatenate_samples(samples_list):
+    ''' replaced with torch.cat'''
     if len(samples_list) == 1:
         return samples_list[0]
     else:
+        #num_samples = len(samples_list)
         paired_list = zip_dict_list(samples_list)
-        samples = {var: torch.cat(tensor_tuple, dim=0)
+        samples = {var: torch.cat(tensor_tuple, dim=0)#.contiguous().view(tuple([num_samples]) + tuple(tensor_tuple[0].shape[1:]))
                    for var, tensor_tuple in paired_list.items()}
         return samples
 
@@ -289,12 +299,17 @@ def batch_meshgrid(tensor1, tensor2):
     tensor2_shape = tensor2.shape
     new_shape = [tensor1_shape[0], tensor1_shape[1], tensor2_shape[1]]
 
-    assert (len(tensor1_shape) == 2 and len(tensor2_shape) == 2), "You can use batch_,eshgrid only on 2D tensor (The first dimension is the batch dimension)"
+    assert (len(tensor1_shape) == 2 and len(tensor2_shape) == 2), "You can use batch_meshgrid only on 2D tensor (The first dimension is the batch dimension)"
 
-    tensor1.unsqueeze(dim=2).expand(*new_shape)
-    tensor2.unsqueeze(dim=1).expand(*new_shape)
+    tensor1 = tensor1.unsqueeze(dim=2).expand(*new_shape)
+    tensor2 = tensor2.unsqueeze(dim=1).expand(*new_shape)
     return tensor1, tensor2
 
 
 def get_tensor_data(tensor):
     return tensor.cpu().detach().numpy()
+
+
+def delta(x, y):
+    return (x == y).float()
+s

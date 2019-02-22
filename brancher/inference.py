@@ -13,12 +13,13 @@ from brancher.external.tqdm.tqdm import tqdm
 import torch
 
 from brancher.optimizers import ProbabilisticOptimizer
-from brancher.variables import DeterministicVariable, Variable, ProbabilisticModel
+from brancher.variables import Variable, ProbabilisticModel
 from brancher.transformations import truncate_model
 
 from brancher.utilities import reassign_samples
 from brancher.utilities import zip_dict
 from brancher.utilities import sum_from_dim
+from brancher.utilities import to_tensor
 
 
 # def maximal_likelihood(random_variable, number_iterations, optimizer=chainer.optimizers.SGD(0.001)):
@@ -97,9 +98,13 @@ def stochastic_variational_inference(joint_model, number_iterations, number_samp
             optimizers_list[0].update()
             if iteration > pretraining_iterations:
                 [opt.update() for opt in optimizers_list[1:]]
+            loss_list.append(loss.detach().numpy())
         else:
             warnings.warn("Numerical error, skipping sample")
+<<<<<<< Updated upstream
         loss_list.append(loss.cpu().detach().numpy()) #TODO: make sure this works: detach()?
+=======
+>>>>>>> Stashed changes
     joint_model.diagnostics.update({"loss curve": np.array(loss_list)})
 
     inference_method.post_process(joint_model) #TODO: this could be implemented with a with block
@@ -158,7 +163,7 @@ class WassersteinVariationalGradientDescent(InferenceMethod): #TODO: Work in pro
         if cost_function:
             self.cost_function = cost_function
         else:
-            self.cost_function = lambda x, y: sum_from_dim((x - y) **2, dim_index=1)
+            self.cost_function = lambda x, y: sum_from_dim((to_tensor(x) - to_tensor(y)) **2, dim_index=1)
         if deviation_statistics:
             self.deviation_statistics = deviation_statistics
         else:
@@ -210,7 +215,7 @@ class WassersteinVariationalGradientDescent(InferenceMethod): #TODO: Work in pro
         pair_list = [zip_dict(particle._get_sample(1), samples)
                      for particle, samples in zip(particle_list, reassigned_samples_list)]
 
-        particle_loss = sum([torch.sum(w*self.deviation_statistics([self.cost_function(value_pair[0], value_pair[1].detach().numpy()) #TODO: numpy()
+        particle_loss = sum([torch.sum(to_tensor(w)*self.deviation_statistics([self.cost_function(value_pair[0], value_pair[1].detach().numpy()) #TODO: numpy()
                                                                 for var, value_pair in particle.items()]))
                              for particle, w in zip(pair_list, importance_weights)])
         return particle_loss

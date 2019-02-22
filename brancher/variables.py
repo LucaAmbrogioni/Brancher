@@ -503,12 +503,12 @@ class ProbabilisticModel(BrancherClass):
         self.posterior_sampler = None
         self.observed_submodel = None
         self.diagnostics = {}
-        if not all([var.is_observed for var in self.variables]): #TODO: this is not elegant
+        if not all([var.is_observed for var in self.variables]):
             self.update_observed_submodel()
         else:
             self.observed_submodel = self
 
-    def __str__(self): #TODO: Work in progress
+    def __str__(self):
         """
         Method.
 
@@ -525,7 +525,7 @@ class ProbabilisticModel(BrancherClass):
                 raise ValueError("Invalid input type: {}".format(type(var)))
         return variables
 
-    def _set_summary(self): #TODO: Work in progress
+    def _set_summary(self):
         feature_list = ["Distribution", "Parents", "Observed"]
         var_list = self.flatten()
         var_names = [var.name for var in var_list]
@@ -649,7 +649,7 @@ class ProbabilisticModel(BrancherClass):
                                                                     empirical_samples=empirical_samples,
                                                                     for_gradient=for_gradient,
                                                                     normalized=False)
-        log_weights = (p_log_prob - q_log_prob).data
+        log_weights = (p_log_prob - q_log_prob).detach().numpy()
         alpha = np.max(log_weights)
         norm_log_weights = log_weights - alpha
         weights = np.exp(norm_log_weights) #TODO: for Julia: this should either be numpy or cupy
@@ -717,7 +717,7 @@ def var2link(var):
     if isinstance(var, Variable):
         vars = {var}
         fn = lambda values: values[var]
-    elif isinstance(var, (numbers.Number, np.ndarray)):
+    elif isinstance(var, (numbers.Number, np.ndarray, torch.Tensor)):
         vars = set()
         fn = lambda values: var
     elif isinstance(var, (tuple, list)) and all([isinstance(v, (Variable, PartialLink)) for v in var]):

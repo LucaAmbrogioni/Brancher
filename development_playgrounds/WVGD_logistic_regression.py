@@ -1,4 +1,3 @@
-import chainer
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn import datasets
@@ -45,14 +44,14 @@ model = ProbabilisticModel([k])
 k.observe(labels)
 
 # Variational model
-num_particles = 10
+num_particles = 1 #10
 initial_locations = [np.random.normal(0., 1., (number_output_classes, number_regressors))
                      for _ in range(num_particles)]
-particles = [ProbabilisticModel([DeterministicVariable(p, name="weights", learnable=True)])
-             for p in initial_locations]
+particles = [ProbabilisticModel([DeterministicVariable(location, name="weights", learnable=True)])
+             for location in initial_locations]
 
 # Importance sampling distributions
-variational_samplers = [ProbabilisticModel([NormalVariable(mu=location, sigma=0.1,
+variational_samplers = [ProbabilisticModel([NormalVariable(loc=location, scale=0.1,
                                                            name="weights", learnable=True)])
                         for location in initial_locations]
 
@@ -62,9 +61,10 @@ inference_method = WVGD(variational_samplers=variational_samplers,
                         biased=False)
 inference.stochastic_variational_inference(model,
                                            inference_method=inference_method,
-                                           number_iterations=600,
+                                           number_iterations=1000,
                                            number_samples=100,
-                                           optimizer=chainer.optimizers.Adam(0.0025),
+                                           optimizer="Adam",
+                                           lr=0.0025,
                                            posterior_model=particles,
                                            pretraining_iterations=0)
 loss_list = model.diagnostics["loss curve"]
@@ -97,10 +97,10 @@ for model_index in range(num_particles):
         test_label_list.append(test_label)
 
     for test_image, test_label in zip(test_image_list,test_label_list):
-        model_output = np.reshape(np.mean(model._get_posterior_sample(10, input_values={x: test_image})[k].data, axis=0), newshape=(number_output_classes,))
+        model_output = np.reshape(np.mean(model._get_posterior_sample(30, input_values={x: test_image})[k].detach().numpy(), axis=0), newshape=(number_output_classes,))
         output_label = int(np.argmax(model_output))
-        scores_0.append(1 if output_label == int(test_label.data) else 0)
-        s += 1 if output_label == int(test_label.data) else 0
+        scores_0.append(1 if output_label == int(test_label.detach().numpy()) else 0)
+        s += 1 if output_label == int(test_label.detach().numpy()) else 0
     print("Accuracy {}: {} %, weight: {}".format(model_index, 100*s/float(num_images), inference_method.weights[model_index]))
 
 s = 0
@@ -109,11 +109,11 @@ for test_image, test_label in zip(test_image_list,test_label_list):
     model_output_list = []
     for model_index in range(num_particles):
         model.set_posterior_model(inference_method.sampler_model[model_index])
-        model_output_list.append(np.reshape(np.mean(model._get_posterior_sample(30, input_values={x: test_image})[k].data, axis=0), newshape=(number_output_classes,)))
+        model_output_list.append(np.reshape(np.mean(model._get_posterior_sample(30, input_values={x: test_image})[k].detach().numpy(), axis=0), newshape=(number_output_classes,)))
 
     model_output = sum([output*w for output, w in zip(model_output_list, inference_method.weights)])
 
     output_label = int(np.argmax(model_output))
-    scores_ne.append(1 if output_label == int(test_label.data) else 0)
-    s += 1 if output_label == int(test_label.data) else 0
+    scores_ne.append(1 if output_label == int(test_label.detach().numpy()) else 0)
+    s += 1 if output_label == int(test_label.detach().numpy()) else 0
 print("Accuracy Ensemble: {} %".format(100*s/float(num_images)))

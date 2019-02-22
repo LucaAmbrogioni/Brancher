@@ -12,6 +12,9 @@ import numpy as np
 from brancher.standard_variables import MultivariateNormalVariable
 from brancher.standard_variables import var2link
 import brancher.functions as BF
+from brancher.utilities import coerce_to_dtype
+
+import torch
 
 
 class StochasticProcess(ABC):
@@ -32,7 +35,7 @@ class GaussianProcess(StochasticProcess):
         x = var2link(query_points)
         return MultivariateNormalVariable(loc=self.mean_function(x),
                                           covariance_matrix=self.covariance_function(x),
-                                          name=self.name + str(x))
+                                          name=self.name + "(" + query_points.name + ")")
 
 
 class CovarianceFunction(ABC):
@@ -40,10 +43,10 @@ class CovarianceFunction(ABC):
     def __init__(self, covariance):
         self.covariance = covariance
 
-    def __call__(self, query_points1, query_points2=None): #TODO: Possible input: arrays, deterministic variables (list?, numeric?)
+    def __call__(self, query_points1, query_points2=None):
         if not query_points2:
             query_points2 = query_points1
-        query_grid = BF.batch_meshgrid(query_points1, query_points2) #TODO: This needs to be fixed to include the batch dimension
+        query_grid = BF.batch_meshgrid(query_points1, query_points2)
         return self.covariance(query_grid[0], query_grid[1])
 
     def __add__(self, other):
@@ -68,9 +71,42 @@ class CovarianceFunction(ABC):
 
 class SquaredExponentialCovariance(CovarianceFunction):
 
-    def __init__(self, scale):
+    def __init__(self, scale, jitter=0.):
         self.scale = var2link(scale)
-        covariance = lambda x, y: BF.exp(-(x-y)**2/(2*scale))
+        covariance = lambda x, y: BF.exp(-(x-y)**2/(2*scale**2)) + BF.delta(x, y)*jitter
+        super().__init__(covariance=covariance)
+
+
+class WhiteNoiseCovariance(CovarianceFunction):
+
+    def __init__(self, magnitude, jitter=0.):
+        self.magnitude = var2link(magnitude)
+        covariance = lambda x, y: magnitude*BF.delta(x, y) + BF.delta(x, y)*jitter
+        super().__init__(covariance=covariance)
+
+
+class HarmonicCovariance(CovarianceFunction):
+
+    def __init__(self, frequency, jitter=0.):
+        self.frequency = var2link(frequency)
+        covariance = lambda x, y: BF.cos(2*np.pi*self.frequency*(x - y)) + BF.delta(x, y)*jitter
+        super().__init__(covariance=covariance)
+
+
+class PeriodicCovariance(CovarianceFunction):
+
+    def __init__(self, frequency, scale, jitter=0.):
+        self.frequency = var2link(frequency)
+        self.scale = var2link(scale)
+        covariance = lambda x, y: BF.exp(-2*BF.sin(np.pi*self.frequency*(x - y))**2/scale**2) + BF.delta(x, y)*jitter
+        super().__init__(covariance=covariance)
+
+
+class ExponentialCovariance(CovarianceFunction):
+
+    def __init__(self, scale, jitter=0.):
+        self.scale = var2link(scale)
+        covariance = lambda x, y: BF.exp(-BF.abs(x-y)/(scale)) + BF.delta(x, y)*jitter
         super().__init__(covariance=covariance)
 
 
@@ -123,11 +159,12 @@ class MeanFunction(ABC):
     def __rpow__(self, other):
         raise NotImplementedError
 
+
 class ConstantMean(MeanFunction):
 
     def __init__(self, value):
-        value = var2link(value)
-        mean = lambda x: value
+        value = value
+        mean = lambda x: BF.delta(x, x)*value
         super().__init__(mean=mean)
 
 

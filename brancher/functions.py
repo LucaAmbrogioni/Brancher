@@ -4,6 +4,7 @@ import torch
 from brancher.variables import var2link
 from brancher.variables import Variable, PartialLink
 from brancher.utilities import batch_meshgrid as torch_batch_meshgrid
+from brancher.utilities import delta as torch_delta
 
 class BrancherFunction(object):
     """
@@ -56,6 +57,7 @@ globals().update(brancher_fns)
 
 ## Custom functions ##
 batch_meshgrid = BrancherFunction(torch_batch_meshgrid)
+delta = BrancherFunction(torch_delta)
 
 
 ##

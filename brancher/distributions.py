@@ -58,7 +58,7 @@ class Distribution(ABC):
     def _postprocess_log_prob(self, log_prob, number_samples, number_datapoints):
         pass
 
-    def calculate_log_probability(self, x, **parameters): #TODO: Fix shape
+    def calculate_log_probability(self, x, **parameters):
         self.check_parameters(**parameters)
         x, parameters, number_samples, number_datapoints = self._preprocess_parameters_for_log_prob(x, **parameters)
         log_prob = self._calculate_log_probability(x, **parameters)
