@@ -312,4 +312,3 @@ def get_tensor_data(tensor):
 
 def delta(x, y):
     return (x == y).float()
-s

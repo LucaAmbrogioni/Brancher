@@ -101,10 +101,7 @@ def stochastic_variational_inference(joint_model, number_iterations, number_samp
             loss_list.append(loss.detach().numpy())
         else:
             warnings.warn("Numerical error, skipping sample")
-<<<<<<< Updated upstream
-        loss_list.append(loss.cpu().detach().numpy()) #TODO: make sure this works: detach()?
-=======
->>>>>>> Stashed changes
+        loss_list.append(loss.cpu().detach().numpy())
     joint_model.diagnostics.update({"loss curve": np.array(loss_list)})
 
     inference_method.post_process(joint_model) #TODO: this could be implemented with a with block
