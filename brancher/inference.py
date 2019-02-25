@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterable
 
 import numpy as np
-from brancher.external.tqdm.tqdm import tqdm
+from externals.tqdm.tqdm import tqdm
 
 import torch
 
@@ -98,7 +98,7 @@ def stochastic_variational_inference(joint_model, number_iterations, number_samp
             optimizers_list[0].update()
             if iteration > pretraining_iterations:
                 [opt.update() for opt in optimizers_list[1:]]
-            loss_list.append(loss.detach().numpy())
+            loss_list.append(loss.cpu().detach().numpy())
         else:
             warnings.warn("Numerical error, skipping sample")
         loss_list.append(loss.cpu().detach().numpy())

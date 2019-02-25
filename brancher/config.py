@@ -15,8 +15,8 @@ user_device = None
 
 
 
-
-default_device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+default_device = 'cpu'
+# default_device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 device_ = default_device if user_device is None else user_device
 device = torch.device(device_)
 
