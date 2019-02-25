@@ -4,3 +4,5 @@
 venv/
 bin/
 *.pyc
+examples/data/*
+development_playgrounds/data/*
