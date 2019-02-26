@@ -57,7 +57,7 @@ class BrancherClass(ABC):
             var_name: String. Name  of the requested variable.
 
         Returns:
-            brancher.Variable.
+            torch.Tensor.
 
         """
         flat_list = self._flatten()
@@ -86,7 +86,7 @@ class Variable(BrancherClass):
             multiple children variables ask for the log probability of the same paternt variable.
 
         Returns:
-            chainer.Variable. the log probability of the input values given the model.
+            torch.Tensor. the log probability of the input values given the model.
 
         """
         pass
@@ -115,7 +115,7 @@ class Variable(BrancherClass):
             function.
 
         Returns:
-            Dictionary(brancher.Variable: chainer.Variable). A dictionary of samples from all the variables of the model
+            Dictionary(brancher.Variable: torch.Tensor). A dictionary of samples from all the variables of the model
 
         """
         pass
@@ -132,7 +132,7 @@ class Variable(BrancherClass):
     @abstractmethod
     def reset(self):
         """
-        Abstract method. It recursively reset the self._evalueted and self._current_value attributes of the variable and
+        Abstract method. It recursively resets the self._evalueted and self._current_value attributes of the variable and
         all downstream variables. It is used after sampling and evaluating the log probability of a model.
 
         Args: None.
@@ -165,7 +165,7 @@ class Variable(BrancherClass):
 
     def _apply_operator(self, other, op):
         """
-        Method. It is used for using operations between variables symbolically. It always returns a partialLink object
+        Method. It is used for performing symbolic operations between variables. It always returns a partialLink object
         that define a mathematical operation between variables. The vars attribute of the link is the set of variables
         that are used in the operation. The fn attribute is a lambda that specify the operation as a functions between the
         values of the variables in vars and a numeric output. This is required for defining the forward pass of the model.
@@ -253,7 +253,7 @@ class DeterministicVariable(Variable):
 
     Parameters
     ----------
-    data : chainer.Variable, numeric, or np.ndarray. The value of the variable. It gets stored in the self.current value
+    data : torch.Tensor, numeric, or np.ndarray. The value of the variable. It gets stored in the self.value
     attribute.
 
     name : String. The name of the variable.
@@ -292,7 +292,7 @@ class DeterministicVariable(Variable):
             multiple children variables ask for the log probability of the same paternt variable.
 
         Returns:
-            chainer.Variable. the log probability of the input values given the model.
+            torch.Tensor. The log probability of the input values given the model.
         """
 
         return torch.tensor(np.zeros((1,1))).float().to(device)
@@ -331,13 +331,14 @@ class RandomVariable(Variable):
     Parameters
     ----------
     distribution : brancher.Distribution
-        Summary
+        The probability distribution of the random variable.
     name : str
-        Summary
+        The name of the random variable.
     parents : tuple of brancher variables
-        Summary
+        A tuple of brancher.Variables that are parents of the random variable.
     link : callable
-        Summary
+        A function Dictionary(brancher.variable: torch.tensor) -> Dictionary(str: torch.tensor) that maps the values of all the parents
+        to a dictionary of parameters of the probability distribution. It can also contains learnable layers and parameters.
     """
     def __init__(self, distribution, name, parents, link):
         self.name = name
@@ -356,14 +357,19 @@ class RandomVariable(Variable):
 
     @property
     def value(self):
+        """
+        Method. It returns the value of the deterministic variable.
+
+        Args:
+            None
+
+        Returns:
+            torch.Tensor. The value of the deterministic variable.
+        """
         if self._observed:
             return self._observed_value
         else:
             raise AttributeError('RandomVariable has to be observed to receive value.')
-
-    # @value.setter
-    # def value(self, val):
-    #     self._current_value = coerce_to_dtype(val)
 
     @property
     def is_observed(self):
@@ -398,7 +404,7 @@ class RandomVariable(Variable):
             multiple children variables ask for the log probability of the same paternt variable.
 
         Returns:
-            chainer.Variable. the log probability of the input values given the model.
+            torch.Tensor. The log probability of the input values given the model.
 
         """
         if self._evaluated and not reevaluate:
@@ -429,7 +435,24 @@ class RandomVariable(Variable):
 
     def _get_sample(self, number_samples=1, resample=True, observed=False, input_values={}):
         """
-        Summary
+        Method. Used internally. It returns samples from the random variable and all its parents.
+
+        Args:
+            number_samples: . A dictionary having the brancher.variables of the
+            model as keys and chainer.Variables as values. This dictionary has to provide values for all variables of
+            the model except for the deterministic variables.
+
+            resample: Bool. If false it returns the previously sampled values. It avoids that the parents of a variable
+            are sampled multiple times.
+
+            observed: Bool. It specifies if the sample should be formatted as observed data or Bayesian parameter.
+
+            input_values: Dictionary(Variable: torch.Tensor).  dictionary of values of the parents. It is used for
+            conditioning the sample on the (inputed) values of some of the parents.
+
+        Returns:
+            Dictionary(Variable: torch.Tensor). A dictionary of samples from the variable and all its parents.
+
         """
         if self.samples and not resample:
             return {self: self.samples[-1]}
@@ -453,9 +476,16 @@ class RandomVariable(Variable):
         self.samples = [sample] #TODO: to fix
         return {**parents_samples_dict, self: sample}
 
-    def observe(self, data, random_indices=()):
+    def observe(self, data):
         """
-        Summary
+        Method. It assigns an observed value to a RandomVariable.
+
+        Args:
+            data: torch.Tensor, numeric, or np.ndarray. Input observed data.
+
+        Returns:
+            None
+
         """
         data = pandas_frame2value(data, self.name)
         if isinstance(data, RandomVariable):
@@ -467,6 +497,15 @@ class RandomVariable(Variable):
         self._observed = True
 
     def unobserve(self):
+        """
+        Method. It marks a variable as not observed and it drops the dataset.
+
+        Args:
+            None
+
+        Returns:
+            None
+        """
         self._observed = False
         self.has_observed_value = False
         self.has_random_dataset = False
@@ -475,11 +514,11 @@ class RandomVariable(Variable):
 
     def reset(self):
         """
-        Summary
+        Method. It resets the evaluated flag of the variable and all its parents. Used after computing the
+        log probability of a variable.
         """
         self.samples = []
         self._evaluated = False
-        self._current_value = None
         for parent in self.parents:
             parent.reset()
 
@@ -489,12 +528,11 @@ class RandomVariable(Variable):
 
 class ProbabilisticModel(BrancherClass):
     """
-    Summary
+    ProbabilisticModels are collections of Brancher variables.
 
     Parameters
     ----------
-    variables : tuple of brancher variables
-        Summary
+    variables: List(brancher.Variable). A list of random and deterministic variables.
     """
     def __init__(self, variables):
         self.variables = self._validate_variables(variables)
@@ -538,24 +576,13 @@ class ProbabilisticModel(BrancherClass):
         self._set_summary()
         return self._model_summary
 
-    # @property
-    # def value(self):
-    #     return tuple(var.value for var in self.variables)
-    #
-    # @value.setter
-    # def value(self, val):
-    #     raise AttributeError("The value of a probabilistic model cannot be explicitly set.")
-
     @property
     def is_observed(self):
         return all([var.is_observed for var in self._flatten()])
 
     def update_observed_submodel(self):
         """
-        Summary
-
-        Parameters
-        ---------
+        Method. Extract the sub-model of observed variables.
         """
         flattened_model = self._flatten()
         observed_variables = [var for var in flattened_model if var.is_observed]
