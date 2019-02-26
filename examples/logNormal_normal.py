@@ -1,3 +1,6 @@
+import brancher.config as cfg
+cfg.set_device("cpu")
+
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -5,7 +8,7 @@ from brancher.variables import ProbabilisticModel
 from brancher.standard_variables import NormalVariable, LaplaceVariable, CauchyVariable, LogNormalVariable
 from brancher import inference
 
-from brancher import config
+
 
 
 # Real model
