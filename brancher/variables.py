@@ -658,7 +658,7 @@ class ProbabilisticModel(BrancherClass):
         if not give_normalization:
             return weights
         else:
-            return weights, norm*np.exp(alpha)
+            return weights, np.log(norm) + alpha
 
     def estimate_log_model_evidence(self, number_samples, method="ELBO", input_values={}, for_gradient=False, posterior_model=()):
         if not posterior_model:

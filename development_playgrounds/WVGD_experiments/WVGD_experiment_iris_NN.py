@@ -22,6 +22,7 @@ for N in particle_numbers:
         # Data
         number_regressors = 4
         number_output_classes = 3
+        number_hidden_nodes = 5
         dataset_size = 50
         dataset = datasets.load_iris()
         ind = list(range(dataset["target"].shape[0]))
@@ -36,11 +37,13 @@ for N in particle_numbers:
         labels = EmpiricalVariable(output_labels, indices=minibatch_indices, name="labels", is_observed=True)
 
         # Architecture parameters
-        weights = NormalVariable(np.zeros((number_output_classes, number_regressors)),
-                                 10 * np.ones((number_output_classes, number_regressors)), "weights")
+        weights1 = NormalVariable(np.zeros((number_hidden_nodes, number_regressors)),
+                                  10 * np.ones((number_hidden_nodes, number_regressors)), "weights1")
+        weights2 = NormalVariable(np.zeros((number_output_classes, number_hidden_nodes)),
+                                  10 * np.ones((number_output_classes, number_hidden_nodes)), "weights2")
 
         # Forward pass
-        final_activations = BF.matmul(weights, x)
+        final_activations = BF.matmul(weights2, BF.tanh(BF.matmul(weights1, x)))
         k = CategoricalVariable(softmax_p=final_activations, name="k")
 
         # Probabilistic model
@@ -51,15 +54,21 @@ for N in particle_numbers:
 
         # Variational model
         num_particles = N
-        initial_locations = [np.random.normal(0., 1., (number_output_classes, number_regressors))
-                             for _ in range(num_particles)]
-        particles = [ProbabilisticModel([DeterministicVariable(location, name="weights", learnable=True)])
-                     for location in initial_locations]
+        initial_locations1 = [np.random.normal(0., 1., (number_hidden_nodes, number_regressors))
+                              for _ in range(num_particles)]
+        initial_locations2 = [np.random.normal(0., 1., (number_output_classes, number_hidden_nodes))
+                              for _ in range(num_particles)]
+        particles = [ProbabilisticModel([DeterministicVariable(loc1, name="weights1", learnable=True),
+                                         DeterministicVariable(loc2, name="weights2", learnable=True)])
+                     for loc1, loc2 in zip(initial_locations1, initial_locations2)]
 
         # Importance sampling distributions
-        variational_samplers = [ProbabilisticModel([NormalVariable(loc=location, scale=0.1,
-                                                                   name="weights", learnable=True)])
-                                for location in initial_locations]
+        variational_samplers = [ProbabilisticModel([NormalVariable(loc=loc1, scale=0.1,
+                                                                   name="weights1", learnable=True),
+                                                    NormalVariable(loc=loc2, scale=0.1,
+                                                                   name="weights2", learnable=True)
+                                                    ])
+                                for loc1, loc2 in zip(initial_locations1, initial_locations2)]
 
         # Inference
         inference_method = WVGD(variational_samplers=variational_samplers,
@@ -131,5 +140,5 @@ mean, sem = np.array(mean), np.array(sem)
 plt.scatter(particle_numbers, mean, color="k", lw=2)
 plt.plot(particle_numbers, mean, color="k", lw=1)
 plt.fill_between(particle_numbers, mean - sem, mean + sem, color="b", alpha=0.5)
-plt.savefig("iris_results_WCGD.pdf")
+plt.savefig("iris_results_WCGD_NN.pdf")
 plt.show()

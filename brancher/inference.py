@@ -220,14 +220,17 @@ class WassersteinVariationalGradientDescent(InferenceMethod): #TODO: Work in pro
     def post_process(self, joint_model): #TODO: Work in progress
         sample_list = [sampler._get_sample(self.number_post_samples)
                         for sampler in self.sampler_model]
-        self.weights = []
+        log_weights = []
         for sampler, s in zip(self.sampler_model, sample_list):
             a = sampler.get_acceptance_probability(number_samples=self.number_post_samples)
-            _, Z = joint_model.get_importance_weights(q_samples=s,
-                                                      q_model=sampler,
-                                                      for_gradient=False,
-                                                      give_normalization=True)
-            self.weights.append(a*Z)
-        self.weights /= np.sum(self.weights)
+            _, logZ = joint_model.get_importance_weights(q_samples=s,
+                                                         q_model=sampler,
+                                                         for_gradient=False,
+                                                         give_normalization=True)
+            log_weights.append(np.log(a) + logZ)
+        log_weights = np.array(log_weights)
+        alpha = np.max(log_weights)
+        un_weights = np.exp(log_weights - alpha)
+        self.weights = un_weights/np.sum(un_weights)
 
 
