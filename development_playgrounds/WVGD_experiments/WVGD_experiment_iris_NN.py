@@ -22,7 +22,7 @@ for N in particle_numbers:
         # Data
         number_regressors = 4
         number_output_classes = 3
-        number_hidden_nodes = 5
+        number_hidden_nodes = 4
         dataset_size = 50
         dataset = datasets.load_iris()
         ind = list(range(dataset["target"].shape[0]))

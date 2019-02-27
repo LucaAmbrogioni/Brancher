@@ -692,7 +692,7 @@ class ProbabilisticModel(BrancherClass):
             self.check_posterior_model()
             posterior_model = self.posterior_model
         if method is "ELBO":
-            empirical_samples = self.observed_submodel._get_sample(1, observed=True) #TODO: You need to correct for subsampling
+            empirical_samples = self.observed_submodel._get_sample(1, observed=True) #TODO Important!!: You need to correct for subsampling
             posterior_samples = posterior_model._get_sample(number_samples=number_samples,
                                                             observed=False, input_values=input_values)
             posterior_log_prob, joint_log_prob = self.get_p_and_q_log_probabilities(q_samples=posterior_samples,

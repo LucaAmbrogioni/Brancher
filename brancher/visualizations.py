@@ -3,6 +3,7 @@ import warnings
 import seaborn as sns
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 def plot_posterior(model, variables, number_samples=2000):
@@ -49,4 +50,8 @@ def ensemble_histogram(sample_list, variable, weights, bins=30):
         hist_df["Model {}".format(idx)] = resampled_values
     hist_df.plot.hist(stacked=True, bins=bins)
 
+
+def plot_particles(particles, var_name, dim1, dim2, **kwargs):
+    x, y = [[p.get_variable("weights").value.detach().numpy().flatten()[dim] for p in particles] for dim in [dim1, dim2]]
+    plt.scatter(x, y, **kwargs)
 

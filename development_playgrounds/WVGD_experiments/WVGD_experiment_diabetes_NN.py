@@ -11,20 +11,20 @@ from brancher.inference import WassersteinVariationalGradientDescent as WVGD
 
 #TODO: Number of particles interface: Work in progress
 
-num_repetitions = 10 #50
-particle_numbers = [3, 1] #[10, 8, 6, 4, 2, 1]
+num_repetitions = 50
+particle_numbers = [10, 8, 6, 4, 2, 1]
 results = []
 errors = []
-post_sample_size = 300
 
 for N in particle_numbers:
     current_results = []
     for R in range(num_repetitions):
         # Data
-        number_regressors = 4
-        number_output_classes = 3
-        dataset_size = 10
-        dataset = datasets.load_iris()
+        number_regressors = 30
+        number_output_classes = 2
+        number_hidden_nodes = 30
+        dataset_size = 50
+        dataset = datasets.load_breast_cancer()
         ind = list(range(dataset["target"].shape[0]))
         np.random.shuffle(ind)
         input_variable = dataset["data"][ind[:dataset_size], :].astype("float32")
@@ -37,11 +37,13 @@ for N in particle_numbers:
         labels = EmpiricalVariable(output_labels, indices=minibatch_indices, name="labels", is_observed=True)
 
         # Architecture parameters
-        weights = NormalVariable(np.zeros((number_output_classes, number_regressors)),
-                                 np.ones((number_output_classes, number_regressors)), "weights")
+        weights1 = NormalVariable(np.zeros((number_hidden_nodes, number_regressors)),
+                                  10*np.ones((number_hidden_nodes, number_regressors)), "weights1")
+        weights2 = NormalVariable(np.zeros((number_output_classes, number_hidden_nodes)),
+                                  10*np.ones((number_output_classes, number_hidden_nodes)), "weights2")
 
         # Forward pass
-        final_activations = BF.matmul(weights, x)
+        final_activations = BF.matmul(weights2, BF.tanh(BF.matmul(weights1, x)))
         k = CategoricalVariable(softmax_p=final_activations, name="k")
 
         # Probabilistic model
@@ -52,15 +54,21 @@ for N in particle_numbers:
 
         # Variational model
         num_particles = N
-        initial_locations = [np.random.normal(0., 1., (number_output_classes, number_regressors))
-                             for _ in range(num_particles)]
-        particles = [ProbabilisticModel([DeterministicVariable(location, name="weights", learnable=True)])
-                     for location in initial_locations]
+        initial_locations1 = [np.random.normal(0., 1., (number_hidden_nodes, number_regressors))
+                              for _ in range(num_particles)]
+        initial_locations2 = [np.random.normal(0., 1., (number_output_classes, number_hidden_nodes))
+                              for _ in range(num_particles)]
+        particles = [ProbabilisticModel([DeterministicVariable(loc1, name="weights1", learnable=True),
+                                         DeterministicVariable(loc2, name="weights2", learnable=True)])
+                     for loc1, loc2 in zip(initial_locations1, initial_locations2)]
 
         # Importance sampling distributions
-        variational_samplers = [ProbabilisticModel([NormalVariable(loc=location, scale=0.001,
-                                                                   name="weights", learnable=True)])
-                                for location in initial_locations]
+        variational_samplers = [ProbabilisticModel([NormalVariable(loc=loc1, scale=0.1,
+                                                                   name="weights1", learnable=True),
+                                                    NormalVariable(loc=loc2, scale=0.1,
+                                                                   name="weights2", learnable=True)
+                                                    ])
+                                for loc1, loc2 in zip(initial_locations1, initial_locations2)]
 
         # Inference
         inference_method = WVGD(variational_samplers=variational_samplers,
@@ -68,9 +76,9 @@ for N in particle_numbers:
                                 biased=False)
         inference.stochastic_variational_inference(model,
                                                    inference_method=inference_method,
-                                                   number_iterations=3000,
+                                                   number_iterations=1000,
                                                    number_samples=100,
-                                                   optimizer="SGD",
+                                                   optimizer="Adam",
                                                    lr=0.0025,
                                                    posterior_model=particles,
                                                    pretraining_iterations=0)
@@ -89,7 +97,6 @@ for N in particle_numbers:
 
         for model_index in range(num_particles):
             s = 0
-            log_lk = 0
             model.set_posterior_model(inference_method.sampler_model[model_index])
             scores_0 = []
             test_image_list = []
@@ -101,21 +108,19 @@ for N in particle_numbers:
                 test_label_list.append(test_label)
 
             for test_image, test_label in zip(test_image_list,test_label_list):
-                model_output = np.reshape(np.mean(model._get_posterior_sample(post_sample_size, input_values={x: test_image})[k].detach().numpy(), axis=0), newshape=(number_output_classes,))
+                model_output = np.reshape(np.mean(model._get_posterior_sample(30, input_values={x: test_image})[k].detach().numpy(), axis=0), newshape=(number_output_classes,))
                 output_label = int(np.argmax(model_output))
-                true_label = int(test_label.detach().numpy())
-                scores_0.append(1 if output_label == true_label else 0)
+                scores_0.append(1 if output_label == int(test_label.detach().numpy()) else 0)
                 s += 1 if output_label == int(test_label.detach().numpy()) else 0
-                log_lk += np.log(float(model_output[true_label]) + 0.000001)
-            print("Accuracy {}: {}%, Log likelihood: {}, weight: {}".format(model_index, 100*s/float(num_images), log_lk, inference_method.weights[model_index]))
+            print("Accuracy {}: {} %, weight: {}".format(model_index, 100*s/float(num_images), inference_method.weights[model_index]))
 
         s = 0
         scores_ne = []
-        for test_image, test_label in zip(test_image_list, test_label_list):
+        for test_image, test_label in zip(test_image_list,test_label_list):
             model_output_list = []
             for model_index in range(num_particles):
                 model.set_posterior_model(inference_method.sampler_model[model_index])
-                model_output_list.append(np.reshape(np.mean(model._get_posterior_sample(post_sample_size, input_values={x: test_image})[k].detach().numpy(), axis=0), newshape=(number_output_classes,)))
+                model_output_list.append(np.reshape(np.mean(model._get_posterior_sample(30, input_values={x: test_image})[k].detach().numpy(), axis=0), newshape=(number_output_classes,)))
 
             model_output = sum([output*w for output, w in zip(model_output_list, inference_method.weights)])
 
@@ -135,5 +140,5 @@ mean, sem = np.array(mean), np.array(sem)
 plt.scatter(particle_numbers, mean, color="k", lw=2)
 plt.plot(particle_numbers, mean, color="k", lw=1)
 plt.fill_between(particle_numbers, mean - sem, mean + sem, color="b", alpha=0.5)
-plt.savefig("iris_results_WCGD.pdf")
+plt.savefig("diabetes_results_WCGD_NN.pdf")
 plt.show()

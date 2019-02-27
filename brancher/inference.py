@@ -15,6 +15,7 @@ import torch
 from brancher.optimizers import ProbabilisticOptimizer
 from brancher.variables import Variable, ProbabilisticModel
 from brancher.transformations import truncate_model
+from brancher.variables import DeterministicVariable
 
 from brancher.utilities import reassign_samples
 from brancher.utilities import zip_dict
@@ -45,7 +46,7 @@ from brancher.utilities import to_tensor
 #     return loss_list
 
 
-def stochastic_variational_inference(joint_model, number_iterations, number_samples,
+def stochastic_variational_inference(joint_model, number_iterations, number_samples = 1,
                                      optimizer='Adam', input_values={},
                                      inference_method=None,
                                      posterior_model=None, sampler_model=None,
@@ -98,7 +99,7 @@ def stochastic_variational_inference(joint_model, number_iterations, number_samp
             optimizers_list[0].update()
             if iteration > pretraining_iterations:
                 [opt.update() for opt in optimizers_list[1:]]
-            loss_list.append(loss.cpu().detach().numpy())
+            loss_list.append(loss.cpu().detach().numpy().flatten())
         else:
             warnings.warn("Numerical error, skipping sample")
         loss_list.append(loss.cpu().detach().numpy())
@@ -108,11 +109,6 @@ def stochastic_variational_inference(joint_model, number_iterations, number_samp
 
 
 class InferenceMethod(ABC):
-
-    #def __init__(self): #TODO: abstract attributes
-    #   self.learnable_model = False
-    #    self.needs_sampler = False
-    #    self.learnable_sampler = False
 
     @abstractmethod
     def check_model_compatibility(self, joint_model, posterior_model, sampler_model):
@@ -145,13 +141,13 @@ class ReverseKL(InferenceMethod):
     def post_process(self, joint_model):
         pass
 
-class WassersteinVariationalGradientDescent(InferenceMethod): #TODO: Work in progress
+class WassersteinVariationalGradientDescent(InferenceMethod):
 
     def __init__(self, variational_samplers, particles,
                  cost_function=None,
                  deviation_statistics=None,
                  biased=False,
-                 number_post_samples=8000): #TODO: Work in progress
+                 number_post_samples=8000):
         self.learnable_model = False #TODO: to implement later
         self.needs_sampler = True
         self.learnable_sampler = True
@@ -188,6 +184,7 @@ class WassersteinVariationalGradientDescent(InferenceMethod): #TODO: Work in pro
         assert isinstance(sampler_model, Iterable) and all([isinstance(subsampler, (Variable, ProbabilisticModel))
                                                             for subsampler in sampler_model]), "The Wasserstein Variational GD method require a list of variables or probabilistic models as sampler"
         # TODO: Check differentiability of the model
+        # TODO: check particles
 
     def compute_loss(self, joint_model, posterior_model, sampler_model, number_samples, input_values={}):
         sampler_loss = sum([-joint_model.estimate_log_model_evidence(number_samples=number_samples, posterior_model=subsampler,
@@ -217,7 +214,10 @@ class WassersteinVariationalGradientDescent(InferenceMethod): #TODO: Work in pro
                              for particle, w in zip(pair_list, importance_weights)])
         return particle_loss
 
-    def post_process(self, joint_model): #TODO: Work in progress
+    def correct_gradient(self):
+        pass
+
+    def post_process(self, joint_model):
         sample_list = [sampler._get_sample(self.number_post_samples)
                         for sampler in self.sampler_model]
         log_weights = []
@@ -232,5 +232,59 @@ class WassersteinVariationalGradientDescent(InferenceMethod): #TODO: Work in pro
         alpha = np.max(log_weights)
         un_weights = np.exp(log_weights - alpha)
         self.weights = un_weights/np.sum(un_weights)
+
+
+class MAP(InferenceMethod):
+
+    def __init__(self):
+        self.learnable_model = False  # TODO: to implement later
+        self.needs_sampler = False
+        self.learnable_sampler = False
+
+    def check_model_compatibility(self, joint_model, posterior_model, sampler_model):
+        # TODO: Check differentiability of the model
+        assert all([isinstance(var, DeterministicVariable) for var in posterior_model.flatten()])
+
+    def compute_loss(self, joint_model, posterior_model, sampler_model, number_samples, input_values={}):
+        empirical_samples = joint_model.observed_submodel._get_sample(1, observed=True)
+        variable_values = reassign_samples(posterior_model._get_sample(1), source_model=posterior_model,
+                                           target_model=joint_model)
+        variable_values.update(empirical_samples)
+        loss = -joint_model.calculate_log_probability(variable_values, for_gradient=True)
+        return loss
+
+    def correct_gradient(self):
+        pass
+
+    def post_process(self, joint_model):
+        pass
+
+
+class SteinVariationalGradientDescent(InferenceMethod):
+
+    def __init__(self, particles, kernel=None):
+        self.learnable_model = False  # TODO: to implement later
+        self.needs_sampler = False
+        self.learnable_sampler = False
+
+    def check_model_compatibility(self, joint_model, posterior_model, sampler_model):
+        # TODO: Check differentiability of the model
+        # TODO; check particles
+        pass
+
+    def compute_loss(self, joint_model, posterior_model, sampler_model, number_samples, input_values={}):
+        empirical_samples = joint_model.observed_submodel._get_sample(1, observed=True)
+        particle_samples = [reassign_samples(particle._get_sample(1), source_model=particle, target_model=joint_model)
+                            for particle in posterior_model]
+        [sample.update(empirical_samples) for sample in particle_samples]
+        loss = sum([-joint_model.calculate_log_probability(sample, for_gradient=True)
+                    for sample in particle_samples])
+        return loss
+
+    def correct_gradient(self):
+        pass
+
+    def post_process(self, joint_model):
+        pass
 
 
