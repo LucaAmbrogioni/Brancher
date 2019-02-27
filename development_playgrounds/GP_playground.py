@@ -9,11 +9,7 @@ from brancher.stochastic_processes import SquaredExponentialCovariance as Square
 from brancher.stochastic_processes import ConstantMean
 from brancher.variables import DeterministicVariable
 from brancher.standard_variables import NormalVariable as Normal
-from brancher.standard_variables import LogNormalVariable as LogNormal
-from brancher.standard_variables import MultivariateNormalVariable as MultivariateNormal
 from brancher import inference
-from brancher.visualizations import plot_posterior
-import brancher.functions as BF
 
 num_datapoints = 20
 x_range = np.linspace(-2, 2, num_datapoints)

@@ -45,7 +45,7 @@ model = ProbabilisticModel([k])
 k.observe(labels)
 
 # Variational model
-num_particles = 30 #10
+num_particles = 5 #10
 initial_locations = [np.random.normal(0., 1., (number_output_classes, number_regressors))
                      for _ in range(num_particles)]
 particles = [ProbabilisticModel([DeterministicVariable(location, name="weights", learnable=True)])
