@@ -41,10 +41,10 @@ Qmu = NormalVariable(0., 1., "mu", learnable=True)
 model.set_posterior_model(ProbabilisticModel([Qmu, Qnu]))
 
 # Inference
-inference.stochastic_variational_inference(model,
-                                           number_iterations=100,
-                                           number_samples=50,
-                                           optimizer=chainer.optimizers.Adam(0.1))
+inference.perform_inference(model,
+                            number_iterations=100,
+                            number_samples=50,
+                            optimizer=chainer.optimizers.Adam(0.1))
 loss_list = model.diagnostics["loss curve"]
 
 # print posterior sample

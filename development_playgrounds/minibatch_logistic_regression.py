@@ -44,11 +44,11 @@ Qweights = NormalVariable(np.zeros((1, number_regressors)),
 model.set_posterior_model(ProbabilisticModel([Qweights]))
 
 # Inference
-inference.stochastic_variational_inference(model,
-                                           number_iterations=200,
-                                           number_samples=100,
-                                           optimizer='Adam',
-                                           lr=0.05)
+inference.perform_inference(model,
+                            number_iterations=200,
+                            number_samples=100,
+                            optimizer='Adam',
+                            lr=0.05)
 loss_list = model.diagnostics["loss curve"]
 plt.plot(loss_list)
 plt.show()

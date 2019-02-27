@@ -44,11 +44,11 @@ variational_model = ProbabilisticModel([Qweights])
 model.set_posterior_model(variational_model)
 
 # Inference
-inference.stochastic_variational_inference(model,
-                                           number_iterations=1000,
-                                           number_samples=10,
-                                           optimizer="Adam",
-                                           lr=0.005)
+inference.perform_inference(model,
+                            number_iterations=1000,
+                            number_samples=10,
+                            optimizer="Adam",
+                            lr=0.005)
 
 # Loss Curve
 plt.plot(model.diagnostics["loss curve"])

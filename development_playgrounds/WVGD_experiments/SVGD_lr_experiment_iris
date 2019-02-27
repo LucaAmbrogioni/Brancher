@@ -58,13 +58,13 @@ for N in particle_numbers:
                      for location in initial_locations]
         # Inference
         inference_method = SVGD(particles=particles)
-        inference.stochastic_variational_inference(model,
-                                                   inference_method=inference_method,
-                                                   number_iterations=3000,
-                                                   number_samples=100,
-                                                   optimizer="SGD",
-                                                   lr=0.0025,
-                                                   posterior_model=particles)
+        inference.perform_inference(model,
+                                    inference_method=inference_method,
+                                    number_iterations=3000,
+                                    number_samples=100,
+                                    optimizer="SGD",
+                                    lr=0.0025,
+                                    posterior_model=particles)
         loss_list = model.diagnostics["loss curve"]
 
         # Test accuracy

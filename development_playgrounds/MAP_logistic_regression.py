@@ -49,12 +49,12 @@ model.set_posterior_model(ProbabilisticModel([DeterministicVariable(initial_weig
                                                                     learnable=True)]))
 
 # Inference
-inference.stochastic_variational_inference(model,
-                                           inference_method=MAP(),
-                                           number_iterations=3000,
-                                           number_samples=100,
-                                           optimizer="SGD",
-                                           lr=0.0025)
+inference.perform_inference(model,
+                            inference_method=MAP(),
+                            number_iterations=3000,
+                            number_samples=100,
+                            optimizer="SGD",
+                            lr=0.0025)
 loss_list = model.diagnostics["loss curve"]
 plt.show()
 

@@ -58,10 +58,10 @@ variational_model = ProbabilisticModel([Qb1, Qb2, Qweights1, Qweights2])
 model.set_posterior_model(variational_model)
 
 # Inference
-inference.stochastic_variational_inference(model,
-                                           number_iterations=2000,
-                                           number_samples=50,
-                                           optimizer='Adam', lr=0.005) #0.05
+inference.perform_inference(model,
+                            number_iterations=2000,
+                            number_samples=50,
+                            optimizer='Adam', lr=0.005) #0.05
 
 # Test accuracy
 num_images = 500

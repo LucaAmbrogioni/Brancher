@@ -45,21 +45,22 @@ model = ProbabilisticModel([k])
 k.observe(labels)
 
 # Variational model
-num_particles = 1 #10
+num_particles = 30 #10
 initial_locations = [np.random.normal(0., 1., (number_output_classes, number_regressors))
                      for _ in range(num_particles)]
 particles = [ProbabilisticModel([DeterministicVariable(location, name="weights", learnable=True)])
              for location in initial_locations]
 initial_particles = copy.deepcopy(particles)
+
 # Inference
-inference_method = SVGD(particles=particles)
-inference.stochastic_variational_inference(model,
-                                           inference_method=inference_method,
-                                           number_iterations=3000,
-                                           number_samples=100,
-                                           optimizer="SGD",
-                                           lr=0.0025,
-                                           posterior_model=particles)
+inference_method = SVGD()
+inference.perform_inference(model,
+                            inference_method=inference_method,
+                            number_iterations=3000,
+                            number_samples=100,
+                            optimizer="SGD",
+                            lr=0.0025,
+                            posterior_model=particles)
 loss_list = model.diagnostics["loss curve"]
 
 # Local variational models

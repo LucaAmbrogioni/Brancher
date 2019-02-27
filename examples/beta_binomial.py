@@ -29,10 +29,10 @@ Qp = BetaVariable(1., 1., "p", learnable=True)
 model.set_posterior_model(ProbabilisticModel([Qp]))
 
 # Inference
-inference.stochastic_variational_inference(model,
-                                           number_iterations=2000,
-                                           number_samples=100,
-                                           optimizer='Adam')
+inference.perform_inference(model,
+                            number_iterations=2000,
+                            number_samples=100,
+                            optimizer='Adam')
 loss_list = model.diagnostics["loss curve"]
 
 # Statistics

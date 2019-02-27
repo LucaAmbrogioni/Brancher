@@ -46,11 +46,11 @@ from brancher.utilities import to_tensor
 #     return loss_list
 
 
-def stochastic_variational_inference(joint_model, number_iterations, number_samples = 1,
-                                     optimizer='Adam', input_values={},
-                                     inference_method=None,
-                                     posterior_model=None, sampler_model=None,
-                                     pretraining_iterations=0, **opt_params): #TODO: input values
+def perform_inference(joint_model, number_iterations, number_samples = 1,
+                      optimizer='Adam', input_values={},
+                      inference_method=None,
+                      posterior_model=None, sampler_model=None,
+                      pretraining_iterations=0, **opt_params): #TODO: input values
     """
     Summary
 
@@ -96,6 +96,7 @@ def stochastic_variational_inference(joint_model, number_iterations, number_samp
         if torch.isfinite(loss.detach()).all().item(): #np.isfinite(loss.detach().numpy()).all(): #TODO: numpy()
             [opt.zero_grad() for opt in optimizers_list]
             loss.backward()
+            inference_method.correct_gradient(joint_model, posterior_model, sampler_model, number_samples)
             optimizers_list[0].update()
             if iteration > pretraining_iterations:
                 [opt.update() for opt in optimizers_list[1:]]
@@ -137,6 +138,9 @@ class ReverseKL(InferenceMethod):
         loss = -joint_model.estimate_log_model_evidence(number_samples=number_samples,
                                                         method="ELBO", input_values=input_values, for_gradient=True)
         return loss
+
+    def correct_gradient(self, joint_model, posterior_model, sampler_model, number_samples, input_values={}):
+        pass
 
     def post_process(self, joint_model):
         pass
@@ -214,7 +218,7 @@ class WassersteinVariationalGradientDescent(InferenceMethod):
                              for particle, w in zip(pair_list, importance_weights)])
         return particle_loss
 
-    def correct_gradient(self):
+    def correct_gradient(self, joint_model, posterior_model, sampler_model):
         pass
 
     def post_process(self, joint_model):
@@ -253,19 +257,22 @@ class MAP(InferenceMethod):
         loss = -joint_model.calculate_log_probability(variable_values, for_gradient=True)
         return loss
 
-    def correct_gradient(self):
+    def correct_gradient(self, joint_model, posterior_model, sampler_model, number_samples, input_values={}):
         pass
 
     def post_process(self, joint_model):
         pass
 
 
-class SteinVariationalGradientDescent(InferenceMethod):
+class SteinVariationalGradientDescent(InferenceMethod): #TODO: work in progress
 
-    def __init__(self, particles, kernel=None):
+    def __init__(self):
         self.learnable_model = False  # TODO: to implement later
         self.needs_sampler = False
         self.learnable_sampler = False
+        self.deviation = lambda x, y: np.sum(((to_tensor(x) - to_tensor(y))**2).detach().numpy())
+        self.kernel = lambda d, bw: np.exp(-d/(2*bw))
+        self.bandwidth = 0.01
 
     def check_model_compatibility(self, joint_model, posterior_model, sampler_model):
         # TODO: Check differentiability of the model
@@ -281,8 +288,30 @@ class SteinVariationalGradientDescent(InferenceMethod):
                     for sample in particle_samples])
         return loss
 
-    def correct_gradient(self):
-        pass
+    def correct_gradient(self, joint_model, posterior_model, sampler_model, number_samples, input_values={}):
+        self.update_bandwidth(posterior_model)
+        gradients = [[variable.value.grad for variable in particle.flatten()] for particle in posterior_model]
+        kernel_matrix = [[self.kernel(sum([self.deviation(variable1.value, variable2.value)
+                                          for variable1, variable2 in zip(particle1.flatten(), particle2.flatten())]),
+                                      bw=self.bandwidth)
+                          for particle1 in posterior_model] for particle2 in posterior_model]
+        interaction_matrix = [[[-(variable1.value - variable2.value)*kernel_matrix[particle_index1][particle_index2]/self.bandwidth
+                               for variable1, variable2 in zip(particle1.flatten(), particle2.flatten())]
+                              for particle_index1, particle1 in enumerate(posterior_model)]
+                              for particle_index2, particle2 in enumerate(posterior_model)]
+        for particle_index, particle in enumerate(posterior_model):
+            for variable_index, variable in enumerate(particle.flatten()):
+                variable.value.grad = sum([kernel_matrix[particle_index][other_index]*other_gradient[variable_index] + interaction_matrix[particle_index][other_index][variable_index]
+                                           for other_index, other_gradient in enumerate(gradients)])
+
+    def update_bandwidth(self, posterior_model):
+        distances = [np.sqrt(sum([self.deviation(variable1.value, variable2.value)
+                                  for variable1, variable2 in zip(particle1.flatten(), particle2.flatten())]))
+                     for particle1 in posterior_model
+                     for particle2 in posterior_model
+                     if particle1 is not particle2]
+        bw = 2*np.median(distances)**2/np.log(len(posterior_model))
+        self.bandwidth = bw
 
     def post_process(self, joint_model):
         pass

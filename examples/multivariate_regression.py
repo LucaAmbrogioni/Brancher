@@ -41,10 +41,10 @@ data = np.reshape(ground_samples[y].cpu().detach().numpy(), newshape=(n, 1, 1))
 y.observe(data)
 
 # Inference
-inference.stochastic_variational_inference(model,
-                                           number_iterations=5000,
-                                           number_samples=100,
-                                           optimizer='Adam')
+inference.perform_inference(model,
+                            number_iterations=5000,
+                            number_samples=100,
+                            optimizer='Adam')
 
 # Plot
 #plt.plot(model.diagnostics["loss curve"])

@@ -75,11 +75,11 @@ Qz = NormalVariable(encoder_output["mean"], encoder_output["sd"], name="z")
 model.set_posterior_model(ProbabilisticModel([Qx, Qz]))
 
 # Joint-contrastive inference
-inference.stochastic_variational_inference(model,
-                                           number_iterations=5000,
-                                           number_samples=1,
-                                           optimizer="Adam",
-                                           lr=0.005)
+inference.perform_inference(model,
+                            number_iterations=5000,
+                            number_samples=1,
+                            optimizer="Adam",
+                            lr=0.005)
 loss_list = model.diagnostics["loss curve"]
 
 #Plot results

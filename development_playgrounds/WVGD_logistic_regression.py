@@ -59,14 +59,14 @@ variational_samplers = [ProbabilisticModel([NormalVariable(loc=location, scale=0
 inference_method = WVGD(variational_samplers=variational_samplers,
                         particles=particles,
                         biased=False)
-inference.stochastic_variational_inference(model,
-                                           inference_method=inference_method,
-                                           number_iterations=1000,
-                                           number_samples=100,
-                                           optimizer="Adam",
-                                           lr=0.0025,
-                                           posterior_model=particles,
-                                           pretraining_iterations=0)
+inference.perform_inference(model,
+                            inference_method=inference_method,
+                            number_iterations=1000,
+                            number_samples=100,
+                            optimizer="Adam",
+                            lr=0.0025,
+                            posterior_model=particles,
+                            pretraining_iterations=0)
 loss_list = model.diagnostics["loss curve"]
 
 # Local variational models

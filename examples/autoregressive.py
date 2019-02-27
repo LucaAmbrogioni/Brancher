@@ -37,11 +37,11 @@ variational_posterior = ProbabilisticModel([Qb, Qnu])
 AR_model.set_posterior_model(variational_posterior)
 
 # Inference #
-inference.stochastic_variational_inference(AR_model,
-                                           number_iterations=100,
-                                           number_samples=300,
-                                           optimizer='Adam',
-                                           lr=0.05)
+inference.perform_inference(AR_model,
+                            number_iterations=100,
+                            number_samples=300,
+                            optimizer='Adam',
+                            lr=0.05)
 loss_list = AR_model.diagnostics["loss curve"]
 
 

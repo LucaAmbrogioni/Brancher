@@ -712,7 +712,8 @@ class ProbabilisticModel(BrancherClass):
             variable.reset()
 
     def _flatten(self):
-        return flatten_list([var._flatten() for var in self.variables])
+        variables = flatten_list([var._flatten() for var in self.variables])
+        return sorted(variables, key=lambda v: v.name)
 
 
 class PosteriorModel(ProbabilisticModel):
