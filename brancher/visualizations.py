@@ -51,7 +51,12 @@ def ensemble_histogram(sample_list, variable, weights, bins=30):
     hist_df.plot.hist(stacked=True, bins=bins)
 
 
-def plot_particles(particles, var_name, dim1, dim2, **kwargs):
-    x, y = [[p.get_variable("weights").value.detach().numpy().flatten()[dim] for p in particles] for dim in [dim1, dim2]]
+def plot_particles(particles, var_name, var2_name=None, dim1=0, dim2=0, **kwargs):
+    if not var2_name:
+        var2_name = var_name
+    x, y = [[p.get_variable(name).value.detach().numpy().flatten()[dim] for p in particles]
+            for dim, name in [(dim1, var_name), (dim2, var2_name)]]
     plt.scatter(x, y, **kwargs)
+    plt.xlabel(var_name + " " + str(dim1))
+    plt.ylabel(var2_name + " " + str(dim2))
 

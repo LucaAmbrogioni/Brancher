@@ -218,7 +218,7 @@ class WassersteinVariationalGradientDescent(InferenceMethod):
                              for particle, w in zip(pair_list, importance_weights)])
         return particle_loss
 
-    def correct_gradient(self, joint_model, posterior_model, sampler_model):
+    def correct_gradient(self, joint_model, posterior_model, sampler_model, number_samples, input_values={}):
         pass
 
     def post_process(self, joint_model):
