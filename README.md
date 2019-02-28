@@ -68,10 +68,10 @@ model.set_posterior_model(variational_posterior)
 Now that the models are spicified we can perform approximate inference using stochastic gradient descent:
 
 ```python
-inference.stochastic_variational_inference(AR_model, 
-                                           number_iterations=100,
-                                           number_samples=300,
-                                           optimizer="Adam",
-                                           lr=0.05)
+inference.perform_inference(AR_model, 
+                            number_iterations=500,
+                            number_samples=300,
+                            optimizer="SGD",
+                            lr=0.001)
 ```
 
