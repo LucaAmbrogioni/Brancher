@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from brancher.variables import ProbabilisticModel
+from brancher.variables import ProbabilisticModel, Ensemble
 
 from brancher.stochastic_processes import GaussianProcess as GP
 from brancher.stochastic_processes import SquaredExponentialCovariance as SquaredExponential
@@ -13,11 +13,11 @@ from brancher.standard_variables import NormalVariable as Normal
 from brancher.standard_variables import LogNormalVariable as LogNormal
 from brancher.inference import WassersteinVariationalGradientDescent as WVGD
 from brancher import inference
-from brancher.visualizations import plot_particles
+from brancher.visualizations import plot_particles, plot_density
 import brancher.functions as BF
 
-num_datapoints = 35
-x_range = np.linspace(-1, 1, num_datapoints)
+num_datapoints = 40
+x_range = np.linspace(0, 2, num_datapoints)
 x = DeterministicVariable(x_range, name="x")
 
 # Model
@@ -31,14 +31,17 @@ y = f(x)
 model = ProbabilisticModel([y])
 
 # Observe data
-noise_level = 0.4
-f = 1.5
-data = np.sin(2*np.pi*f*x_range) + noise_level*np.random.normal(0., 1., (1, num_datapoints))
+noise_level = 0.2
+f0 = 1.5
+df = 0.
+data = np.sin(2*np.pi*(f0 + df*x_range)*x_range) + noise_level*np.random.normal(0., 1., (1, num_datapoints))
 y.observe(data)
+plt.plot(x_range, data.flatten())
+plt.show()
 
 
 # Variational model
-num_particles = 8
+num_particles = 2
 initial_locations = [(np.random.normal(0.8, 0.2), np.random.normal(0.8, 0.2), np.random.normal(0.5, 0.2))
                      for _ in range(num_particles)]
 particles = [ProbabilisticModel([DeterministicVariable(location[0], name="length_scale", learnable=True),
@@ -59,8 +62,8 @@ inference_method = WVGD(variational_samplers=variational_samplers,
                         biased=False)
 inference.perform_inference(model,
                             inference_method=inference_method,
-                            number_iterations=1500,
-                            number_samples=20,
+                            number_iterations=1000,
+                            number_samples=200,
                             optimizer="SGD",
                             lr=0.001,
                             posterior_model=particles,
@@ -89,3 +92,8 @@ plot_particles(particles,
 plt.show()
 
 print(inference_method.weights)
+
+final_ensemble = Ensemble(variational_samplers, inference_method.weights)
+# Posterior plot
+plot_density(final_ensemble, ["length_scale", "noise_var", "freq"], number_samples=3000)
+plt.show()

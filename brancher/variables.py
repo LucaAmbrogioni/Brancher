@@ -27,6 +27,7 @@ from brancher.utilities import tile_parameter
 from brancher.utilities import get_model_mapping
 from brancher.utilities import reassign_samples
 from brancher.utilities import is_discrete, is_tensor
+from brancher.utilities import concatenate_samples
 
 from brancher.pandas_interface import reformat_sample_to_pandas
 from brancher.pandas_interface import reformat_model_summary
@@ -754,6 +755,37 @@ def var2link(var):
     else:
         return var
     return PartialLink(vars=vars, fn=fn, links=set())
+
+
+class Ensemble(BrancherClass):
+
+    def __init__(self, model_list, weights=None):
+        #TODO: assert that all variables have the same name
+        self.num_models = len(model_list)
+        self.model_list = model_list
+        if weights is None:
+            self.weights = [1./self.num_models]*self.num_models
+        else:
+            self.weights = np.array(weights)
+
+    def _get_sample(self, number_samples, observed=False, input_values={}):
+        num_samples_list = np.random.multinomial(number_samples, self.weights)
+        samples_list = [model._get_sample(n) for n, model in zip(num_samples_list, self.model_list)]
+        named_sample_list = [{var.name: value for var, value in sample.items()} for sample in samples_list]
+        named_sample = concatenate_samples(named_sample_list)
+        sample = {self.model_list[0].get_variable(name): value for name, value in named_sample.items()}
+        return sample
+
+    def _flatten(self):
+        return [model.flatten() for model in self.model_list]
+
+    def get_sample(self, number_samples, input_values={}): #TODO: code duplication here
+        reformatted_input_values = reformat_sampler_input(pandas_frame2dict(input_values),
+                                                                            number_samples=number_samples)
+        raw_sample = self._get_sample(number_samples, observed=False, input_values=reformatted_input_values)
+        sample = reformat_sample_to_pandas(raw_sample, number_samples=number_samples)
+        return sample
+
 
 
 class PartialLink(BrancherClass):
