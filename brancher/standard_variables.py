@@ -36,7 +36,7 @@ class VariableConstructor(RandomVariable):
     Parameters
     ----------
     """
-    def __init__(self, name, learnable, ranges, is_observed=False, **kwargs):
+    def __init__(self, name, learnable, ranges, is_observed=False, **kwargs): #TODO: code duplication here
         self.name = name
         self._evaluated = False
         self._observed = is_observed
@@ -44,8 +44,9 @@ class VariableConstructor(RandomVariable):
         self._current_value = None
         self.construct_deterministic_parents(learnable, ranges, kwargs)
         self.parents = join_sets_list([var2link(x).vars for x in kwargs.values()])
+        self.ancestors = join_sets_list([self.parents] + [parent.ancestors for parent in self.parents])
         self.link = LinkConstructor(**kwargs)
-        self.samples = []
+        self.samples = None
         self.ranges = {}
         self.dataset = None
         self.has_random_dataset = False

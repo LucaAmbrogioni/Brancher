@@ -9,6 +9,7 @@ import operator
 
 import numpy as np
 
+from brancher.variables import Variable, PartialLink
 from brancher.standard_variables import MultivariateNormalVariable
 from brancher.standard_variables import var2link
 import brancher.functions as BF
@@ -60,6 +61,9 @@ class CovarianceFunction(ABC):
     def __mul__(self, other):
         if isinstance(other, CovarianceFunction):
             return CovarianceFunction(covariance=lambda x, y: self.covariance(x, y)*other.covariance(x, y))
+        if isinstance(other, (Variable, PartialLink)):
+            other = var2link(other)
+            return CovarianceFunction(covariance=lambda x, y: self.covariance(x, y) * other)
         elif isinstance(other, (int, float)):
             return CovarianceFunction(covariance=lambda x, y: self.covariance(x, y) * other)
         else:

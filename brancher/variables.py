@@ -12,6 +12,7 @@ from collections.abc import Iterable
 from brancher.modules import ParameterModule
 
 import numpy as np
+import pandas as pd
 import torch
 
 import warnings
@@ -192,7 +193,7 @@ class Variable(BrancherClass):
             fn = lambda values: op(values[self], other)
             links = set()
         else:
-            raise TypeError('') #TODO
+            return other*self
 
         return PartialLink(vars=vars, fn=fn, links=links)
 
@@ -264,8 +265,10 @@ class DeterministicVariable(Variable):
     """
     def __init__(self, data, name, learnable=False, is_observed=False):
         self.name = name
+        self._evaluated = False
         self._observed = is_observed
-        self.parents = ()
+        self.parents = set()
+        self.ancestors = set()
         self._type = "Deterministic"
         self.learnable = learnable
         self.link = None
@@ -322,7 +325,7 @@ class DeterministicVariable(Variable):
         pass
 
     def _flatten(self):
-        return [self]
+        return []
 
 
 class RandomVariable(Variable):
@@ -346,8 +349,9 @@ class RandomVariable(Variable):
         self.distribution = distribution
         self.link = link
         self.parents = parents
+        self.ancestors = None
         self._type = "Random"
-        self.samples = []
+        self.samples = None
 
         self._evaluated = False
         self._observed = False # RandomVariable: observed value + link
@@ -455,7 +459,7 @@ class RandomVariable(Variable):
             Dictionary(Variable: torch.Tensor). A dictionary of samples from the variable and all its parents.
 
         """
-        if self.samples and not resample:
+        if self.samples is not None and not resample:
             return {self: self.samples[-1]}
         if not observed:
             if self in input_values:
@@ -475,7 +479,8 @@ class RandomVariable(Variable):
         parameters_dict = var_to_sample._apply_link(input_dict)
         sample = var_to_sample.distribution.get_sample(**parameters_dict)
         self.samples = [sample] #TODO: to fix
-        return {**parents_samples_dict, self: sample}
+        output_sample = {**parents_samples_dict, self: sample}
+        return output_sample
 
     def observe(self, data):
         """
@@ -518,13 +523,15 @@ class RandomVariable(Variable):
         Method. It resets the evaluated flag of the variable and all its parents. Used after computing the
         log probability of a variable.
         """
-        self.samples = []
-        self._evaluated = False
-        for parent in self.parents:
-            parent.reset()
+        if self.samples is not None and not self._evaluated:
+            self.samples = None
+            self._evaluated = False
+            for parent in self.parents:
+                parent.reset()
 
     def _flatten(self):
-        return flatten_list([parent._flatten() for parent in self.parents]) + [self]
+        variables = list(self.ancestors) + [self]
+        return sorted(variables, key=lambda v: v.name)
 
 
 class ProbabilisticModel(BrancherClass):
@@ -580,6 +587,20 @@ class ProbabilisticModel(BrancherClass):
     @property
     def is_observed(self):
         return all([var.is_observed for var in self._flatten()])
+
+    def observe(self, data):
+        if isinstance(data, pd.DataFrame):
+            data = {var_name: data[var_name].values for var_name in data}
+        if isinstance(data, dict):
+            if all([isinstance(k, Variable) for k in data.keys()]):
+                data_dict = data
+            if all([isinstance(k, str) for k in data.keys()]):
+                data_dict = {self.get_variable(name): value for name, value in data.items()}
+        else:
+            raise ValueError("The input data should be either a dictionary of values or a pandas dataframe")
+        for var in data_dict:
+            if isinstance(var, RandomVariable):
+                var.observe(data_dict[var])
 
     def update_observed_submodel(self):
         """
@@ -709,11 +730,12 @@ class ProbabilisticModel(BrancherClass):
         """
         Summary
         """
+        self._sampled_dict = {}
         for variable in self.variables:
             variable.reset()
 
     def _flatten(self):
-        variables = flatten_list([var._flatten() for var in self.variables])
+        variables = list(join_sets_list([var.ancestors.union({var}) for var in self.variables]))
         return sorted(variables, key=lambda v: v.name)
 
 

@@ -16,23 +16,23 @@ from brancher import inference
 from brancher.visualizations import plot_particles, plot_density
 import brancher.functions as BF
 
-num_datapoints = 40
+num_datapoints = 50
 x_range = np.linspace(0, 2, num_datapoints)
 x = DeterministicVariable(x_range, name="x")
 
 # Model
 length_scale = LogNormal(0., 0.3, name="length_scale")
 noise_var = LogNormal(0., 0.3, name="noise_var")
-freq = Normal(0.5, 0.5, name="freq")
+amplitude = LogNormal(0., 0.3, name="amplitude")
 mu = ConstantMean(0.5)
-cov = SquaredExponential(scale=length_scale)*Harmonic(frequency=freq) + WhiteNoise(magnitude=noise_var)
+cov = amplitude*SquaredExponential(scale=length_scale) + WhiteNoise(magnitude=noise_var)
 f = GP(mu, cov, name="f")
 y = f(x)
 model = ProbabilisticModel([y])
 
 # Observe data
-noise_level = 0.2
-f0 = 1.5
+noise_level = 0.3
+f0 = 2.5
 df = 0.
 data = np.sin(2*np.pi*(f0 + df*x_range)*x_range) + noise_level*np.random.normal(0., 1., (1, num_datapoints))
 y.observe(data)
@@ -41,19 +41,18 @@ plt.show()
 
 
 # Variational model
-num_particles = 2
-initial_locations = [(np.random.normal(0.8, 0.2), np.random.normal(0.8, 0.2), np.random.normal(0.5, 0.2))
+num_particles = 8
+initial_locations = [(np.random.normal(0.8, 0.2), np.random.normal(0.8, 0.2), np.random.normal(0.8, 0.2))
                      for _ in range(num_particles)]
 particles = [ProbabilisticModel([DeterministicVariable(location[0], name="length_scale", learnable=True),
                                  DeterministicVariable(location[1], name="noise_var", learnable=True),
-                                 DeterministicVariable(location[2], name="freq", learnable=True)])
+                                 DeterministicVariable(location[2], name="amplitude", learnable=True)])
              for location in initial_locations]
 
 # Importance sampling distributions
 variational_samplers = [ProbabilisticModel([LogNormal(np.log(location[0]), 0.3, name="length_scale", learnable=True),
                                             LogNormal(np.log(location[1]), 0.3, name="noise_var", learnable=True),
-                                            Normal(location[2], 0.3, name="freq", learnable=True)
-                                            ])
+                                            LogNormal(np.log(location[2]), 0.3, name="amplitude", learnable=True)])
                         for location in initial_locations]
 
 # Inference
@@ -62,10 +61,10 @@ inference_method = WVGD(variational_samplers=variational_samplers,
                         biased=False)
 inference.perform_inference(model,
                             inference_method=inference_method,
-                            number_iterations=1000,
-                            number_samples=200,
+                            number_iterations=2000,
+                            number_samples=20,
                             optimizer="SGD",
-                            lr=0.001,
+                            lr=0.00025,
                             posterior_model=particles,
                             pretraining_iterations=0)
 loss_list = model.diagnostics["loss curve"]
@@ -75,7 +74,7 @@ plt.show()
 # Plot particles
 plot_particles(particles,
                var_name="length_scale",
-               var2_name="freq",
+               var2_name="amplitude",
                c=inference_method.weights)
 plt.show()
 
@@ -87,7 +86,7 @@ plt.show()
 
 plot_particles(particles,
                var_name="noise_var",
-               var2_name="freq",
+               var2_name="amplitude",
                c=inference_method.weights)
 plt.show()
 
@@ -95,5 +94,5 @@ print(inference_method.weights)
 
 final_ensemble = Ensemble(variational_samplers, inference_method.weights)
 # Posterior plot
-plot_density(final_ensemble, ["length_scale", "noise_var", "freq"], number_samples=3000)
+plot_density(final_ensemble, ["length_scale", "noise_var", "amplitude"], number_samples=3000)
 plt.show()
