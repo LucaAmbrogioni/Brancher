@@ -96,7 +96,7 @@ class Variable(BrancherClass):
     @abstractmethod
     def _get_sample(self, number_samples, resample, observed, input_values):
         """
-        Abstract method. It returns samples from the joint distribution specified by the model. If an input is provided
+        Abstract private method. It returns samples from the joint distribution specified by the model. If an input is provided
         it only samples the variables that are not contained in the input.
 
         Args:
@@ -321,7 +321,7 @@ class DeterministicVariable(Variable):
         else:
             return {self: value} #TODO: This is for allowing discrete data, temporary? (for Julia)
 
-    def reset(self):
+    def reset(self, recursive=False):
         pass
 
     def _flatten(self):
@@ -518,16 +518,17 @@ class RandomVariable(Variable):
         self._observed_value = None
         self.dataset = None
 
-    def reset(self):
+    def reset(self, recursive=True):
         """
         Method. It resets the evaluated flag of the variable and all its parents. Used after computing the
         log probability of a variable.
         """
-        if self.samples is not None and not self._evaluated:
-            self.samples = None
-            self._evaluated = False
-            for parent in self.parents:
-                parent.reset()
+        self.samples = None
+        self._evaluated = False
+        if recursive:
+            for var in self.ancestors:
+                var.samples = None
+                var._evaluated = False
 
     def _flatten(self):
         variables = list(self.ancestors) + [self]
@@ -730,9 +731,8 @@ class ProbabilisticModel(BrancherClass):
         """
         Summary
         """
-        self._sampled_dict = {}
-        for variable in self.variables:
-            variable.reset()
+        for var in self.flatten():
+            var.reset(recursive=False)
 
     def _flatten(self):
         variables = list(join_sets_list([var.ancestors.union({var}) for var in self.variables]))

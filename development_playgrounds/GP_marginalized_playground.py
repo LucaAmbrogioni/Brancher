@@ -26,14 +26,14 @@ length_scale = LogNormal(0., 0.3, name="length_scale")
 noise_var = LogNormal(0., 0.3, name="noise_var")
 freq = Normal(0.5, 0.5, name="freq")
 mu = ConstantMean(0.5)
-cov = Harmonic(frequency=freq) + SquaredExponential(scale=length_scale) + WhiteNoise(magnitude=noise_var)
+cov = Harmonic(frequency=freq)*SquaredExponential(scale=length_scale) + WhiteNoise(magnitude=noise_var)
 f = GP(mu, cov, name="f")
 y = f(x)
 model = ProbabilisticModel([y])
 
 # Observe data
 noise_level = 0.2
-f1 = 1.5
+f1 = 1.
 data = np.sin(2*np.pi*f1*x_range) + noise_level*np.random.normal(0., 1., (1, num_datapoints))
 y.observe(data)
 

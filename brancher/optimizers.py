@@ -15,6 +15,7 @@ from brancher.variables import BrancherClass, Variable, ProbabilisticModel
 
 from brancher.config import device
 
+
 class ProbabilisticOptimizer(ABC):
     """
     Summary
@@ -24,27 +25,19 @@ class ProbabilisticOptimizer(ABC):
     optimizer : chainer optimizer
         Summary
     """
-    def __init__(self, model, optimizer='Adam', **kwargs):
+    def __init__(self, model, optimizer='SGD', **kwargs):
         assert isinstance(optimizer, str), 'Optimizer should be a name of available pytoch optimizers' #TODO: improve, list optim?
         self.link_set = set()
         self.module = None
         self.setup(model, optimizer, **kwargs) #TODO: add asserts for checking the params dictionary
 
-    # @staticmethod
-    # def _get_default_optimizer(self, **kwargs):
-    #     optimizer = torch.optim.Adam(lr=PO_DEFAULT_APLHA, betas=(PO_DEFAULT_BETA1, PO_DEFAULT_BETA2), eps=PO_DEFAULT_EPS)
-    #     return optimizer
-
-    def _update_link_set(self, random_variable): #TODO: rename as just variable, because can be deterministic (Parameter)
-        assert isinstance(random_variable, BrancherClass) #TODO: add intuitive error
-        link = random_variable.link if hasattr(random_variable, 'link') else None
-        #if isinstance(link, Link) or isinstance(link, Chain) or isinstance(link, ChainerList):
-        if isinstance(link, (ParameterModule, LinkConstructor)): #TODO: make sure that if user inputs nn.ModuleList, this works
-            self.link_set.add(link)
-
-        vars_attr = 'variables' if isinstance(random_variable, ProbabilisticModel) else 'parents'
-        for var in getattr(random_variable, vars_attr):
-            self._update_link_set(var)
+    def _update_link_set(self, model):
+        assert isinstance(model, BrancherClass) #TODO: add intuitive error message
+        variable_set = model.flatten() if isinstance(model, ProbabilisticModel) else model.ancestors
+        for var in variable_set:
+            link = var.link if hasattr(var, 'link') else None
+            if isinstance(link, (ParameterModule, LinkConstructor)):  # TODO: make sure that if user inputs nn.ModuleList, this works
+                self.link_set.add(link)
 
     def add_variable2module(self, random_variable):
         """

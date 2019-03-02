@@ -23,7 +23,7 @@ x = LaplaceVariable(mu, nu, "x")
 model = ProbabilisticModel([x])
 
 # # Generate data
-data = x_real._get_sample(number_samples=50)
+data = x_real._get_sample(number_samples=100)
 
 # Observe data
 x.observe(data[x_real][:, 0, :])
@@ -37,8 +37,8 @@ model.set_posterior_model(ProbabilisticModel([Qmu, Qnu]))
 inference.perform_inference(model,
                             number_iterations=3000,
                             number_samples=100,
-                            optimizer='Adam',
-                            lr=0.01)
+                            optimizer='SGD',
+                            lr=0.001)
 loss_list = model.diagnostics["loss curve"]
 
 # Statistics

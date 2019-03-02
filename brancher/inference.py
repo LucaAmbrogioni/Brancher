@@ -75,7 +75,7 @@ def perform_inference(joint_model, number_iterations, number_samples = 1,
     joint_model.update_observed_submodel()
 
     def append_prob_optimizer(model, optimizer, **opt_params):
-        prob_opt = ProbabilisticOptimizer(model, optimizer, **opt_params) # TODO: this should be better!!! handling models with no params
+        prob_opt = ProbabilisticOptimizer(model, optimizer, **opt_params) # TODO: this should be better! handling models with no params
         if prob_opt.optimizer:
             optimizers_list.append(prob_opt)
 
