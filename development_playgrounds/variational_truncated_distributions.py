@@ -24,10 +24,10 @@ data = b.get_sample(number_samples=num_observations, input_values={a: 1.})
 b.observe(data)
 
 # Inference
-inference.stochastic_variational_inference(model,
-                                           number_iterations=500,
-                                           number_samples=50,
-                                           optimizer=chainer.optimizers.Adam(0.025))
+inference.perform_inference(model,
+                            number_iterations=500,
+                            number_samples=50,
+                            optimizer=chainer.optimizers.Adam(0.025))
 loss_list = model.diagnostics["loss curve"]
 
 plt.plot(loss_list)

@@ -59,14 +59,14 @@ variational_samplers = [ProbabilisticModel([TruncatedNormalVariable(mu=initial_l
                                                 name="weights", learnable=True)])]
 
 # Inference
-inference.stochastic_variational_inference(model,
-                                           inference_method=WVGD(biased=True),
-                                           number_iterations=1000,
-                                           number_samples=50,
-                                           optimizer=chainer.optimizers.Adam(0.005),
-                                           posterior_model=particles,
-                                           sampler_model=variational_samplers,
-                                           pretraining_iterations=0)
+inference.perform_inference(model,
+                            inference_method=WVGD(biased=True),
+                            number_iterations=1000,
+                            number_samples=50,
+                            optimizer=chainer.optimizers.Adam(0.005),
+                            posterior_model=particles,
+                            sampler_model=variational_samplers,
+                            pretraining_iterations=0)
 loss_list = model.diagnostics["loss curve"]
 
 # Local variational models

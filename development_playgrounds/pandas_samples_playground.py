@@ -1,13 +1,8 @@
 import chainer
-import chainer.functions as F
-import matplotlib.pyplot as plt
-import numpy as np
 
-from brancher.distributions import NormalDistribution, LogNormalDistribution
-from brancher.variables import DeterministicVariable, RandomVariable, ProbabilisticModel
+from brancher.variables import ProbabilisticModel
 from brancher.standard_variables import NormalVariable, LogNormalVariable
 from brancher import inference
-import brancher.functions as BF
 
 # Real model
 nu_real = 1.
@@ -46,10 +41,10 @@ Qmu = NormalVariable(0., 1., "mu", learnable=True)
 model.set_posterior_model(ProbabilisticModel([Qmu, Qnu]))
 
 # Inference
-inference.stochastic_variational_inference(model,
-                                           number_iterations=100,
-                                           number_samples=50,
-                                           optimizer=chainer.optimizers.Adam(0.1))
+inference.perform_inference(model,
+                            number_iterations=100,
+                            number_samples=50,
+                            optimizer=chainer.optimizers.Adam(0.1))
 loss_list = model.diagnostics["loss curve"]
 
 # print posterior sample

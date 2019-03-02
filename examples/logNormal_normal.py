@@ -1,23 +1,25 @@
-import chainer
-import chainer.functions as F
+import brancher.config as cfg
+cfg.set_device("cpu")
+
 import matplotlib.pyplot as plt
 import numpy as np
 
-from brancher.distributions import NormalDistribution, LogNormalDistribution
-from brancher.variables import DeterministicVariable, RandomVariable, ProbabilisticModel
-from brancher.standard_variables import NormalVariable, LogNormalVariable
+from brancher.variables import ProbabilisticModel
+from brancher.standard_variables import NormalVariable, LaplaceVariable, CauchyVariable, LogNormalVariable
 from brancher import inference
-import brancher.functions as BF
+
+
+
 
 # Real model
 nu_real = 1.
 mu_real = -2.
-x_real = NormalVariable(mu_real, nu_real, "x_real")
+x_real = LaplaceVariable(mu_real, nu_real, "x_real")
 
 # Normal model
 nu = LogNormalVariable(0., 1., "nu")
 mu = NormalVariable(0., 10., "mu")
-x = NormalVariable(mu, nu, "x")
+x = LaplaceVariable(mu, nu, "x")
 model = ProbabilisticModel([x])
 
 # # Generate data
@@ -32,16 +34,17 @@ Qmu = NormalVariable(0., 1., "mu", learnable=True)
 model.set_posterior_model(ProbabilisticModel([Qmu, Qnu]))
 
 # Inference
-inference.stochastic_variational_inference(model,
-                                            number_iterations=100,
-                                            number_samples=50,
-                                            optimizer=chainer.optimizers.Adam(0.1))
+inference.perform_inference(model,
+                            number_iterations=3000,
+                            number_samples=100,
+                            optimizer='Adam',
+                            lr=0.01)
 loss_list = model.diagnostics["loss curve"]
 
 # Statistics
 posterior_samples = model._get_posterior_sample(5000)
-nu_posterior_samples = posterior_samples[nu].data.flatten()
-mu_posterior_samples = posterior_samples[mu].data.flatten()
+nu_posterior_samples = posterior_samples[nu].cpu().detach().numpy().flatten()
+mu_posterior_samples = posterior_samples[mu].cpu().detach().numpy().flatten()
 
 # Two subplots, unpack the axes array immediately
 f, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4)

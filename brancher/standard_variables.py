@@ -1,15 +1,32 @@
 import numbers
-import warnings
 
 import numpy as np
-import chainer
-import chainer.functions as F
+import torch.nn as nn
 
 import brancher.distributions as distributions
+import brancher.functions as BF
 import brancher.geometric_ranges as geometric_ranges
 from brancher.variables import var2link, Variable, DeterministicVariable, RandomVariable, PartialLink
 from brancher.utilities import join_sets_list
-import brancher.functions as BF
+
+
+
+class LinkConstructor(nn.ModuleList):
+    """
+    Summary
+
+    Parameters
+    ----------
+    """
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+        modules = [link
+                 for partial_link in kwargs.values()
+                 for link in var2link(partial_link).links]
+        super().__init__(modules) #TODO: asserts that specified links are valid pytorch modules
+
+    def __call__(self, values):
+        return {k: var2link(x).fn(values) for k, x in self.kwargs.items()}
 
 
 class VariableConstructor(RandomVariable):
@@ -19,20 +36,7 @@ class VariableConstructor(RandomVariable):
     Parameters
     ----------
     """
-    def __init__(self, name, learnable, ranges, is_observed=False, **kwargs):
-
-        class VarLink(chainer.ChainList):
-
-            def __init__(self):
-                self.kwargs = kwargs
-                links = [link
-                         for partial_link in kwargs.values()
-                         for link in var2link(partial_link).links]
-                super().__init__(*links)
-
-            def __call__(self, values):
-                return {k: var2link(x).fn(values) for k, x in self.kwargs.items()}
-
+    def __init__(self, name, learnable, ranges, is_observed=False, **kwargs): #TODO: code duplication here
         self.name = name
         self._evaluated = False
         self._observed = is_observed
@@ -40,14 +44,15 @@ class VariableConstructor(RandomVariable):
         self._current_value = None
         self.construct_deterministic_parents(learnable, ranges, kwargs)
         self.parents = join_sets_list([var2link(x).vars for x in kwargs.values()])
-        self.link = VarLink()
-        self.samples = []
+        self.ancestors = join_sets_list([self.parents] + [parent.ancestors for parent in self.parents])
+        self.link = LinkConstructor(**kwargs)
+        self.samples = None
         self.ranges = {}
         self.dataset = None
         self.has_random_dataset = False
         self.has_observed_value = False
         self.is_normalized = True
-
+        self.partial_links = {name: var2link(link) for name, link in kwargs.items()}
 
     def construct_deterministic_parents(self, learnable, ranges, kwargs):
         for parameter_name, value in kwargs.items():
@@ -63,38 +68,6 @@ class VariableConstructor(RandomVariable):
                 kwargs.update({parameter_name: ranges[parameter_name].forward_transform(deterministic_parent, dim)})
 
 
-# class UnnormalizedVariable(VariableConstructor): #TODO: Refactopring in progress, this class will probably be eliminated
-#
-#     def __init__(self, name, learnable, ranges, is_observed=False, **kwargs):
-#         super().__init__(name, learnable, ranges, is_observed, **kwargs)
-#
-#     def calculate_unnormalized_log_probability(self, input_values, reevaluate=True,
-#                                                for_gradient=False, include_parents=True):
-#         return super().calculate_log_probability(input_values,
-#                                                  reevaluate=reevaluate,
-#                                                  for_gradient=for_gradient,
-#                                                  include_parents=include_parents)
-#
-#     def calculate_log_probability(self, input_values, reevaluate=True, for_gradient=False,
-#                                   include_parents=True, normalized=True):
-#         num_samples = max([value.shape[0] for _, value in input_values.items()])
-#         parent_values = {key: value for key, value in input_values.items() if key is not self}
-#         norm_samples = super()._get_sample(num_samples, input_values=parent_values)[self]
-#         norm_input_values = parent_values
-#         norm_input_values.update({self: norm_samples})
-#         unnormalized_log_probability = self.calculate_unnormalized_log_probability(input_values)
-#         if not normalized:
-#             return unnormalized_log_probability
-#         else:
-#             if for_gradient:
-#                 norm_input_values = {key: value.data for key, value in norm_input_values.items()}
-#                 normalization = -F.mean(self.calculate_unnormalized_log_probability(norm_input_values,
-#                                                                                     include_parents=False))
-#                 return unnormalized_log_probability + normalization
-#             else:
-#                 raise NotImplemented #TODO: Work in progress
-
-
 class EmpiricalVariable(VariableConstructor):
     """
     Summary
@@ -102,24 +75,25 @@ class EmpiricalVariable(VariableConstructor):
     Parameters
     ----------
     """
-    def __init__(self, dataset, name, learnable=False, is_observed=False, batch_size=(), indices=(), weights=()):
+    def __init__(self, dataset, name, learnable=False, is_observed=False, batch_size=None, indices=None, weights=None): #TODO: Ugly logic
         self._type = "Empirical"
-        ranges = {"dataset": geometric_ranges.UnboundedRange(),
-                  "batch_size": geometric_ranges.UnboundedRange(),
-                  "indices": geometric_ranges.UnboundedRange(),
-                  "weights": geometric_ranges.UnboundedRange()}
-        super().__init__(name, dataset=dataset, indices=indices, weights=weights,
-                         learnable=learnable, ranges=ranges, is_observed=is_observed)
-        self.distribution = distributions.EmpiricalDistribution()
-        self.distribution.is_observed = is_observed #TODO: Clean up here?
-        if batch_size:
-            self.distribution.batch_size = batch_size
-            self.batch_size = batch_size
-        elif indices:
-            self.distribution.batch_size = len(indices)
-            self.batch_size = batch_size #TODO: Clean up here?
-        else:
-            raise ValueError("Either the indices or the batch size has to be given as input")
+        input_parameters = {"dataset": dataset, "batch_size": batch_size, "indices": indices, "weights": weights}
+        ranges = {par_name: geometric_ranges.UnboundedRange()
+                  for par_name, par_value in input_parameters.items()
+                  if par_value is not None}
+        kwargs = {par_name: par_value
+                  for par_name, par_value in input_parameters.items()
+                  if par_value is not None}
+        super().__init__(name, **kwargs, learnable=learnable, ranges=ranges, is_observed=is_observed)
+
+        if not batch_size:
+            if indices:
+                batch_size = len(indices)
+            else:
+                raise ValueError("Either the indices or the batch size has to be given as input")
+
+        self.batch_size = batch_size
+        self.distribution = distributions.EmpiricalDistribution(batch_size=batch_size, is_observed=is_observed)
 
 
 class RandomIndices(EmpiricalVariable):
@@ -145,29 +119,20 @@ class NormalVariable(VariableConstructor):
     Parameters
     ----------
     """
-    def __init__(self, mu, sigma, name, learnable=False):
+    def __init__(self, loc, scale, name, learnable=False):
         self._type = "Normal"
-        ranges = {"mu": geometric_ranges.UnboundedRange(),
-                  "sigma": geometric_ranges.RightHalfLine(0.)}
-        super().__init__(name, mu=mu, sigma=sigma, learnable=learnable, ranges=ranges)
+        ranges = {"loc": geometric_ranges.UnboundedRange(),
+                  "scale": geometric_ranges.RightHalfLine(0.)}
+        super().__init__(name, loc=loc, scale=scale, learnable=learnable, ranges=ranges)
         self.distribution = distributions.NormalDistribution()
 
-
-# class TruncatedNormalVariable(UnnormalizedVariable): #TODO: Refactopring in progress, this class will probably be eliminated
-#     """
-#     Summary
-#
-#     Parameters
-#     ----------
-#     """
-#     def __init__(self, mu, sigma, truncation_rule, name, learnable=False):
-#         self._type = "Truncated Normal"
-#         self.is_normalized = False
-#         ranges = {"mu": geometric_ranges.UnboundedRange(),
-#                   "sigma": geometric_ranges.RightHalfLine(0.)}
-#         super().__init__(name, mu=mu, sigma=sigma, learnable=learnable, ranges=ranges)
-#         self.distribution = distributions.TruncatedDistribution(base_distribution=distributions.NormalDistribution(),
-#                                                                 truncation_rule=truncation_rule)
+    def __add__(self, other):
+        if isinstance(other, NormalVariable):
+            return NormalVariable(self.partial_links["loc"] + other.partial_links["loc"],
+                                  scale=BF.sqrt(self.partial_links["scale"]**2 + other.partial_links["scale"]**2),
+                                  name=self.name + " + " + other.name, learnable=False)
+        else:
+            return super().__add__(other)
 
 
 class CauchyVariable(VariableConstructor):
@@ -177,12 +142,27 @@ class CauchyVariable(VariableConstructor):
     Parameters
     ----------
     """
-    def __init__(self, mu, sigma, name, learnable=False):
+    def __init__(self, loc, scale, name, learnable=False):
         self._type = "Cauchy"
-        ranges = {"mu": geometric_ranges.UnboundedRange(),
-                  "sigma": geometric_ranges.RightHalfLine(0.)}
-        super().__init__(name, mu=mu, sigma=sigma, learnable=learnable, ranges=ranges)
+        ranges = {"loc": geometric_ranges.UnboundedRange(),
+                  "scale": geometric_ranges.RightHalfLine(0.)}
+        super().__init__(name, loc=loc, scale=scale, learnable=learnable, ranges=ranges)
         self.distribution = distributions.CauchyDistribution()
+
+
+class LaplaceVariable(VariableConstructor):
+    """
+    Summary
+
+    Parameters
+    ----------
+    """
+    def __init__(self, loc, scale, name, learnable=False):
+        self._type = "Laplace"
+        ranges = {"loc": geometric_ranges.UnboundedRange(),
+                  "scale": geometric_ranges.RightHalfLine(0.)}
+        super().__init__(name, loc=loc, scale=scale, learnable=learnable, ranges=ranges)
+        self.distribution = distributions.LaplaceDistribution()
 
 
 class LogNormalVariable(VariableConstructor):
@@ -192,11 +172,11 @@ class LogNormalVariable(VariableConstructor):
     Parameters
     ----------
     """
-    def __init__(self, mu, sigma, name, learnable=False):
+    def __init__(self, loc, scale, name, learnable=False):
         self._type = "Log Normal"
-        ranges = {"mu": geometric_ranges.UnboundedRange(),
-                  "sigma": geometric_ranges.RightHalfLine(0.)}
-        super().__init__(name, mu=mu, sigma=sigma, learnable=learnable, ranges=ranges)
+        ranges = {"loc": geometric_ranges.UnboundedRange(),
+                  "scale": geometric_ranges.RightHalfLine(0.)}
+        super().__init__(name, loc=loc, scale=scale, learnable=learnable, ranges=ranges)
         self.distribution = distributions.LogNormalDistribution()
 
 
@@ -207,12 +187,27 @@ class LogitNormalVariable(VariableConstructor):
     Parameters
     ----------
     """
-    def __init__(self, mu, sigma, name, learnable=False):
+    def __init__(self, loc, scale, name, learnable=False):
         self._type = "Logit Normal"
-        ranges = {"mu": geometric_ranges.UnboundedRange(),
-                  "sigma": geometric_ranges.RightHalfLine(0.)}
-        super().__init__(name, mu=mu, sigma=sigma, learnable=learnable, ranges=ranges)
+        ranges = {"loc": geometric_ranges.UnboundedRange(),
+                  "scale": geometric_ranges.RightHalfLine(0.)}
+        super().__init__(name, loc=loc, scale=scale, learnable=learnable, ranges=ranges)
         self.distribution = distributions.LogitNormalDistribution()
+
+
+class BetaVariable(VariableConstructor):
+    """
+    Summary
+
+    Parameters
+    ----------
+    """
+    def __init__(self, alpha, beta, name, learnable=False):
+        self._type = "Logit Normal"
+        ranges = {"alpha": geometric_ranges.RightHalfLine(0.),
+                  "beta": geometric_ranges.RightHalfLine(0.)}
+        super().__init__(name, alpha=alpha, beta=beta, learnable=learnable, ranges=ranges)
+        self.distribution = distributions.BetaDistribution()
 
 
 class BinomialVariable(VariableConstructor):
@@ -231,9 +226,9 @@ class BinomialVariable(VariableConstructor):
             self.distribution = distributions.BinomialDistribution()
         elif logit_p is not None and p is None:
             ranges = {"n": geometric_ranges.UnboundedRange(),
-                      "z": geometric_ranges.UnboundedRange()}
-            super().__init__(name, n=n, z=logit_p, learnable=learnable, ranges=ranges)
-            self.distribution = distributions.LogitBinomialDistribution()
+                      "logit_p": geometric_ranges.UnboundedRange()}
+            super().__init__(name, n=n, logit_p=logit_p, learnable=learnable, ranges=ranges)
+            self.distribution = distributions.BinomialDistribution()
         else:
             raise ValueError("Either p or " +
                              "logit_p needs to be provided as input")
@@ -253,9 +248,9 @@ class CategoricalVariable(VariableConstructor): #TODO: Work in progress
             super().__init__(name, p=p, learnable=learnable, ranges=ranges)
             self.distribution = distributions.CategoricalDistribution()
         elif softmax_p is not None and p is None:
-            ranges = {"z": geometric_ranges.UnboundedRange()}
-            super().__init__(name, z=softmax_p, learnable=learnable, ranges=ranges)
-            self.distribution = distributions.SoftmaxCategoricalDistribution()
+            ranges = {"softmax_p": geometric_ranges.UnboundedRange()}
+            super().__init__(name, softmax_p=softmax_p, learnable=learnable, ranges=ranges)
+            self.distribution = distributions.CategoricalDistribution()
         else:
             raise ValueError("Either p or " +
                              "softmax_p needs to be provided as input")
@@ -283,18 +278,26 @@ class MultivariateNormalVariable(VariableConstructor):
     Parameters
     ----------
     """
-    def __init__(self, mu, cov=None, chol_cov=None, diag_cov=None, name="Multivariate Normal", learnable=False):
+    def __init__(self, loc, covariance_matrix=None, precision_matrix=None, cholesky_factor=None, name="Multivariate Normal", learnable=False):
         self._type = "Multivariate Normal"
-        if chol_cov is not None and diag_cov is None:
-            ranges = {"mu": geometric_ranges.UnboundedRange(),
-                      "chol_cov": geometric_ranges.UnboundedRange()}
-            super().__init__(name, mu=mu, chol_cov=chol_cov, learnable=learnable, ranges=ranges)
-            self.distribution = distributions.CholeskyMultivariateNormal()
-        elif diag_cov is not None and chol_cov is None:
-            ranges = {"mean": geometric_ranges.UnboundedRange(),
-                      "var": geometric_ranges.RightHalfLine(0.)}
-            super().__init__(name, mean=mu, var=diag_cov, learnable=learnable, ranges=ranges)
-            self.distribution = distributions.NormalDistribution()
+        if cholesky_factor is not None and covariance_matrix is None and precision_matrix is None:
+            ranges = {"loc": geometric_ranges.UnboundedRange(),
+                      "cholesky_factor": geometric_ranges.UnboundedRange()}
+            super().__init__(name, loc=loc, cholesky_factor=cholesky_factor, learnable=learnable, ranges=ranges)
+            self.distribution = distributions.MultivariateNormalDistribution()
+
+        elif cholesky_factor is None and covariance_matrix is not None and precision_matrix is None:
+            ranges = {"loc": geometric_ranges.UnboundedRange(),
+                      "covariance_matrix": geometric_ranges.PositiveDefiniteMatrix()}
+            super().__init__(name, loc=loc, covariance_matrix=covariance_matrix, learnable=learnable, ranges=ranges)
+            self.distribution = distributions.MultivariateNormalDistribution()
+
+        elif cholesky_factor is None and covariance_matrix is None and precision_matrix is not None:
+            ranges = {"loc": geometric_ranges.UnboundedRange(),
+                      "precision_matrix": geometric_ranges.UnboundedRange()}
+            super().__init__(name, loc=loc, precision_matrix=precision_matrix, learnable=learnable, ranges=ranges)
+            self.distribution = distributions.MultivariateNormalDistribution()
+
         else:
-            raise ValueError("Either chol_cov (cholesky factor of the covariance matrix) or "+
-                             "diag_cov (diagonal of the covariance matrix) need to be provided as input")
+            raise ValueError("Either covariance_matrix or precision_matrix or"+
+                             "cholesky_factor needs to be provided as input")

@@ -1,10 +1,8 @@
 import numpy as np
 
-import chainer
-import chainer.functions as F
 
 from brancher.variables import DeterministicVariable
-
+from brancher.utilities import is_tensor
 
 class VoronoiSet(object):
 
@@ -16,7 +14,7 @@ class VoronoiSet(object):
 
     def update_locations(self):
         if isinstance(self.particles, list):
-            if isinstance(self.particles[0], chainer.Variable):
+            if is_tensor(self.particles[0]):
                 self.locations = [part.data for part in self.particles]
             elif isinstance(self.particles[0], DeterministicVariable):
                 self.locations = [part.value[0, 0, :].data for part in self.particles]

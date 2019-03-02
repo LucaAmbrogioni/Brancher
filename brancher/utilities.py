@@ -9,15 +9,35 @@ from collections import abc
 from collections.abc import Iterable
 
 import numpy as np
-import chainer
-import chainer.functions as F
+import torch
+import pandas as pd
+
+from brancher.config import device
+
+
+def is_tensor(data):
+    return torch.is_tensor(data)
+
+
+def is_discrete(data):
+    return type(data) in [list, set, tuple, dict, str]
 
 
 def to_tuple(obj):
-    if isinstance(obj, Iterable):
+    if isinstance(obj, Iterable) and not isinstance(obj, torch.Tensor):
         return tuple(obj)
     else:
         return tuple([obj])
+
+
+def to_tensor(arr):
+    if isinstance(arr, torch.Tensor):
+        return arr
+    elif isinstance(arr, np.ndarray):
+        return torch.Tensor(arr)
+    else:
+        raise ValueError("The input should be either a torch.Tensor or a np.array")
+
 
 
 def zip_dict(first_dict, second_dict):
@@ -72,11 +92,12 @@ def join_sets_list(sets_list):
         return set()
 
 
-def sum_from_dim(var, dim_index):
-    data_dim = len(var.shape)
+def sum_from_dim(tensor, dim_index):
+    assert is_tensor(tensor), 'object is not torch tensor'
+    data_dim = len(tensor.shape)
     for dim in reversed(range(dim_index, data_dim)):
-        var = F.sum(var, axis=dim)
-    return var
+        tensor = tensor.sum(dim=dim)
+    return tensor
 
 
 def sum_data_dimensions(var):
@@ -84,17 +105,29 @@ def sum_data_dimensions(var):
 
 
 def partial_broadcast(*args):
+    assert all([is_tensor(ar) for ar in args]), 'at least 1 object is not torch tensor'
     shapes0, shapes1 = zip(*[(x.shape[0], x.shape[1]) for x in args])
     s0, s1 = np.max(shapes0), np.max(shapes1)
-    return [F.broadcast_to(x, shape=(s0, s1) + x.shape[2:]) for x in args]
+    return [x.expand((s0, s1) + x.shape[2:]) for x in args]
 
 
 def broadcast_and_squeeze(*args):
+    assert all([is_tensor(ar) for ar in args]), 'at least 1 object is not torch tensor'
     if all([np.prod(val.shape[2:]) == 1 for val in args]):
-        args = [F.reshape(val, shape=val.shape[:2] + tuple([1, 1])) for val in args] #TODO: Work in progress
+        args = [val.contiguous().view(size=val.shape[:2] + tuple([1, 1])) for val in args]
     uniformed_values = uniform_shapes(*args)
-    broadcasted_values = F.broadcast(*uniformed_values)
+    broadcasted_values = torch.broadcast_tensors(*uniformed_values)
     return broadcasted_values
+
+
+def broadcast_and_squeeze_mixed(tpl, dic):
+    tpl_len = len(tpl)
+    dict_keys, dict_values = zip(*dic.items())
+    broadcasted_values = broadcast_and_squeeze(*(tpl + dict_values))
+    if tpl_len > 0:
+        return broadcasted_values[:tpl_len], {k: v for k, v in zip(dict_keys, broadcasted_values[tpl_len:])}
+    else:
+        return {k: v for k, v in zip(dict_keys, broadcasted_values[tpl_len:])}
 
 
 def broadcast_parent_values(parents_values):
@@ -105,62 +138,65 @@ def broadcast_parent_values(parents_values):
     number_samples, number_datapoints = original_shapes[0][0:2]
     newshapes = [tuple([number_samples * number_datapoints]) + s
                  for s in data_shapes]
-    reshaped_values = [F.reshape(val, shape=s) for val, s in zip(broadcasted_values, newshapes)]
+    reshaped_values = [val.contiguous().view(size=s) for val, s in zip(broadcasted_values, newshapes)]
     return {key: value for key, value in zip(keys_list, reshaped_values)}, number_samples, number_datapoints
 
 
 def get_diagonal(tensor):
+    assert torch.is_tensor(tensor), 'object is not torch tensor'
+    assert tensor.ndimension() == 4, 'ndim should be equal 4'
     dim1, dim2, dim_matrix, _ = tensor.shape
     diag_ind = list(range(dim_matrix))
     expanded_diag_ind = dim1*dim2*diag_ind
     axis12_ind = [a for a in range(dim1*dim2) for _ in range(dim_matrix)]
-    reshaped_tensor = F.reshape(tensor, shape = (dim1*dim2, dim_matrix, dim_matrix))
+    reshaped_tensor = tensor.contiguous().view(size=(dim1*dim2, dim_matrix, dim_matrix))
     ind = (np.array(axis12_ind), np.array(expanded_diag_ind), np.array(expanded_diag_ind))
     subdiagonal = reshaped_tensor[ind]
-    return F.reshape(subdiagonal, shape=(dim1, dim2, dim_matrix))
+    return subdiagonal.view(size=(dim1, dim2, dim_matrix))
 
 
-def coerce_to_dtype(data, is_observed=False): #TODO: for Julia: Very important
+def coerce_to_dtype(data, is_observed=False):
     """Summary"""
-    dtype = type(data)
-    if dtype is chainer.Variable:
-        result = data
-    elif dtype is float or dtype is np.float32 or dtype is np.float64:
-        result = chainer.Variable(data * np.ones(shape=(1, 1), dtype="float32"))
-    elif dtype is int or dtype is np.int32 or dtype is np.int64:
-        result = chainer.Variable(data * np.ones(shape=(1, 1), dtype="int32"))
-    elif dtype is np.ndarray:
-        if data.dtype is np.dtype(np.float64):
-            result = chainer.Variable(data.astype("float32"))
-        elif data.dtype is np.dtype(np.int64):
-            result = chainer.Variable(data.astype("int32"))
+    def reformat_tensor(result):
+        if is_observed:
+            result = torch.unsqueeze(result, dim=0)
+            result_shape = result.shape
+            if len(result_shape) == 2:
+                result = result.contiguous().view(size=result_shape + tuple([1, 1]))
+            elif len(result_shape) == 3:
+                result = result.contiguous().view(size=result_shape + tuple([1]))
+            #if len(result_shape) == 2:
+            #   result = result.contiguous().view(size=result_shape + tuple([1]))
         else:
-            result = chainer.Variable(data)
-    elif issubclass(dtype, abc.Iterable):
-        result = data  # TODO: This is for allowing discrete data, temporary?
+            result = torch.unsqueeze(torch.unsqueeze(result, dim=0), dim=1)
         return result
+
+    dtype = type(data) ##TODO: do we need any additional shape checking?
+    if dtype is torch.Tensor: # to tensor
+        result = data.float()
+    elif dtype is np.ndarray: # to tensor
+        result = torch.tensor(data).float()
+    elif dtype is pd.DataFrame:
+        result = torch.tensor(data.values).float()
+    elif dtype in [float, int] or dtype.__base__ in [np.floating, np.signedinteger]: # to tensor
+        result = torch.tensor(data * np.ones(shape=(1, 1))).float()
+    elif dtype in [list, set, tuple, dict, str]: # to discrete
+        return data
     else:
-        raise TypeError("Invalid input dtype {} - expected float, integer, np.ndarray, or chainer var.".format(dtype))
+        raise TypeError("Invalid input dtype {} - expected float, integer, np.ndarray, or torch var.".format(dtype))
 
-    if is_observed:
-        result = F.expand_dims(result, axis=0)
-        result_shape = result.shape
-        if len(result_shape) == 2:
-            result = F.reshape(result, shape=result_shape + tuple([1, 1]))
-        elif len(result_shape) == 3:
-            result = F.reshape(result, shape=result_shape + tuple([1]))
-    else:
-        result = F.expand_dims(F.expand_dims(result, axis=0), axis=1)
-    return result
+    result = reformat_tensor(result)
+    return result.to(device)
 
 
-def tile_parameter(value, number_samples):
-    value_shape = value.shape
+def tile_parameter(tensor, number_samples):
+    assert is_tensor(tensor), 'object is not torch tensor'
+    value_shape = tensor.shape
     if value_shape[0] == number_samples:
-        return value
+        return tensor
     elif value_shape[0] == 1:
         reps = tuple([number_samples] + [1] * len(value_shape[1:]))
-        return F.tile(value, reps=reps)
+        return tensor.repeat(repeats=reps)
     else:
         raise ValueError("The parameter cannot be broadcasted to the rerquired number of samples")
 
@@ -171,9 +207,10 @@ def reformat_sampler_input(sample_input, number_samples):
 
 
 def uniform_shapes(*args):
+    assert all([is_tensor(ar) for ar in args]), 'at least 1 object is not torch tensor'
     shapes = [ar.shape for ar in args]
     max_len = np.max([len(s) for s in shapes])
-    return [F.expand_dims(ar, axis=len(ar.shape)) if (len(ar.shape) == max_len-1) else ar
+    return [torch.unsqueeze(ar, dim=len(ar.shape)) if (len(ar.shape) == max_len-1) else ar
             for ar in args]
 
 
@@ -228,9 +265,7 @@ def get_memory(obj, seen=None):
     return size
 
 
-#TODO: Truncation material, to be cleaned up
-
-def reject_samples(samples, model_statistics, truncation_rule): #TODO: Work in progress
+def reject_samples(samples, model_statistics, truncation_rule):
     decision_variable = model_statistics(samples) #samples -> tensor
     sample_indices = [index for index, value in enumerate(decision_variable) if truncation_rule(value)]
     num_accepted_samples = len(sample_indices)
@@ -244,10 +279,36 @@ def reject_samples(samples, model_statistics, truncation_rule): #TODO: Work in p
 
 
 def concatenate_samples(samples_list):
+    ''' replaced with torch.cat'''
     if len(samples_list) == 1:
         return samples_list[0]
     else:
+        #num_samples = len(samples_list)
         paired_list = zip_dict_list(samples_list)
-        samples = {var: F.concat(tensor_tuple, axis=0)
+        samples = {var: torch.cat(tensor_tuple, dim=0)#.contiguous().view(tuple([num_samples]) + tuple(tensor_tuple[0].shape[1:]))
                    for var, tensor_tuple in paired_list.items()}
         return samples
+
+
+def tensor_range(tensor):
+    return set(np.ndarray.tolist(tensor.detach().numpy().flatten()))
+
+
+def batch_meshgrid(tensor1, tensor2):
+    tensor1_shape = tensor1.shape
+    tensor2_shape = tensor2.shape
+    new_shape = [tensor1_shape[0], tensor1_shape[1], tensor2_shape[1]]
+
+    assert (len(tensor1_shape) == 2 and len(tensor2_shape) == 2), "You can use batch_meshgrid only on 2D tensor (The first dimension is the batch dimension)"
+
+    tensor1 = tensor1.unsqueeze(dim=2).expand(*new_shape)
+    tensor2 = tensor2.unsqueeze(dim=1).expand(*new_shape)
+    return tensor1, tensor2
+
+
+def get_tensor_data(tensor):
+    return tensor.cpu().detach().numpy()
+
+
+def delta(x, y):
+    return (x == y).float()

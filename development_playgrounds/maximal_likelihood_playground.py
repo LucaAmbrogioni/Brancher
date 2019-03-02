@@ -1,16 +1,8 @@
-from collections import OrderedDict
-from itertools import product
-
-import chainer
-import chainer.functions as F
 import matplotlib.pyplot as plt
 import numpy as np
 import chainer.links as L
 
-from brancher.distributions import NormalDistribution
-from brancher.links import GaussianLinearRegressionLink
-from brancher.optimizers import ProbabilisticOptimizer
-from brancher.variables import DeterministicVariable, RandomVariable, ProbabilisticModel
+from brancher.variables import DeterministicVariable
 from brancher.standard_variables import NormalVariable
 from brancher.inference import maximal_likelihood
 import brancher.functions as BF

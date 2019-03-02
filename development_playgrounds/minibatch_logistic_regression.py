@@ -1,4 +1,3 @@
-import chainer
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -6,6 +5,9 @@ from brancher.variables import DeterministicVariable, ProbabilisticModel
 from brancher.standard_variables import NormalVariable, BinomialVariable, EmpiricalVariable, RandomIndices
 from brancher import inference
 import brancher.functions as BF
+
+from brancher.config import device
+print('Device used: ' + device.type)
 
 # Data #TODO: Implement minibatch correction
 number_regressors = 2
@@ -42,17 +44,18 @@ Qweights = NormalVariable(np.zeros((1, number_regressors)),
 model.set_posterior_model(ProbabilisticModel([Qweights]))
 
 # Inference
-inference.stochastic_variational_inference(model,
-                                           number_iterations=200,
-                                           number_samples=100,
-                                           optimizer=chainer.optimizers.Adam(0.05))
+inference.perform_inference(model,
+                            number_iterations=200,
+                            number_samples=100,
+                            optimizer='Adam',
+                            lr=0.05)
 loss_list = model.diagnostics["loss curve"]
 plt.plot(loss_list)
 plt.show()
 
 # Statistics
 posterior_samples = model._get_posterior_sample(50)
-weights_posterior_samples = posterior_samples[weights].data
+weights_posterior_samples = posterior_samples[weights].cpu().detach().numpy()
 
 # Two subplots, unpack the axes array immediately
 f, (ax1, ax2) = plt.subplots(1, 2)

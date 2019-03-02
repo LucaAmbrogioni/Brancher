@@ -42,13 +42,13 @@ inference_method = WVGD(variational_samplers=variational_samplers,
                         particles=particles,
                         biased=False,
                         number_post_samples=20000)
-inference.stochastic_variational_inference(model,
-                                           inference_method=inference_method,
-                                           number_iterations=800,
-                                           number_samples=50,
-                                           optimizer=chainer.optimizers.Adam(0.005),
-                                           posterior_model=particles,
-                                           pretraining_iterations=0)
+inference.perform_inference(model,
+                            inference_method=inference_method,
+                            number_iterations=800,
+                            number_samples=50,
+                            optimizer=chainer.optimizers.Adam(0.005),
+                            posterior_model=particles,
+                            pretraining_iterations=0)
 loss_list = model.diagnostics["loss curve"]
 
 # Local variational models

@@ -4,8 +4,6 @@
 from abc import ABC, abstractmethod
 import numpy as np
 
-import chainer
-
 import brancher.functions as BF
 from brancher.utilities import partial_broadcast
 
@@ -83,11 +81,25 @@ class Simplex(GeometricRange):
         return np.log(np.exp(y) - 1)
 
 
-class PositiveDefiniteMatrix(GeometricRange):
+class PositiveDefiniteMatrix(GeometricRange): #TODO: Work in progress
 
     def forward_transform(self, x, dim):
-        return np.matmul(x, np.transpose(x))
+        return BF.matmul(x, BF.transpose(x, -2, -1))
 
     def inverse_transform(self, y, dim):
         chol_factor = np.linalg.cholesky(y)
         return chol_factor
+
+
+# class UpperTriangularPositiveDefiniteMatrix(GeometricRange): #TODO: Work in progress
+#
+#     def forward_transform(self, x, dim):
+#         pass
+#         #matrix_shape = x.shape[-2:]
+#         #return BF.matmul(x, BF.transpose(x, -2,-1))
+#
+#     def inverse_transform(self, y, dim):
+#         pass
+#         #chol_factor = np.linalg.cholesky(y)
+#         #return chol_factor
+

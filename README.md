@@ -5,13 +5,13 @@ Brancher allows design and train differentiable Bayesian models using stochastic
 ## Building probabilistic models ##
 Probabilistic models are defined symbolically. Random variables can be created as follows:
 ```python
-a = NormalVariable(mu = 0., sigma = 1., name = 'a')
-b = NormalVariable(mu = 0., sigma = 1., name = 'b')
+a = NormalVariable(loc = 0., scale = 1., name = 'a')
+b = NormalVariable(loc = 0., scale = 1., name = 'b')
 ```
-It is possible to chain together random variables by using arithmetic anf mathematical functions:
+It is possible to chain together random variables by using arithmetic and mathematical functions:
 ```python
-c = NormalVariable(mu = a**2 + F.sin(b), 
-                   sigma = F.exp(b), 
+c = NormalVariable(loc = a**2 + BF.sin(b), 
+                   scale = BF.exp(b), 
                    name = 'a')
 ```
 In this way, it is possible to create arbitrarely complex probabilistic models. It is also possible to use all the deep learning tools of Chainer in order to define probabilistic models with deep neural networks.
@@ -68,9 +68,10 @@ model.set_posterior_model(variational_posterior)
 Now that the models are spicified we can perform approximate inference using stochastic gradient descent:
 
 ```python
-inference.stochastic_variational_inference(AR_model, 
-                                           number_iterations=100,
-                                           number_samples=300,
-optimizer=chainer.optimizers.Adam(0.05))
+inference.perform_inference(AR_model, 
+                            number_iterations=500,
+                            number_samples=300,
+                            optimizer="SGD",
+                            lr=0.001)
 ```
 
