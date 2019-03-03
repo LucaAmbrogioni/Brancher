@@ -19,7 +19,9 @@ def pandas_frame2dict(dataframe):
 
 def pandas_frame2value(dataframe, index):
     if isinstance(dataframe, pd.core.frame.DataFrame):
-        return np.array(dataframe[index])
+        values = np.array([np.ndarray.tolist(x) if isinstance(x, np.ndarray) else x
+                           for x in dataframe[index].values]) #TODO: Ugly, this should be improved
+        return values
     else:
         return dataframe
 
@@ -39,7 +41,8 @@ def reformat_sample_to_pandas(sample, number_samples): #TODO: Work in progress
             for variable, value in sample.items()]
     index = [key.name for key in sample.keys()]
     column = range(number_samples)
-    return pd.DataFrame(data, index=index, columns=column).transpose()
+    frame = pd.DataFrame(data, index=index, columns=column).transpose()
+    return frame
 
 
 def reformat_model_summary(summary_data, var_names, feature_list):

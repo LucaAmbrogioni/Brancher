@@ -119,11 +119,11 @@ class NormalVariable(VariableConstructor):
     Parameters
     ----------
     """
-    def __init__(self, loc, scale, name, learnable=False):
+    def __init__(self, loc, scale, name, learnable=False, is_observed=False):
         self._type = "Normal"
         ranges = {"loc": geometric_ranges.UnboundedRange(),
                   "scale": geometric_ranges.RightHalfLine(0.)}
-        super().__init__(name, loc=loc, scale=scale, learnable=learnable, ranges=ranges)
+        super().__init__(name, loc=loc, scale=scale, learnable=learnable, ranges=ranges, is_observed=is_observed)
         self.distribution = distributions.NormalDistribution()
 
     def __add__(self, other):
@@ -142,11 +142,11 @@ class CauchyVariable(VariableConstructor):
     Parameters
     ----------
     """
-    def __init__(self, loc, scale, name, learnable=False):
+    def __init__(self, loc, scale, name, learnable=False, is_observed=False):
         self._type = "Cauchy"
         ranges = {"loc": geometric_ranges.UnboundedRange(),
                   "scale": geometric_ranges.RightHalfLine(0.)}
-        super().__init__(name, loc=loc, scale=scale, learnable=learnable, ranges=ranges)
+        super().__init__(name, loc=loc, scale=scale, learnable=learnable, ranges=ranges, is_observed=is_observed)
         self.distribution = distributions.CauchyDistribution()
 
 
@@ -157,11 +157,11 @@ class LaplaceVariable(VariableConstructor):
     Parameters
     ----------
     """
-    def __init__(self, loc, scale, name, learnable=False):
+    def __init__(self, loc, scale, name, learnable=False, is_observed=False):
         self._type = "Laplace"
         ranges = {"loc": geometric_ranges.UnboundedRange(),
                   "scale": geometric_ranges.RightHalfLine(0.)}
-        super().__init__(name, loc=loc, scale=scale, learnable=learnable, ranges=ranges)
+        super().__init__(name, loc=loc, scale=scale, learnable=learnable, ranges=ranges, is_observed=is_observed)
         self.distribution = distributions.LaplaceDistribution()
 
 
@@ -172,11 +172,11 @@ class LogNormalVariable(VariableConstructor):
     Parameters
     ----------
     """
-    def __init__(self, loc, scale, name, learnable=False):
+    def __init__(self, loc, scale, name, learnable=False, is_observed=False):
         self._type = "Log Normal"
         ranges = {"loc": geometric_ranges.UnboundedRange(),
                   "scale": geometric_ranges.RightHalfLine(0.)}
-        super().__init__(name, loc=loc, scale=scale, learnable=learnable, ranges=ranges)
+        super().__init__(name, loc=loc, scale=scale, learnable=learnable, ranges=ranges, is_observed=is_observed)
         self.distribution = distributions.LogNormalDistribution()
 
 
@@ -187,11 +187,11 @@ class LogitNormalVariable(VariableConstructor):
     Parameters
     ----------
     """
-    def __init__(self, loc, scale, name, learnable=False):
+    def __init__(self, loc, scale, name, learnable=False, is_observed=False):
         self._type = "Logit Normal"
         ranges = {"loc": geometric_ranges.UnboundedRange(),
                   "scale": geometric_ranges.RightHalfLine(0.)}
-        super().__init__(name, loc=loc, scale=scale, learnable=learnable, ranges=ranges)
+        super().__init__(name, loc=loc, scale=scale, learnable=learnable, ranges=ranges, is_observed=is_observed)
         self.distribution = distributions.LogitNormalDistribution()
 
 
@@ -202,11 +202,11 @@ class BetaVariable(VariableConstructor):
     Parameters
     ----------
     """
-    def __init__(self, alpha, beta, name, learnable=False):
+    def __init__(self, alpha, beta, name, learnable=False, is_observed=False):
         self._type = "Logit Normal"
         ranges = {"alpha": geometric_ranges.RightHalfLine(0.),
                   "beta": geometric_ranges.RightHalfLine(0.)}
-        super().__init__(name, alpha=alpha, beta=beta, learnable=learnable, ranges=ranges)
+        super().__init__(name, alpha=alpha, beta=beta, learnable=learnable, ranges=ranges, is_observed=is_observed)
         self.distribution = distributions.BetaDistribution()
 
 
@@ -217,12 +217,12 @@ class BinomialVariable(VariableConstructor):
     Parameters
     ----------
     """
-    def __init__(self, n, p=None, logit_p=None, name="Binomial", learnable=False):
+    def __init__(self, n, p=None, logit_p=None, name="Binomial", learnable=False, is_observed=False):
         self._type = "Binomial"
         if p is not None and logit_p is None:
             ranges = {"n": geometric_ranges.UnboundedRange(),
                       "p": geometric_ranges.Interval(0., 1.)}
-            super().__init__(name, n=n, p=p, learnable=learnable, ranges=ranges)
+            super().__init__(name, n=n, p=p, learnable=learnable, ranges=ranges, is_observed=is_observed)
             self.distribution = distributions.BinomialDistribution()
         elif logit_p is not None and p is None:
             ranges = {"n": geometric_ranges.UnboundedRange(),
@@ -241,15 +241,15 @@ class CategoricalVariable(VariableConstructor): #TODO: Work in progress
     Parameters
     ----------
     """
-    def __init__(self, p=None, softmax_p=None, name="Categorical", learnable=False):
+    def __init__(self, p=None, softmax_p=None, name="Categorical", learnable=False, is_observed=False):
         self._type = "Categorical"
         if p is not None and softmax_p is None:
             ranges = {"p": geometric_ranges.Simplex()}
-            super().__init__(name, p=p, learnable=learnable, ranges=ranges)
+            super().__init__(name, p=p, learnable=learnable, ranges=ranges, is_observed=is_observed)
             self.distribution = distributions.CategoricalDistribution()
         elif softmax_p is not None and p is None:
             ranges = {"softmax_p": geometric_ranges.UnboundedRange()}
-            super().__init__(name, softmax_p=softmax_p, learnable=learnable, ranges=ranges)
+            super().__init__(name, softmax_p=softmax_p, learnable=learnable, ranges=ranges, is_observed=is_observed)
             self.distribution = distributions.CategoricalDistribution()
         else:
             raise ValueError("Either p or " +
@@ -263,11 +263,11 @@ class ConcreteVariable(VariableConstructor):
     Parameters
     ----------
     """
-    def __init__(self, tau, p, name, learnable=False):
+    def __init__(self, tau, p, name, learnable=False, is_observed=False):
         self._type = "Concrete"
         ranges = {"tau": geometric_ranges.RightHalfLine(0.),
                   "p": geometric_ranges.Simplex()}
-        super().__init__(name, tau=tau, p=p, learnable=learnable, ranges=ranges)
+        super().__init__(name, tau=tau, p=p, learnable=learnable, ranges=ranges, is_observed=is_observed)
         self.distribution = distributions.ConcreteDistribution()
 
 
@@ -278,24 +278,25 @@ class MultivariateNormalVariable(VariableConstructor):
     Parameters
     ----------
     """
-    def __init__(self, loc, covariance_matrix=None, precision_matrix=None, cholesky_factor=None, name="Multivariate Normal", learnable=False):
+    def __init__(self, loc, covariance_matrix=None, precision_matrix=None,
+                 cholesky_factor=None, name="Multivariate Normal", learnable=False, is_observed=False):
         self._type = "Multivariate Normal"
         if cholesky_factor is not None and covariance_matrix is None and precision_matrix is None:
             ranges = {"loc": geometric_ranges.UnboundedRange(),
                       "cholesky_factor": geometric_ranges.UnboundedRange()}
-            super().__init__(name, loc=loc, cholesky_factor=cholesky_factor, learnable=learnable, ranges=ranges)
+            super().__init__(name, loc=loc, cholesky_factor=cholesky_factor, learnable=learnable, ranges=ranges, is_observed=is_observed)
             self.distribution = distributions.MultivariateNormalDistribution()
 
         elif cholesky_factor is None and covariance_matrix is not None and precision_matrix is None:
             ranges = {"loc": geometric_ranges.UnboundedRange(),
                       "covariance_matrix": geometric_ranges.PositiveDefiniteMatrix()}
-            super().__init__(name, loc=loc, covariance_matrix=covariance_matrix, learnable=learnable, ranges=ranges)
+            super().__init__(name, loc=loc, covariance_matrix=covariance_matrix, learnable=learnable, ranges=ranges, is_observed=is_observed)
             self.distribution = distributions.MultivariateNormalDistribution()
 
         elif cholesky_factor is None and covariance_matrix is None and precision_matrix is not None:
             ranges = {"loc": geometric_ranges.UnboundedRange(),
                       "precision_matrix": geometric_ranges.UnboundedRange()}
-            super().__init__(name, loc=loc, precision_matrix=precision_matrix, learnable=learnable, ranges=ranges)
+            super().__init__(name, loc=loc, precision_matrix=precision_matrix, learnable=learnable, ranges=ranges, is_observed=is_observed)
             self.distribution = distributions.MultivariateNormalDistribution()
 
         else:

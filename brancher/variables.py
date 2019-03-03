@@ -591,7 +591,7 @@ class ProbabilisticModel(BrancherClass):
 
     def observe(self, data):
         if isinstance(data, pd.DataFrame):
-            data = {var_name: data[var_name].values for var_name in data}
+            data = {var_name: pandas_frame2value(data, index=var_name) for var_name in data}
         if isinstance(data, dict):
             if all([isinstance(k, Variable) for k in data.keys()]):
                 data_dict = data
@@ -702,7 +702,7 @@ class ProbabilisticModel(BrancherClass):
         log_weights = (p_log_prob - q_log_prob).detach().numpy()
         alpha = np.max(log_weights)
         norm_log_weights = log_weights - alpha
-        weights = np.exp(norm_log_weights) #TODO: for Julia: this should either be numpy or cupy
+        weights = np.exp(norm_log_weights)
         norm = np.mean(weights)
         weights /= norm
         if not give_normalization:

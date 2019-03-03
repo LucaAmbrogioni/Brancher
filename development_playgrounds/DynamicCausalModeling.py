@@ -34,7 +34,7 @@ for n, t in enumerate(time_range):
 dynamic_causal_model = ProbabilisticModel([x_series[-1], y_series[-1]])
 
 # Run dynamics
-sample = dynamic_causal_model.get_sample(number_samples=1, input_values={a: 1., b: 1., c: 0., d: 3., e: 10., xi: 2., chi: 2.})
+sample = dynamic_causal_model.get_sample(number_samples=2, input_values={a: 1., b: 1., c: 0., d: 3., e: 10., xi: 2., chi: 2.})
 
 # Plot sample
 time_series = sample[[x.name for x in x_series]].transpose().plot()
