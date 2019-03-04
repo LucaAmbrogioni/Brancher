@@ -9,7 +9,7 @@ from brancher.visualizations import plot_posterior
 
 # Parameters
 S = 6.
-N = 50
+N = 40
 x_range = np.linspace(-S/2., S/2., N)
 y_range = np.linspace(-S/2., S/2., N)
 x_mesh, y_mesh = np.meshgrid(x_range, y_range)
@@ -34,7 +34,7 @@ response = NormalVariable(mean_response, nu, name="response")
 model = ProbabilisticModel([response, experimental_input])
 
 # Generate data and observe the model
-sample = model.get_sample(50, input_values={mu_x: 1., mu_y: 2., v: 1., nu: 0.1})[["x", "y", "w1", "w2", "b", "response"]]
+sample = model.get_sample(15, input_values={mu_x: 1., mu_y: 2., v: 0.3, nu: 0.1})[["x", "y", "w1", "w2", "b", "response"]]
 model.observe(sample)
 
 # Variational model
@@ -56,6 +56,6 @@ plt.plot(loss_list)
 plt.show()
 
 # Plot posterior
-plot_posterior(model, variables=["mu_x", "mu_y"])
+plot_posterior(model, variables=["mu_x", "mu_y", "v"])
 plt.show()
 
