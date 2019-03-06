@@ -19,6 +19,15 @@ def is_tensor(data):
     return torch.is_tensor(data)
 
 
+def contains_tensors(data):
+    if isinstance(data, dict):
+        return all([is_tensor(d) for d in data.values()])
+    if isinstance(data, Iterable):
+        return all([is_tensor(d) for d in data])
+    else:
+        return False
+
+
 def is_discrete(data):
     return type(data) in [list, set, tuple, dict, str]
 
@@ -139,7 +148,28 @@ def broadcast_parent_values(parents_values):
     newshapes = [tuple([number_samples * number_datapoints]) + s
                  for s in data_shapes]
     reshaped_values = [val.contiguous().view(size=s) for val, s in zip(broadcasted_values, newshapes)]
-    return {key: value for key, value in zip(keys_list, reshaped_values)}, number_samples, number_datapoints
+    return {key: value for key, value in zip(keys_list, reshaped_values)} #, number_samples, number_datapoints
+
+
+def get_number_samples_and_datapoints(parent_values):
+    n_list = []
+    m_list = []
+    for value in parent_values.values():
+        if is_tensor(value):
+            n_list.append(value.shape[0])
+            m_list.append(value.shape[1])
+        elif contains_tensors(value):
+            if isinstance(value, dict):
+                itr = value.values()
+            else:
+                itr = value
+            for tensor in itr:
+                n_list.append(tensor.shape[0])
+                m_list.append(tensor.shape[1])
+    if not n_list and not m_list:
+        return None, None
+    else:
+        return max(n_list), max(m_list)
 
 
 def get_diagonal(tensor):

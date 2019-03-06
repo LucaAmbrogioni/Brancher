@@ -53,7 +53,6 @@ class DecoderArchitecture(nn.Module):
         self.f1 = nn.ReLU()
         self.f2 = nn.ReLU()
         self.l3 = nn.Linear(hidden_size2, image_size) # Latent mean output
-        self.softplus = nn.Softplus()
 
     def __call__(self, x):
         h0 = self.f1(self.l1(x))
@@ -82,7 +81,7 @@ model.set_posterior_model(ProbabilisticModel([Qx, Qz]))
 # Joint-contrastive inference
 inference.perform_inference(model,
                             number_iterations=3000,
-                            number_samples=1,
+                            number_samples=2,
                             optimizer="Adam",
                             lr=0.001)
 loss_list = model.diagnostics["loss curve"]

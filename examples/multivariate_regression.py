@@ -42,13 +42,13 @@ y.observe(data)
 
 # Inference
 inference.perform_inference(model,
-                            number_iterations=5000,
+                            number_iterations=2000,
                             number_samples=100,
                             optimizer='Adam')
 
 # Plot
-#plt.plot(model.diagnostics["loss curve"])
-#plt.show()
+plt.plot(model.diagnostics["loss curve"])
+plt.show()
 
 n_post_samples = 1000
 post_samples = model._get_posterior_sample(n_post_samples)

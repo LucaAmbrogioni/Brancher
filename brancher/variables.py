@@ -29,6 +29,7 @@ from brancher.utilities import get_model_mapping
 from brancher.utilities import reassign_samples
 from brancher.utilities import is_discrete, is_tensor
 from brancher.utilities import concatenate_samples
+from brancher.utilities import get_number_samples_and_datapoints
 
 from brancher.pandas_interface import reformat_sample_to_pandas
 from brancher.pandas_interface import reformat_model_summary
@@ -231,7 +232,9 @@ class Variable(BrancherClass):
         raise NotImplementedError
 
     def __getitem__(self, key): #TODO: Work in progress
-        if isinstance(key, collections.Iterable):
+        if isinstance(key, str):
+            variable_slice = key
+        elif isinstance(key, Iterable):
             variable_slice = (slice(None, None, None), *key)
         else:
             variable_slice = (slice(None, None, None), key)
@@ -381,10 +384,11 @@ class RandomVariable(Variable):
         return self._observed
 
     def _apply_link(self, parents_values):
+        number_samples, number_datapoints = get_number_samples_and_datapoints(parents_values)
         cont_values, discrete_values = split_dict(parents_values,
                                                   condition=lambda key, val: not is_discrete(val))
         if cont_values:
-            reshaped_dict, number_samples, number_datapoints = broadcast_parent_values(cont_values)
+            reshaped_dict = broadcast_parent_values(cont_values)
             reshaped_dict.update(discrete_values)
         else:
             reshaped_dict = discrete_values
@@ -867,7 +871,8 @@ class PartialLink(BrancherClass):
             raise ValueError("The input to __getitem__ is neither numeric nor a hashabble key")
 
         vars = self.vars
-        fn = lambda values: self.fn(values)[variable_slice] if is_tensor(self.fn(values)) else self.fn(values)[key] #TODO: this should be a def not a lambda
+        fn = lambda values: self.fn(values)[variable_slice] if is_tensor(self.fn(values)) \
+            else self.fn(values)[key] #TODO: this should be a def not a lambda
         links = set()
         return PartialLink(vars=vars,
                            fn=fn,
