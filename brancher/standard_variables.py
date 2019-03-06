@@ -112,6 +112,20 @@ class RandomIndices(EmpiricalVariable):
         return self.batch_size
 
 
+class DeterministicNode(VariableConstructor): #TODO: Future refactor? Should Deterministic variables and deterministic node be different? (No probably not)
+    """
+    Summary
+
+    Parameters
+    ----------
+    """
+    def __init__(self, value, name, learnable=False, is_observed=False, variable_range=geometric_ranges.UnboundedRange()):
+        self._type = "Deterministic node"
+        ranges = {"value": variable_range}
+        super().__init__(name, value=value, learnable=learnable, ranges=ranges, is_observed=is_observed)
+        self.distribution = distributions.DeterministicDistribution()
+
+
 class NormalVariable(VariableConstructor):
     """
     Summary

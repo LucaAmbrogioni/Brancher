@@ -11,7 +11,7 @@ T = 12.
 N = 100
 dt = T/float(N)
 time_range = np.linspace(0., T, N)
-input_pulses = [(1., 2.), (7.,8.)]
+input_pulses = [(1., 2.), (7., 8.)]
 deterministic_input = [1. if any([t_min < t < t_max for t_min, t_max in input_pulses]) else 0. for t in time_range]
 plt.plot(deterministic_input)
 plt.plot()

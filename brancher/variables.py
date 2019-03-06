@@ -230,7 +230,7 @@ class Variable(BrancherClass):
     def __rpow__(self, other):
         raise NotImplementedError
 
-    def __getitem__(self, key):
+    def __getitem__(self, key): #TODO: Work in progress
         if isinstance(key, collections.Iterable):
             variable_slice = (slice(None, None, None), *key)
         else:
@@ -380,7 +380,7 @@ class RandomVariable(Variable):
     def is_observed(self):
         return self._observed
 
-    def _apply_link(self, parents_values):  #TODO: This is for allowing discrete data, temporary? (for julia) #For Julia: Very important method
+    def _apply_link(self, parents_values):
         cont_values, discrete_values = split_dict(parents_values,
                                                   condition=lambda key, val: not is_discrete(val))
         if cont_values:

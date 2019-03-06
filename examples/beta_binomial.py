@@ -4,16 +4,13 @@ import numpy as np
 from brancher.variables import ProbabilisticModel
 from brancher.standard_variables import BetaVariable, BinomialVariable
 from brancher import inference
-import brancher.functions as BF
-
-plt.close("all")
 
 #Real model
 number_samples = 1
-p_real = 0.99
+p_real = 0.8
 k_real = BinomialVariable(number_samples, p=p_real, name="k")
 
-# LogitNormal/Binomial model
+# betaNormal/Binomial model
 p = BetaVariable(1., 1., "p")
 k = BinomialVariable(number_samples, p=p, name="k")
 model = ProbabilisticModel([k])
@@ -30,8 +27,9 @@ model.set_posterior_model(ProbabilisticModel([Qp]))
 
 # Inference
 inference.perform_inference(model,
-                            number_iterations=2000,
+                            number_iterations=3000,
                             number_samples=100,
+                            lr=0.01,
                             optimizer='Adam')
 loss_list = model.diagnostics["loss curve"]
 

@@ -279,6 +279,26 @@ class MultivariateNormalDistribution(VectorDistribution): #TODO: Work in progres
         return sample
 
 
+class DeterministicDistribution(ImplicitDistribution):
+    """
+    Summary
+    """
+    def __init__(self):
+        self.required_parameters = {"value"}
+        super().__init__()
+
+    def _get_sample(self, **parameters):
+        """
+        One line description
+
+        Parameters
+        ----------
+        Returns
+        -------
+        """
+        return parameters["value"]
+
+
 class EmpiricalDistribution(ImplicitDistribution): #TODO: It needs to be reworked.
     """
     Summary
