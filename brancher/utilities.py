@@ -48,6 +48,16 @@ def to_tensor(arr):
         raise ValueError("The input should be either a torch.Tensor or a np.array")
 
 
+def map_iterable(func, itr):
+    if isinstance(itr, dict):
+        return {key: func(val) for key, val in itr.items()}
+    out = [*map(func, itr)]
+    if isinstance(itr, list):
+        return out
+    elif isinstance(itr, tuple):
+        return tuple(out)
+
+
 
 def zip_dict(first_dict, second_dict):
     keys = set(first_dict.keys()).intersection(set(second_dict.keys()))

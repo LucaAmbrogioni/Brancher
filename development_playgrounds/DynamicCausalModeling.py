@@ -8,7 +8,7 @@ from brancher.visualizations import plot_posterior
 
 # Parameters
 T = 12.
-N = 100
+N = 300
 dt = T/float(N)
 time_range = np.linspace(0., T, N)
 input_pulses = [(1., 2.), (7., 8.)]
@@ -57,8 +57,8 @@ dynamic_causal_model.set_posterior_model(variational_posterior)
 
 # Inference #
 inference.perform_inference(dynamic_causal_model,
-                            number_iterations=1500,
-                            number_samples=300,
+                            number_iterations=800,
+                            number_samples=50,
                             optimizer='Adam',
                             lr=0.01)
 loss_list = dynamic_causal_model.diagnostics["loss curve"]

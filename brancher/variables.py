@@ -27,9 +27,10 @@ from brancher.utilities import reformat_sampler_input
 from brancher.utilities import tile_parameter
 from brancher.utilities import get_model_mapping
 from brancher.utilities import reassign_samples
-from brancher.utilities import is_discrete, is_tensor
+from brancher.utilities import is_discrete, is_tensor, contains_tensors
 from brancher.utilities import concatenate_samples
 from brancher.utilities import get_number_samples_and_datapoints
+from brancher.utilities import map_iterable
 
 from brancher.pandas_interface import reformat_sample_to_pandas
 from brancher.pandas_interface import reformat_model_summary
@@ -383,7 +384,7 @@ class RandomVariable(Variable):
     def is_observed(self):
         return self._observed
 
-    def _apply_link(self, parents_values):
+    def _apply_link(self, parents_values): #TODO: This needs refactoring, the two (tensor/discrete) streams should be more clearly separated
         number_samples, number_datapoints = get_number_samples_and_datapoints(parents_values)
         cont_values, discrete_values = split_dict(parents_values,
                                                   condition=lambda key, val: not is_discrete(val))
@@ -393,8 +394,9 @@ class RandomVariable(Variable):
         else:
             reshaped_dict = discrete_values
         reshaped_output = self.link(reshaped_dict)
-        output = {key: val.view(size=(number_samples, number_datapoints) + val.shape[1:])
-                  if is_tensor(val) else val
+        cast_to_new_shape = lambda tensor: tensor.view(size=(number_samples, number_datapoints) + tensor.shape[1:])
+        output = {key: cast_to_new_shape(val)
+                  if is_tensor(val) else map_iterable(cast_to_new_shape, val) if contains_tensors(val) else val
                   for key, val in reshaped_output.items()}
         return output
 
