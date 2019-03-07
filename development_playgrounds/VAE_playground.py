@@ -68,20 +68,21 @@ decoder = BF.BrancherFunction(DecoderArchitecture(latent_size=latent_size, image
 # Generative model
 z = NormalVariable(np.zeros((latent_size,)), np.ones((latent_size,)), name="z")
 decoder_output = DeterministicNode(decoder(z), name="decoder_output")
-decoder_variance = DeterministicVariable(1., name="var")
+#decoder_output = decoder(z)
 x = BinomialVariable(n=1, logit_p=decoder_output["mean"], name="x")
 model = ProbabilisticModel([x, z])
 
 # Amortized variational distribution
 Qx = EmpiricalVariable(dataset, batch_size=100, name="x", is_observed=True)
 encoder_output = DeterministicNode(encoder(Qx), name="encoder_output")
+#encoder_output = encoder(Qx)
 Qz = NormalVariable(encoder_output["mean"], encoder_output["sd"], name="z")
 model.set_posterior_model(ProbabilisticModel([Qx, Qz]))
 
 # Joint-contrastive inference
 inference.perform_inference(model,
-                            number_iterations=3000,
-                            number_samples=3,
+                            number_iterations=5,
+                            number_samples=1,
                             optimizer="Adam",
                             lr=0.001)
 loss_list = model.diagnostics["loss curve"]
@@ -90,14 +91,16 @@ loss_list = model.diagnostics["loss curve"]
 plt.plot(loss_list)
 plt.show()
 
+sigmoid = lambda x: 1/(np.exp(-x) + 1)
 image_grid = []
-num_res = 100
 z_range = np.linspace(-3, 3, 30)
 for z1 in z_range:
     image_row = []
     for z2 in z_range:
-        sample = model.get_sample(num_res, input_values={z: np.array([z1, z2]), decoder_variance: 0.000000001})
+        sample = model.get_sample(1, input_values={z: np.array([z1, z2])})
         image = np.reshape(sample["decoder_output"], newshape=(28, 28))
+        #sample = model._get_sample(1)
+        #image = sigmoid(np.reshape(sample[decoder_output]["mean"].detach().numpy()[0, :, :], newshape=(28, 28)))
         image_row += [image]
     image_grid += [np.concatenate(image_row, axis=0)]
 image_grid = np.concatenate(image_grid, axis=1)

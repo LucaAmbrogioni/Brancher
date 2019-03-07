@@ -21,7 +21,7 @@ from brancher.utilities import join_dicts_list, join_sets_list
 from brancher.utilities import flatten_list
 from brancher.utilities import partial_broadcast
 from brancher.utilities import coerce_to_dtype
-from brancher.utilities import broadcast_parent_values
+from brancher.utilities import broadcast_and_reshape_parent_value
 from brancher.utilities import split_dict
 from brancher.utilities import reformat_sampler_input
 from brancher.utilities import tile_parameter
@@ -303,7 +303,7 @@ class DeterministicVariable(Variable):
             torch.Tensor. The log probability of the input values given the model.
         """
 
-        return torch.tensor(np.zeros((1,1))).float().to(device)
+        return torch.tensor(np.zeros((1, 1))).float().to(device)
 
     @property
     def value(self):
@@ -384,15 +384,14 @@ class RandomVariable(Variable):
     def is_observed(self):
         return self._observed
 
-    def _apply_link(self, parents_values): #TODO: This needs refactoring, the two (tensor/discrete) streams should be more clearly separated
+    def _apply_link(self, parents_values):
         number_samples, number_datapoints = get_number_samples_and_datapoints(parents_values)
         cont_values, discrete_values = split_dict(parents_values,
-                                                  condition=lambda key, val: not is_discrete(val))
+                                                  condition=lambda key, val: not is_discrete(val) or contains_tensors(val))
+        reshaped_dict = discrete_values
         if cont_values:
-            reshaped_dict = broadcast_parent_values(cont_values)
-            reshaped_dict.update(discrete_values)
-        else:
-            reshaped_dict = discrete_values
+            reshaped_dict.update(map_iterable(lambda x: broadcast_and_reshape_parent_value(x, number_samples, number_datapoints),
+                                              cont_values, recursive=True))
         reshaped_output = self.link(reshaped_dict)
         cast_to_new_shape = lambda tensor: tensor.view(size=(number_samples, number_datapoints) + tensor.shape[1:])
         output = {key: cast_to_new_shape(val)
@@ -422,12 +421,16 @@ class RandomVariable(Variable):
             return 0.
         if self in input_values:
             value = input_values[self]
+        elif self._type == "deterministic node":
+            value = self._get_sample(1, input_values=input_values)[self]
         else:
             value = self.value
 
         self._evaluated = True
-        deterministic_parents_values = {parent: parent.value for parent in self.parents
-                                        if (type(parent) is DeterministicVariable)}
+        deterministic_parents_values = {parent: parent._get_sample(1, input_values=input_values)[parent] for parent in self.parents
+                                        if isinstance(parent, DeterministicVariable) or parent._type == "Deterministic node"}
+        #deterministic_parents_values = {parent: parent.value for parent in self.parents
+        #                                if (type(parent) is DeterministicVariable)}
         parents_input_values = {parent: parent_input for parent, parent_input in input_values.items() if parent in self.parents}
         parents_values = {**parents_input_values, **deterministic_parents_values}
         parameters_dict = self._apply_link(parents_values)

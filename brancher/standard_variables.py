@@ -125,6 +125,10 @@ class DeterministicNode(VariableConstructor): #TODO: Future refactor? Should Det
         super().__init__(name, value=value, learnable=learnable, ranges=ranges, is_observed=is_observed)
         self.distribution = distributions.DeterministicDistribution()
 
+    @property
+    def value(self):
+        return self._get_sample(1)[self]
+
 
 class NormalVariable(VariableConstructor):
     """

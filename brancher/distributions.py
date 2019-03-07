@@ -14,10 +14,12 @@ import torch
 from torch import distributions
 
 from brancher.utilities import broadcast_and_squeeze_mixed
-from brancher.utilities import broadcast_parent_values
+from brancher.utilities import broadcast_and_reshape_parent_value
 from brancher.utilities import sum_data_dimensions
 from brancher.utilities import is_discrete, is_tensor
 from brancher.utilities import tensor_range
+from brancher.utilities import map_iterable
+from brancher.utilities import get_number_samples_and_datapoints
 
 from brancher.config import device
 
@@ -137,7 +139,9 @@ class VectorDistribution(Distribution):
         return reshaped_parameters, tensor_shape
 
     def _preprocess_parameters_for_sampling(self, **parameters):
-        parameters, number_samples, number_datapoints = broadcast_parent_values(parameters)
+        number_samples, number_datapoints = get_number_samples_and_datapoints(parameters)
+        parameters = map_iterable(lambda x: broadcast_and_reshape_parent_value(x, number_samples, number_datapoints), parameters)
+        #parameters, number_samples, number_datapoints = broadcast_parent_values(parameters)
         reshaped_parameters, tensor_shape = self._preproces_vector_input(parameters, self.vector_parameters)
         shape = tuple([number_samples, number_datapoints] + tensor_shape)
         return reshaped_parameters, shape
@@ -145,7 +149,9 @@ class VectorDistribution(Distribution):
     def _preprocess_parameters_for_log_prob(self, x, **parameters):
         parameters_and_data = parameters
         parameters_and_data.update({"x_data": x})
-        parameters_and_data, number_samples, number_datapoints = broadcast_parent_values(parameters_and_data)
+        number_samples, number_datapoints = get_number_samples_and_datapoints(parameters_and_data)
+        parameters_and_data = map_iterable(lambda y: broadcast_and_reshape_parent_value(y, number_samples, number_datapoints), parameters_and_data)
+        #parameters_and_data, number_samples, number_datapoints = broadcast_parent_values(parameters_and_data)
         vector_names = self.vector_parameters
         vector_names.add("x_data")
         reshaped_parameters_and_data, _ = self._preproces_vector_input(parameters_and_data, vector_names)
@@ -218,7 +224,7 @@ class CategoricalDistribution(VectorDistribution):
         return sample
 
 
-class MultivariateNormalDistribution(VectorDistribution): #TODO: Work in progress
+class MultivariateNormalDistribution(VectorDistribution):
     """
     Summary
     """

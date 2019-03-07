@@ -48,16 +48,21 @@ def to_tensor(arr):
         raise ValueError("The input should be either a torch.Tensor or a np.array")
 
 
-def map_iterable(func, itr):
+def map_iterable(func, itr, recursive=False):
+    def f(x):
+        if not recursive:
+            return func(x)
+        else:
+            return map_iterable(func, x, recursive=True)
+    if is_tensor(itr) or not isinstance(itr, Iterable):
+        return func(itr)
     if isinstance(itr, dict):
-        return {key: func(val) for key, val in itr.items()}
-    out = [*map(func, itr)]
+        return {key: f(val) for key, val in itr.items()}
+    out = [*map(f, itr)]
     if isinstance(itr, list):
         return out
     elif isinstance(itr, tuple):
         return tuple(out)
-
-
 
 def zip_dict(first_dict, second_dict):
     keys = set(first_dict.keys()).intersection(set(second_dict.keys()))
@@ -130,6 +135,10 @@ def partial_broadcast(*args):
     return [x.expand((s0, s1) + x.shape[2:]) for x in args]
 
 
+def tile_batch_dimensions(tensor, number_samples, number_datapoints):
+    return tensor.expand((number_samples, number_datapoints) + tensor.shape[2:])
+
+
 def broadcast_and_squeeze(*args):
     assert all([is_tensor(ar) for ar in args]), 'at least 1 object is not torch tensor'
     if all([np.prod(val.shape[2:]) == 1 for val in args]):
@@ -149,16 +158,42 @@ def broadcast_and_squeeze_mixed(tpl, dic):
         return {k: v for k, v in zip(dict_keys, broadcasted_values[tpl_len:])}
 
 
-def broadcast_parent_values(parents_values):
-    keys_list, values_list = zip(*[(key, value) for key, value in parents_values.items()])
-    broadcasted_values = partial_broadcast(*values_list)
-    original_shapes = [val.shape for val in broadcasted_values]
-    data_shapes = [s[2:] for s in original_shapes]
-    number_samples, number_datapoints = original_shapes[0][0:2]
-    newshapes = [tuple([number_samples * number_datapoints]) + s
-                 for s in data_shapes]
-    reshaped_values = [val.contiguous().view(size=s) for val, s in zip(broadcasted_values, newshapes)]
-    return {key: value for key, value in zip(keys_list, reshaped_values)} #, number_samples, number_datapoints
+# def broadcast_parent_values(parents_values):
+#     keys_list, values_list = zip(*[(key, value) for key, value in parents_values.items()])
+#     broadcasted_values = partial_broadcast(*values_list)
+#     original_shapes = [val.shape for val in broadcasted_values]
+#     data_shapes = [s[2:] for s in original_shapes]
+#     number_samples, number_datapoints = original_shapes[0][0:2]
+#     newshapes = [tuple([number_samples * number_datapoints]) + s
+#                  for s in data_shapes]
+#     reshaped_values = [val.contiguous().view(size=s) for val, s in zip(broadcasted_values, newshapes)]
+#     return {key: value for key, value in zip(keys_list, reshaped_values)}
+
+def get_items(itr, recursive=False):
+    if is_tensor(itr) or not isinstance(itr, Iterable):
+        return iter
+
+    def f(x):
+        if recursive:
+            return get_items(x, recursive=True)
+        else:
+            return x
+
+    if isinstance(itr, dict):
+        items = f(itr.items())
+        itr.items()
+    else:
+        return f(itr)
+
+
+def reshape_parent_value(value, number_samples, number_datapoints):
+    newshape = tuple([number_samples * number_datapoints]) + value.shape[2:]
+    return value.contiguous().view(size=newshape)
+
+
+def broadcast_and_reshape_parent_value(value, number_samples, number_datapoints):
+    return reshape_parent_value(tile_batch_dimensions(value, number_samples, number_datapoints),
+                                number_samples, number_datapoints)
 
 
 def get_number_samples_and_datapoints(parent_values):
@@ -282,27 +317,6 @@ def reassign_samples(samples, model_mapping=(), source_model=(), target_model=()
         except KeyError:
             pass
     return out_sample
-
-
-def get_memory(obj, seen=None):
-    """Recursively finds size of objects"""
-    size = sys.getsizeof(obj)
-    if seen is None:
-        seen = set()
-    obj_id = id(obj)
-    if obj_id in seen:
-        return 0
-    # Important mark as seen *before* entering recursion to gracefully handle
-    # self-referential objects
-    seen.add(obj_id)
-    if isinstance(obj, dict):
-        size += sum([get_memory(v, seen) for v in obj.values()])
-        size += sum([get_memory(k, seen) for k in obj.keys()])
-    elif hasattr(obj, '__dict__'):
-        size += get_memory(obj.__dict__, seen)
-    elif hasattr(obj, '__iter__') and not isinstance(obj, (str, bytes, bytearray)):
-        size += sum([get_memory(i, seen) for i in obj])
-    return size
 
 
 def reject_samples(samples, model_statistics, truncation_rule):
