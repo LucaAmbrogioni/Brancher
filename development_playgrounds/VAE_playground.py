@@ -81,7 +81,7 @@ model.set_posterior_model(ProbabilisticModel([Qx, Qz]))
 
 # Joint-contrastive inference
 inference.perform_inference(model,
-                            number_iterations=5,
+                            number_iterations=3000,
                             number_samples=1,
                             optimizer="Adam",
                             lr=0.001)
@@ -98,17 +98,10 @@ for z1 in z_range:
     image_row = []
     for z2 in z_range:
         sample = model.get_sample(1, input_values={z: np.array([z1, z2])})
-        image = np.reshape(sample["decoder_output"], newshape=(28, 28))
-        #sample = model._get_sample(1)
-        #image = sigmoid(np.reshape(sample[decoder_output]["mean"].detach().numpy()[0, :, :], newshape=(28, 28)))
+        image = sigmoid(np.reshape(sample["decoder_output"].values[0]["mean"], newshape=(28, 28)))
         image_row += [image]
     image_grid += [np.concatenate(image_row, axis=0)]
 image_grid = np.concatenate(image_grid, axis=1)
 plt.imshow(image_grid)
 plt.colorbar()
 plt.show()
-
-#for _ in range(10):
-#    sample = model.get_sample(1, input_values={decoder_variance: 0.000000001})
-#    plt.imshow(np.reshape(sample["x"][0], newshape=(28, 28)))
-#    plt.show()

@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
-
+from brancher.utilities import is_tensor
+from brancher.utilities import map_iterable
+from collections.abc import Iterable
 
 def pandas_dict2list(dic):
     indices, values = zip(*dic.items())
@@ -26,17 +28,23 @@ def pandas_frame2value(dataframe, index):
         return dataframe
 
 
-def reformat_value(value):
-    if np.prod(value.shape) == 1:
-        return float(value.cpu().detach().numpy())
-    elif value.shape[0] == 1:
-        return value.cpu().detach().numpy()[0, :]
+def reformat_value(value, index):
+    if is_tensor(value):
+        if np.prod(value.shape) == 1:
+            return float(value[index, :].cpu().detach().numpy())
+        elif value.shape[0] == 1:
+            return value[index, :].cpu().detach().numpy()[0, :]
+        else:
+            return value.cpu().detach().numpy()
+    elif isinstance(value, Iterable):
+        return map_iterable(lambda x: reformat_value(x, index), value)
     else:
-        return value.cpu().detach().numpy()
+        return value
+
 
 
 def reformat_sample_to_pandas(sample, number_samples): #TODO: Work in progress
-    data = [[reformat_value(value[index, :, :])
+    data = [[reformat_value(value, index)
              for index in range(number_samples)]
             for variable, value in sample.items()]
     index = [key.name for key in sample.keys()]
