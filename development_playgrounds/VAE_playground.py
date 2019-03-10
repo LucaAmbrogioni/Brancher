@@ -81,8 +81,8 @@ model.set_posterior_model(ProbabilisticModel([Qx, Qz]))
 
 # Joint-contrastive inference
 inference.perform_inference(model,
-                            number_iterations=3000,
-                            number_samples=1,
+                            number_iterations=500,
+                            number_samples=3,
                             optimizer="Adam",
                             lr=0.001)
 loss_list = model.diagnostics["loss curve"]

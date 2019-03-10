@@ -273,7 +273,7 @@ def tile_parameter(tensor, number_samples):
         reps = tuple([number_samples] + [1] * len(value_shape[1:]))
         return tensor.repeat(repeats=reps)
     else:
-        raise ValueError("The parameter cannot be broadcasted to the rerquired number of samples")
+        raise ValueError("The parameter cannot be broadcasted to the required number of samples")
 
 
 def reformat_sampler_input(sample_input, number_samples):

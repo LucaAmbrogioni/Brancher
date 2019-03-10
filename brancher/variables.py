@@ -323,7 +323,7 @@ class DeterministicVariable(Variable):
         if not is_discrete(value):
             return {self: tile_parameter(value, number_samples=number_samples)}
         else:
-            return {self: value} #TODO: This is for allowing discrete data, temporary? (for Julia)
+            return {self: value}
 
     def reset(self, recursive=False):
         pass
@@ -427,7 +427,8 @@ class RandomVariable(Variable):
             value = self.value
 
         self._evaluated = True
-        deterministic_parents_values = {parent: parent._get_sample(1, input_values=input_values)[parent] for parent in self.parents
+        number_samples, _ = get_number_samples_and_datapoints(input_values)
+        deterministic_parents_values = {parent: parent._get_sample(number_samples, input_values=input_values)[parent] for parent in self.parents
                                         if isinstance(parent, DeterministicVariable) or parent._type == "Deterministic node"}
         #deterministic_parents_values = {parent: parent.value for parent in self.parents
         #                                if (type(parent) is DeterministicVariable)}
