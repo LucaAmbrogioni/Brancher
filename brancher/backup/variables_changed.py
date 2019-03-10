@@ -525,7 +525,7 @@ class PosteriorModel(ProbabilisticModel): #TODO: Work in progress
                 model_mapping.update({self.get_variable(p_var.name): p_var})
             except KeyError:
                 pass
-                # if p_var.is_observed or type(p_var) is DeterministicVariable:
+                # if p_var.is_observed or type(p_var) is RootVariable:
                 #     pass
                 # else:
                 #     raise ValueError(

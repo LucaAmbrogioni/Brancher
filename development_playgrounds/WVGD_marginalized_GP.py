@@ -8,7 +8,7 @@ from brancher.stochastic_processes import SquaredExponentialCovariance as Square
 from brancher.stochastic_processes import WhiteNoiseCovariance as WhiteNoise
 from brancher.stochastic_processes import HarmonicCovariance as Harmonic
 from brancher.stochastic_processes import ConstantMean
-from brancher.variables import DeterministicVariable
+from brancher.variables import RootVariable
 from brancher.standard_variables import NormalVariable as Normal
 from brancher.standard_variables import LogNormalVariable as LogNormal
 from brancher.inference import WassersteinVariationalGradientDescent as WVGD
@@ -18,7 +18,7 @@ import brancher.functions as BF
 
 num_datapoints = 50
 x_range = np.linspace(0, 2, num_datapoints)
-x = DeterministicVariable(x_range, name="x")
+x = RootVariable(x_range, name="x")
 
 # Model
 length_scale = LogNormal(0., 0.3, name="length_scale")
@@ -44,9 +44,9 @@ plt.show()
 num_particles = 8
 initial_locations = [(np.random.normal(0.8, 0.2), np.random.normal(0.8, 0.2), np.random.normal(0.8, 0.2))
                      for _ in range(num_particles)]
-particles = [ProbabilisticModel([DeterministicVariable(location[0], name="length_scale", learnable=True),
-                                 DeterministicVariable(location[1], name="noise_var", learnable=True),
-                                 DeterministicVariable(location[2], name="amplitude", learnable=True)])
+particles = [ProbabilisticModel([RootVariable(location[0], name="length_scale", learnable=True),
+                                 RootVariable(location[1], name="noise_var", learnable=True),
+                                 RootVariable(location[2], name="amplitude", learnable=True)])
              for location in initial_locations]
 
 # Importance sampling distributions

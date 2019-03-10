@@ -1,9 +1,10 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from brancher.variables import DeterministicVariable, ProbabilisticModel
+from brancher.variables import ProbabilisticModel
 from brancher.standard_variables import NormalVariable as Norm
 from brancher.standard_variables import LogNormalVariable as LogNorm
+from brancher.standard_variables import DeterministicVariable as Deterministic
 from brancher import inference
 import brancher.functions as BF
 
@@ -11,8 +12,8 @@ import brancher.functions as BF
 x_max = 1.
 n = 100
 x_range = np.linspace(-x_max, x_max, n)
-x1 = DeterministicVariable(np.sin(2*np.pi*2*x_range), name="x1", is_observed=True)
-x2 = DeterministicVariable(x_range, name="x2", is_observed=True)
+x1 = Deterministic(np.sin(2 * np.pi * 2 * x_range), name="x1", is_observed=True)
+x2 = Deterministic(x_range, name="x2", is_observed=True)
 
 # Multivariate Regression
 b = Norm(0., 1., name="b")

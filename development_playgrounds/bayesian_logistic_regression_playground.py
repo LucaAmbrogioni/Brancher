@@ -2,7 +2,7 @@ import chainer
 import matplotlib.pyplot as plt
 import numpy as np
 
-from brancher.variables import DeterministicVariable, ProbabilisticModel
+from brancher.variables import RootVariable, ProbabilisticModel
 from brancher.standard_variables import NormalVariable, BinomialVariable, MultivariateNormalVariable
 from brancher import inference
 import brancher.functions as BF
@@ -19,7 +19,7 @@ labels = np.concatenate((x1_labels, x2_labels), axis=0)
 
 # Probabilistic model
 weights = NormalVariable(np.zeros((1, number_regressors)), 0.5*np.ones((1, number_regressors)), "weights")
-x = DeterministicVariable(input_variable, "x", is_observed=True)
+x = RootVariable(input_variable, "x", is_observed=True)
 logit_p = BF.matmul(weights, x)
 k = BinomialVariable(1, logit_p=logit_p, name="k")
 model = ProbabilisticModel([k])

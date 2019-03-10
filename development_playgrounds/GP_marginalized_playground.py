@@ -9,7 +9,7 @@ from brancher.stochastic_processes import SquaredExponentialCovariance as Square
 from brancher.stochastic_processes import WhiteNoiseCovariance as WhiteNoise
 from brancher.stochastic_processes import HarmonicCovariance as Harmonic
 from brancher.stochastic_processes import ConstantMean
-from brancher.variables import DeterministicVariable
+from brancher.variables import RootVariable
 from brancher.standard_variables import NormalVariable as Normal
 from brancher.standard_variables import LogNormalVariable as LogNormal
 from brancher.standard_variables import MultivariateNormalVariable as MultivariateNormal
@@ -19,7 +19,7 @@ import brancher.functions as BF
 
 num_datapoints = 60
 x_range = np.linspace(-1, 1, num_datapoints)
-x = DeterministicVariable(x_range, name="x")
+x = RootVariable(x_range, name="x")
 
 # Model
 length_scale = LogNormal(0., 0.3, name="length_scale")

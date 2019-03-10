@@ -3,7 +3,7 @@ import numpy as np
 
 import torchvision
 
-from brancher.variables import DeterministicVariable, ProbabilisticModel
+from brancher.variables import RootVariable, ProbabilisticModel
 from brancher.standard_variables import NormalVariable, CategoricalVariable, EmpiricalVariable, RandomIndices
 from brancher import inference
 import brancher.functions as BF

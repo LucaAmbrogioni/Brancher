@@ -4,7 +4,7 @@ import chainer
 import chainer.links as L
 import chainer.functions as F
 
-from brancher.variables import DeterministicVariable, RandomVariable, ProbabilisticModel
+from brancher.variables import RootVariable, RandomVariable, ProbabilisticModel
 from brancher.standard_variables import NormalVariable, EmpiricalVariable, RandomIndices
 from brancher.functions import BrancherFunction
 import brancher.functions as BF

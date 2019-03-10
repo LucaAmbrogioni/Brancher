@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from sklearn import datasets
 
-from brancher.variables import DeterministicVariable, ProbabilisticModel
+from brancher.variables import RootVariable, ProbabilisticModel
 from brancher.standard_variables import NormalVariable, CategoricalVariable, EmpiricalVariable, RandomIndices
 import brancher.functions as BF
 
@@ -44,9 +44,9 @@ k.observe(labels)
 
 # Variational model
 initial_weights = np.random.normal(0., 1., (number_output_classes, number_regressors))
-model.set_posterior_model(ProbabilisticModel([DeterministicVariable(initial_weights,
-                                                                    name="weights",
-                                                                    learnable=True)]))
+model.set_posterior_model(ProbabilisticModel([RootVariable(initial_weights,
+                                                           name="weights",
+                                                           learnable=True)]))
 
 # Inference
 inference.perform_inference(model,

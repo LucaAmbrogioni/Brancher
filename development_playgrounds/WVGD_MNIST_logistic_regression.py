@@ -2,7 +2,7 @@ import chainer
 import matplotlib.pyplot as plt
 import numpy as np
 
-from brancher.variables import DeterministicVariable, ProbabilisticModel
+from brancher.variables import RootVariable, ProbabilisticModel
 from brancher.standard_variables import NormalVariable, TruncatedNormalVariable, CategoricalVariable, EmpiricalVariable, RandomIndices
 from brancher import inference
 import brancher.functions as BF
@@ -44,8 +44,8 @@ k.observe(labels)
 number_particles = 2
 initial_location_1 = np.random.normal(0., 1., (number_output_classes, number_pixels))
 initial_location_2 = np.random.normal(0., 1., (number_output_classes, number_pixels))
-particle_1 = DeterministicVariable(initial_location_1, name="weights", learnable=True)
-particle_2 = DeterministicVariable(initial_location_2, name="weights", learnable=True)
+particle_1 = RootVariable(initial_location_1, name="weights", learnable=True)
+particle_2 = RootVariable(initial_location_2, name="weights", learnable=True)
 particle_locations = [particle_1, particle_2]
 particles = [ProbabilisticModel([l]) for l in particle_locations]
 

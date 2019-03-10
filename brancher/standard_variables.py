@@ -6,7 +6,7 @@ import torch.nn as nn
 import brancher.distributions as distributions
 import brancher.functions as BF
 import brancher.geometric_ranges as geometric_ranges
-from brancher.variables import var2link, Variable, DeterministicVariable, RandomVariable, PartialLink
+from brancher.variables import var2link, Variable, RootVariable, RandomVariable, PartialLink
 from brancher.utilities import join_sets_list
 
 
@@ -63,8 +63,8 @@ class VariableConstructor(RandomVariable):
                     dim = 1
                 else:
                     dim = [] #TODO: You should consider the other possible cases individually
-                deterministic_parent = DeterministicVariable(ranges[parameter_name].inverse_transform(value, dim),
-                                                             self.name + "_" + parameter_name, learnable, is_observed=self._observed)
+                deterministic_parent = RootVariable(ranges[parameter_name].inverse_transform(value, dim),
+                                                    self.name + "_" + parameter_name, learnable, is_observed=self._observed)
                 kwargs.update({parameter_name: ranges[parameter_name].forward_transform(deterministic_parent, dim)})
 
 
@@ -112,7 +112,7 @@ class RandomIndices(EmpiricalVariable):
         return self.batch_size
 
 
-class DeterministicNode(VariableConstructor): #TODO: Future refactor? Should Deterministic variables and deterministic node be different? (No probably not)
+class DeterministicVariable(VariableConstructor): #TODO: Future refactor? Should Deterministic variables and deterministic node be different? (No probably not)
     """
     Summary
 

@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from brancher.variables import DeterministicVariable, RandomVariable, ProbabilisticModel
+from brancher.variables import RootVariable, RandomVariable, ProbabilisticModel
 from brancher.standard_variables import NormalVariable, LogNormalVariable
 from brancher import functions as BF
 from brancher import inference
@@ -16,8 +16,8 @@ x_mesh, y_mesh = np.meshgrid(x_range, y_range)
 #x_mesh, y_mesh = np.expand_dims(x_mesh, 0), np.expand_dims(y_mesh, 0)
 
 # Experimental model
-x = DeterministicVariable(x_mesh, name="x") #TODO: it should create this automatically
-y = DeterministicVariable(y_mesh, name="y")
+x = RootVariable(x_mesh, name="x") #TODO: it should create this automatically
+y = RootVariable(y_mesh, name="y")
 w1 = NormalVariable(0., 1., name="w1")
 w2 = NormalVariable(0., 1., name="w2")
 b = NormalVariable(0., 1., name="b")

@@ -1,7 +1,7 @@
 
-#a = DeterministicVariable(0.5, 'a')
-#b = DeterministicVariable(0.3, 'b')
-#c = DeterministicVariable(0.3, 'b')
+#a = RootVariable(0.5, 'a')
+#b = RootVariable(0.3, 'b')
+#c = RootVariable(0.3, 'b')
 #d = NormalVariable(F.sin(a*b + c), c + a, 'd')
 
 # Expected result
@@ -19,16 +19,16 @@ import chainer.functions as F
 import torch
 
 #from brancher.links import brancher_decorator
-from brancher.variables import DeterministicVariable, RandomVariable, ProbabilisticModel
+from brancher.variables import RootVariable, RandomVariable, ProbabilisticModel
 from brancher.standard_variables import NormalVariable
 from brancher.functions import BrancherFunction
 import brancher.functions as BF
 #import brancher.links as BL
 
 ##
-a = DeterministicVariable(data=1.5, name='a', learnable=True)
-b = DeterministicVariable(0.3, 'b')
-c = DeterministicVariable(0.3, 'c')
+a = RootVariable(data=1.5, name='a', learnable=True)
+b = RootVariable(0.3, 'b')
+c = RootVariable(0.3, 'c')
 d = NormalVariable((a*b + c), c + a**2, 'd')
 
 ##

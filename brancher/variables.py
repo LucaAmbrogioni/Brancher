@@ -251,11 +251,11 @@ class Variable(BrancherClass):
         return PartialLink(vars=vars, fn=fn, links=links)
 
 
-class DeterministicVariable(Variable):
+class RootVariable(Variable):
     """
     Deterministic variables are a subclass of random variables that always return the same value. The hyper-parameters of
     a probabilistic model are usually encoded as DeterministicVariables. When the user input a parameter as a Numeric value or
-    an array, Brancher created a DeterministicVariable that store its value.
+    an array, Brancher created a RootVariable that store its value.
 
     Parameters
     ----------
@@ -264,7 +264,7 @@ class DeterministicVariable(Variable):
 
     name : String. The name of the variable.
 
-    learnable : Bool. This boolean value specify if the value of the DeterministicVariable can be updated during traning.
+    learnable : Bool. This boolean value specify if the value of the RootVariable can be updated during traning.
 
     """
     def __init__(self, data, name, learnable=False, is_observed=False):
@@ -429,9 +429,9 @@ class RandomVariable(Variable):
         self._evaluated = True
         number_samples, _ = get_number_samples_and_datapoints(input_values)
         deterministic_parents_values = {parent: parent._get_sample(number_samples, input_values=input_values)[parent] for parent in self.parents
-                                        if isinstance(parent, DeterministicVariable) or parent._type == "Deterministic node"}
+                                        if isinstance(parent, RootVariable) or parent._type == "Deterministic node"}
         #deterministic_parents_values = {parent: parent.value for parent in self.parents
-        #                                if (type(parent) is DeterministicVariable)}
+        #                                if (type(parent) is RootVariable)}
         parents_input_values = {parent: parent_input for parent, parent_input in input_values.items() if parent in self.parents}
         parents_values = {**parents_input_values, **deterministic_parents_values}
         parameters_dict = self._apply_link(parents_values)
@@ -578,7 +578,7 @@ class ProbabilisticModel(BrancherClass):
     @staticmethod
     def _validate_variables(variables):
         for var in variables:
-            if not isinstance(var, (DeterministicVariable, RandomVariable, ProbabilisticModel)):
+            if not isinstance(var, (RootVariable, RandomVariable, ProbabilisticModel)):
                 raise ValueError("Invalid input type: {}".format(type(var)))
         return variables
 

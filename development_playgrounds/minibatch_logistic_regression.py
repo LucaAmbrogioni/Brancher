@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from brancher.variables import DeterministicVariable, ProbabilisticModel
+from brancher.variables import RootVariable, ProbabilisticModel
 from brancher.standard_variables import NormalVariable, BinomialVariable, EmpiricalVariable, RandomIndices
 from brancher import inference
 import brancher.functions as BF

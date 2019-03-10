@@ -15,7 +15,7 @@ import torch
 from brancher.optimizers import ProbabilisticOptimizer
 from brancher.variables import Variable, ProbabilisticModel
 from brancher.transformations import truncate_model
-from brancher.variables import DeterministicVariable
+from brancher.variables import RootVariable
 
 from brancher.utilities import reassign_samples
 from brancher.utilities import zip_dict
@@ -247,7 +247,7 @@ class MAP(InferenceMethod):
 
     def check_model_compatibility(self, joint_model, posterior_model, sampler_model):
         # TODO: Check differentiability of the model
-        assert all([isinstance(var, DeterministicVariable) for var in posterior_model.flatten()])
+        assert all([isinstance(var, RootVariable) for var in posterior_model.flatten()])
 
     def compute_loss(self, joint_model, posterior_model, sampler_model, number_samples, input_values={}):
         empirical_samples = joint_model.observed_submodel._get_sample(1, observed=True)

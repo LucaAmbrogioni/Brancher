@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import chainer
 
-from brancher.variables import DeterministicVariable, ProbabilisticModel
+from brancher.variables import RootVariable, ProbabilisticModel
 from brancher.particle_inference_tools import VoronoiSet
 from brancher.standard_variables import EmpiricalVariable, NormalVariable, LogNormalVariable
 from brancher import inference
@@ -29,7 +29,7 @@ x.observe(data[x_real][:, 0, :])
 num_particles = 6
 initial_locations = [np.random.normal(0., 1.)
                      for _ in range(num_particles)]
-particles = [ProbabilisticModel([DeterministicVariable(p, name="theta", learnable=True)])
+particles = [ProbabilisticModel([RootVariable(p, name="theta", learnable=True)])
              for p in initial_locations]
 
 # Importance sampling distributions

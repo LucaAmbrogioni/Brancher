@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from sklearn import datasets
 
-from brancher.variables import DeterministicVariable, ProbabilisticModel
+from brancher.variables import RootVariable, ProbabilisticModel
 from brancher.standard_variables import NormalVariable, CategoricalVariable, EmpiricalVariable, RandomIndices
 from brancher import inference
 import brancher.functions as BF
@@ -47,7 +47,7 @@ k.observe(labels)
 num_particles = 1 #10
 initial_locations = [np.random.normal(0., 1., (number_output_classes, number_regressors))
                      for _ in range(num_particles)]
-particles = [ProbabilisticModel([DeterministicVariable(location, name="weights", learnable=True)])
+particles = [ProbabilisticModel([RootVariable(location, name="weights", learnable=True)])
              for location in initial_locations]
 
 # Importance sampling distributions

@@ -2,7 +2,7 @@ import chainer
 import matplotlib.pyplot as plt
 import numpy as np
 
-from brancher.variables import DeterministicVariable, RandomVariable, ProbabilisticModel
+from brancher.variables import RootVariable, RandomVariable, ProbabilisticModel
 from brancher.standard_variables import NormalVariable, LogNormalVariable, BetaVariable
 from brancher import inference
 import brancher.functions as BF
@@ -38,11 +38,11 @@ print("The true coefficient is: {}".format(float(true_b)))
 
 # Autoregressive variational distribution #
 Qb = BetaVariable(0.5, 0.5, "b", learnable=True)
-logit_b_post = DeterministicVariable(0., 'logit_b_post', learnable=True)
+logit_b_post = RootVariable(0., 'logit_b_post', learnable=True)
 Qx = [NormalVariable(0., 1., 'x0', learnable=True)]
-Qx_mean = [DeterministicVariable(0., 'x0_mean', learnable=True)]
+Qx_mean = [RootVariable(0., 'x0_mean', learnable=True)]
 for t in range(1, T):
-    Qx_mean.append(DeterministicVariable(0., x_names[t] + "_mean", learnable=True))
+    Qx_mean.append(RootVariable(0., x_names[t] + "_mean", learnable=True))
     Qx.append(NormalVariable(logit_b_post*Qx[t-1] + Qx_mean[t], 1., x_names[t], learnable=True))
 variational_posterior = ProbabilisticModel([Qb] + Qx)
 AR_model.set_posterior_model(variational_posterior)

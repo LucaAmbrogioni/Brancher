@@ -5,8 +5,8 @@ import torchvision
 import matplotlib.pyplot as plt
 import numpy as np
 
-from brancher.variables import DeterministicVariable, ProbabilisticModel
-from brancher.standard_variables import NormalVariable, EmpiricalVariable, BinomialVariable, DeterministicNode
+from brancher.variables import RootVariable, ProbabilisticModel
+from brancher.standard_variables import NormalVariable, EmpiricalVariable, BinomialVariable, DeterministicVariable
 from brancher import inference
 import brancher.functions as BF
 
@@ -67,14 +67,14 @@ decoder = BF.BrancherFunction(DecoderArchitecture(latent_size=latent_size, image
 
 # Generative model
 z = NormalVariable(np.zeros((latent_size,)), np.ones((latent_size,)), name="z")
-decoder_output = DeterministicNode(decoder(z), name="decoder_output")
+decoder_output = DeterministicVariable(decoder(z), name="decoder_output")
 #decoder_output = decoder(z)
 x = BinomialVariable(n=1, logit_p=decoder_output["mean"], name="x")
 model = ProbabilisticModel([x, z])
 
 # Amortized variational distribution
 Qx = EmpiricalVariable(dataset, batch_size=100, name="x", is_observed=True)
-encoder_output = DeterministicNode(encoder(Qx), name="encoder_output")
+encoder_output = DeterministicVariable(encoder(Qx), name="encoder_output")
 #encoder_output = encoder(Qx)
 Qz = NormalVariable(encoder_output["mean"], encoder_output["sd"], name="z")
 model.set_posterior_model(ProbabilisticModel([Qx, Qz]))

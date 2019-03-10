@@ -1,7 +1,7 @@
 import numpy as np
 
 
-from brancher.variables import DeterministicVariable
+from brancher.variables import RootVariable
 from brancher.utilities import is_tensor
 
 class VoronoiSet(object):
@@ -16,7 +16,7 @@ class VoronoiSet(object):
         if isinstance(self.particles, list):
             if is_tensor(self.particles[0]):
                 self.locations = [part.data for part in self.particles]
-            elif isinstance(self.particles[0], DeterministicVariable):
+            elif isinstance(self.particles[0], RootVariable):
                 self.locations = [part.value[0, 0, :].data for part in self.particles]
             else:
                 raise ValueError("The location of the particles should be either deterministic brancher variables, chainer variables or np.array")

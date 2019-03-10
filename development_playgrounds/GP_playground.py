@@ -7,13 +7,13 @@ from brancher.variables import ProbabilisticModel
 from brancher.stochastic_processes import GaussianProcess as GP
 from brancher.stochastic_processes import SquaredExponentialCovariance as SquaredExponential
 from brancher.stochastic_processes import ConstantMean
-from brancher.variables import DeterministicVariable
+from brancher.variables import RootVariable
 from brancher.standard_variables import NormalVariable as Normal
 from brancher import inference
 
 num_datapoints = 20
 x_range = np.linspace(-2, 2, num_datapoints)
-x = DeterministicVariable(x_range, name="x")
+x = RootVariable(x_range, name="x")
 
 # Model
 mu = ConstantMean(0.)
