@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterable
 
 import numpy as np
-from externals.tqdm.tqdm import tqdm
+from tqdm import tqdm
 
 import torch
 
