@@ -1,6 +1,6 @@
 # Brancher: An Object-Oriented Variational Probabilistic Programming Library
 
-Brancher allows design and train differentiable Bayesian models using stochastic variational inference. Brancher is based on the deep learning framework Chainer. 
+Brancher allows design and train differentiable Bayesian models using stochastic variational inference. Brancher is based on the deep learning framework PyTorch. 
 
 ## Building probabilistic models ##
 Probabilistic models are defined symbolically. Random variables can be created as follows:
@@ -14,7 +14,7 @@ c = NormalVariable(loc = a**2 + BF.sin(b),
                    scale = BF.exp(b), 
                    name = 'a')
 ```
-In this way, it is possible to create arbitrarely complex probabilistic models. It is also possible to use all the deep learning tools of Chainer in order to define probabilistic models with deep neural networks.
+In this way, it is possible to create arbitrarely complex probabilistic models. It is also possible to use all the deep learning tools of PyTorch in order to define probabilistic models with deep neural networks.
 
 ## Example: Autoregressive modeling ##
 
