@@ -45,8 +45,8 @@ model.set_posterior_model(variational_model)
 
 # Inference
 inference.perform_inference(model,
-                            number_iterations=1000,
-                            number_samples=10,
+                            number_iterations=100,
+                            number_samples=1,
                             optimizer="Adam",
                             lr=0.005)
 
