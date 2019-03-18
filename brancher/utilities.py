@@ -158,17 +158,6 @@ def broadcast_and_squeeze_mixed(tpl, dic):
         return {k: v for k, v in zip(dict_keys, broadcasted_values[tpl_len:])}
 
 
-# def broadcast_parent_values(parents_values):
-#     keys_list, values_list = zip(*[(key, value) for key, value in parents_values.items()])
-#     broadcasted_values = partial_broadcast(*values_list)
-#     original_shapes = [val.shape for val in broadcasted_values]
-#     data_shapes = [s[2:] for s in original_shapes]
-#     number_samples, number_datapoints = original_shapes[0][0:2]
-#     newshapes = [tuple([number_samples * number_datapoints]) + s
-#                  for s in data_shapes]
-#     reshaped_values = [val.contiguous().view(size=s) for val, s in zip(broadcasted_values, newshapes)]
-#     return {key: value for key, value in zip(keys_list, reshaped_values)}
-
 def get_items(itr, recursive=False):
     if is_tensor(itr) or not isinstance(itr, Iterable):
         return iter
