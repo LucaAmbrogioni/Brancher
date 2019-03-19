@@ -8,25 +8,19 @@ from brancher.variables import ProbabilisticModel
 from brancher.standard_variables import NormalVariable, LaplaceVariable, CauchyVariable, LogNormalVariable
 from brancher import inference
 
-
-
-
-# Real model
-nu_real = 1.
-mu_real = -2.
-x_real = LaplaceVariable(mu_real, nu_real, "x_real")
-
 # Normal model
 nu = LogNormalVariable(0., 1., "nu")
 mu = NormalVariable(0., 10., "mu")
-x = LaplaceVariable(mu, nu, "x")
-model = ProbabilisticModel([x])
+x = NormalVariable(mu, nu, "x")
+model = ProbabilisticModel([x]) # to fix plot_posterior (flatten automatically?)
 
 # # Generate data
-data = x_real._get_sample(number_samples=100)
+nu_real = 1.
+mu_real = -2.
+data = model.get_sample(number_samples=20, input_values={mu: mu_real, nu: nu_real})
 
 # Observe data
-x.observe(data[x_real][:, 0, :])
+x.observe(data)
 
 # Variational model
 Qnu = LogNormalVariable(0., 1., "nu", learnable=True)
@@ -35,10 +29,10 @@ model.set_posterior_model(ProbabilisticModel([Qmu, Qnu]))
 
 # Inference
 inference.perform_inference(model,
-                            number_iterations=3000,
+                            number_iterations=300,
                             number_samples=100,
                             optimizer='SGD',
-                            lr=0.001)
+                            lr=0.0001)
 loss_list = model.diagnostics["loss curve"]
 
 plt.plot(loss_list)

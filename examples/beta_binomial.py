@@ -4,22 +4,21 @@ import numpy as np
 from brancher.variables import ProbabilisticModel
 from brancher.standard_variables import BetaVariable, BinomialVariable
 from brancher import inference
+from brancher.visualizations import plot_posterior
 
-#Real model
-number_samples = 1
-p_real = 0.8
-k_real = BinomialVariable(number_samples, p=p_real, name="k")
 
 # betaNormal/Binomial model
+number_tosses = 1
 p = BetaVariable(1., 1., "p")
-k = BinomialVariable(number_samples, p=p, name="k")
+k = BinomialVariable(number_tosses, p=p, name="k")
 model = ProbabilisticModel([k])
 
 # Generate data
-data = k_real._get_sample(number_samples=50)
+p_real = 0.8
+data = model.get_sample(number_samples=30, input_values={p: p_real})
 
 # Observe data
-k.observe(data[k_real][:, 0, :])
+k.observe(data)
 
 # Variational distribution
 Qp = BetaVariable(1., 1., "p", learnable=True)
@@ -27,19 +26,18 @@ model.set_posterior_model(ProbabilisticModel([Qp]))
 
 # Inference
 inference.perform_inference(model,
-                            number_iterations=3000,
-                            number_samples=100,
-                            lr=0.01,
-                            optimizer='Adam')
+                            number_iterations=1000,
+                            number_samples=300,
+                            lr=0.1,
+                            optimizer='SGD')
 loss_list = model.diagnostics["loss curve"]
 
-#Plot results
+#Plot loss
 plt.plot(loss_list)
 plt.title("Loss (negative ELBO)")
 plt.show()
 
-from brancher.visualizations import plot_posterior
-
+#Plot posterior
 plot_posterior(model, variables=["p"])
 plt.show()
 
