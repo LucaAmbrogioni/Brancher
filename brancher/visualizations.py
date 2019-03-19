@@ -6,6 +6,28 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
+def plot_posterior_histogram(model, variables, number_samples=100): #TODO: fix code duplication
+
+    # Get samples
+    sample = model.get_sample(number_samples)
+    post_sample = model.get_posterior_sample(number_samples)
+
+    # Join samples
+    sample["Mode"] = "Prior"
+    post_sample["Mode"] = "Posterior"
+    subsample = sample[variables + ["Mode"]]
+    post_subsample = post_sample[variables + ["Mode"]]
+    joint_subsample = subsample.append(post_subsample)
+
+    # Plot posterior
+    warnings.filterwarnings('ignore')
+    g = sns.PairGrid(joint_subsample, hue="Mode")
+    g = g.map_offdiag(sns.distplot)
+    g = g.map_diag(sns.distplot)
+    g = g.add_legend()
+    warnings.filterwarnings('default')
+
+
 def plot_posterior(model, variables, number_samples=2000):
 
     # Get samples

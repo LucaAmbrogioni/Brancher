@@ -25,6 +25,7 @@ class StochasticProcess(ABC):
         pass
 
 
+## Gaussian processes ##
 class GaussianProcess(StochasticProcess):
 
     def __init__(self, mean_function, covariance_function, name):
@@ -170,7 +171,3 @@ class ConstantMean(MeanFunction):
         value = value
         mean = lambda x: BF.delta(x, x)*value
         super().__init__(mean=mean)
-
-
-
-
