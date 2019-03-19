@@ -41,21 +41,11 @@ inference.perform_inference(model,
                             lr=0.001)
 loss_list = model.diagnostics["loss curve"]
 
-# Statistics
-posterior_samples = model._get_posterior_sample(5000)
-nu_posterior_samples = posterior_samples[nu].cpu().detach().numpy().flatten()
-mu_posterior_samples = posterior_samples[mu].cpu().detach().numpy().flatten()
+plt.plot(loss_list)
+plt.title("Loss (negative ELBO)")
+plt.show()
 
-# Two subplots, unpack the axes array immediately
-f, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4)
-ax1.plot(np.array(loss_list))
-ax1.set_title("Convergence")
-ax1.set_xlabel("Iteration")
-ax2.scatter(mu_posterior_samples, nu_posterior_samples, alpha=0.01)
-ax2.scatter(mu_real, nu_real, c="r")
-ax2.set_title("Posterior samples (b)")
-ax3.hist(mu_posterior_samples, 25)
-ax3.axvline(x=mu_real, lw=2, c="r")
-ax4.hist(nu_posterior_samples, 25)
-ax4.axvline(x=nu_real, lw=2, c="r")
+from brancher.visualizations import plot_posterior
+
+plot_posterior(model, variables=["mu", "nu", "x"])
 plt.show()

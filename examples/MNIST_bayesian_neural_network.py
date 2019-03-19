@@ -18,7 +18,7 @@ input_variable = np.reshape(train.train_data.numpy(), newshape=(dataset_size, nu
 output_labels = train.train_labels.numpy()
 
 # Data sampling model
-minibatch_size = 30
+minibatch_size = 5
 minibatch_indices = RandomIndices(dataset_size=dataset_size, batch_size=minibatch_size, name="indices", is_observed=True)
 x = EmpiricalVariable(input_variable, indices=minibatch_indices, name="x", is_observed=True)
 labels = EmpiricalVariable(output_labels, indices=minibatch_indices, name="labels", is_observed=True)
@@ -47,21 +47,22 @@ k.observe(labels)
 
 # Variational Model
 Qb1 = NormalVariable(np.zeros((number_hidden_units, 1)),
-                     0.2*np.ones((number_hidden_units, 1)), "b1", learnable=True)
+                     0.01*np.ones((number_hidden_units, 1)), "b1", learnable=True)
 Qb2 = NormalVariable(np.zeros((number_output_classes, 1)),
-                     0.2*np.ones((number_output_classes, 1)), "b2", learnable=True)
+                     0.01*np.ones((number_output_classes, 1)), "b2", learnable=True)
 Qweights1 = NormalVariable(np.zeros((number_hidden_units, number_pixels)),
-                           0.2*np.ones((number_hidden_units, number_pixels)), "weights1", learnable=True)
+                           0.01*np.ones((number_hidden_units, number_pixels)), "weights1", learnable=True)
 Qweights2 = NormalVariable(np.zeros((number_output_classes, number_hidden_units)),
-                           0.2*np.ones((number_output_classes, number_hidden_units)), "weights2", learnable=True)
+                           0.01*np.ones((number_output_classes, number_hidden_units)), "weights2", learnable=True)
 variational_model = ProbabilisticModel([Qb1, Qb2, Qweights1, Qweights2])
 model.set_posterior_model(variational_model)
 
 # Inference
 inference.perform_inference(model,
-                            number_iterations=2000,
-                            number_samples=50,
-                            optimizer='Adam', lr=0.005) #0.05
+                            inference_method=inference.MAP(),
+                            number_iterations=200,
+                            number_samples=1,
+                            optimizer='Adam', lr=0.001)
 
 # Test accuracy
 num_images = 500
