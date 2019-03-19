@@ -39,6 +39,7 @@ from brancher.pandas_interface import pandas_frame2value
 
 from brancher.config import device
 
+
 class BrancherClass(ABC):
     """
     BrancherClass is the abstract superclass of all Brancher variables and models.
@@ -181,23 +182,25 @@ class Variable(BrancherClass):
 
         Returns: PartialLink
         """
-        if isinstance(other, PartialLink):
-            vars = other.vars
-            vars.add(self)
-            fn = lambda values: op(values[self], other.fn(values))
-            links = other.links
-        elif isinstance(other, Variable):
-            vars = {self, other}
-            fn = lambda values: op(values[self], values[other])
-            links = set()
-        elif isinstance(other, (numbers.Number, np.ndarray)):
-            vars = {self}
-            fn = lambda values: op(values[self], other)
-            links = set()
-        else:
-            return other*self
+        #if isinstance(other, PartialLink):
+        #    vars = other.vars
+        #    vars.add(self)
+        #    fn = lambda values: op(values[self], other.fn(values))
+        #    links = other.links
+        #elif isinstance(other, Variable):
+        #    vars = {self, other}
+        #    fn = lambda values: op(values[self], values[other])
+        #    links = set()
+        #elif isinstance(other, (numbers.Number, np.ndarray)):
+        #    vars = {self}
+        #    fn = lambda values: op(values[self], other)
+        #    links = set()
+        #else:
+        #    return other*self
+        #
+        #return PartialLink(vars=vars, fn=fn, links=links)
 
-        return PartialLink(vars=vars, fn=fn, links=links)
+        return var2link(self)._apply_operator(other, op)
 
     def __neg__(self):
         return -1*self
@@ -232,7 +235,7 @@ class Variable(BrancherClass):
     def __rpow__(self, other):
         raise NotImplementedError
 
-    def __getitem__(self, key): #TODO: Work in progress
+    def __getitem__(self, key):
         if isinstance(key, str):
             variable_slice = key
         elif isinstance(key, Iterable):
@@ -284,7 +287,6 @@ class RootVariable(Variable):
             else:
                 self.learnable = False
                 warnings.warn('Currently discrete parameters are not learnable. Learnable set to False')
-
 
     def calculate_log_probability(self, values, reevaluate=True, for_gradient=False, normalized=True):
         """
@@ -786,7 +788,7 @@ def var2link(var):
         fn = lambda values: tuple([values[v] if isinstance(v, Variable) else v.fn(values) for v in var])
     else:
         return var
-    return PartialLink(vars=vars, fn=fn, links=set())
+    return PartialLink(vars=vars, fn=fn, links=set(), string=str(var))
 
 
 class Ensemble(BrancherClass):
@@ -822,16 +824,30 @@ class Ensemble(BrancherClass):
 
 class PartialLink(BrancherClass):
 
-    def __init__(self, vars, fn, links):
+    def __init__(self, vars, fn, links, string=""):
         self.vars = vars
         self.fn = fn
         self.links = links
+        self.string = string
+
+    def __str__(self):
+        """
+        Method.
+
+        Args: None
+
+        Returns: String
+        """
+        return self.string
 
     def _apply_operator(self, other, op):
+        symbols = {operator.add: "+", operator.sub: "-", operator.mul: "*", operator.truediv: "/", operator.pow: "**"}
+        get_symbol = lambda op: symbols[op] if op in symbols.keys() else "?"
         other = var2link(other)
         return PartialLink(vars=self.vars.union(other.vars),
                            fn=lambda values: op(self.fn(values), other.fn(values)),
-                           links=self.links.union(other.links))
+                           links=self.links.union(other.links),
+                           string="(" + str(self) + get_symbol(op) + str(other) + ")")
 
     def __neg__(self):
         return -1*self

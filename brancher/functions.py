@@ -12,13 +12,18 @@ class BrancherFunction(object):
     ----------
     """
 
-    def __init__(self, fn):
+    def __init__(self, fn, name="f_?"):
         self.fn = fn
+        self.name = name
         if isinstance(fn, (torch.nn.Module, torch.nn.Sequential, torch.nn.ModuleList, torch.nn.ModuleDict,
                            torch.nn.Parameter, torch.nn.ParameterDict, torch.nn.ParameterList)): #TODO: all optimizable types in nn
             self.links = {fn}
         else:
             self.links = set()
+
+    def _get_string(self, *args, **kwargs):
+        return self.name + "(" + ", ".join([var2link(a).string
+                                            for n, a in enumerate(list(args) + list(kwargs.values()))]) + ")"
 
     def __call__(self, *args, **kwargs):
         link_args = [var2link(arg) for arg in args]
@@ -32,7 +37,8 @@ class BrancherFunction(object):
                            for name, x in link_kwargs.items()})
             return self.fn(*args, **kwargs)
 
-        return PartialLink(arg_vars.union(kwarg_vars), fn, self.links)
+        return PartialLink(arg_vars.union(kwarg_vars), fn,
+                           self.links, string=self._get_string(*args, **kwargs))
 
     @staticmethod
     def _is_var(self, arg):
@@ -52,7 +58,7 @@ for name in dir(torch._C._VariableFunctions):
     fn_set[name] = getattr(torch.torch._C._VariableFunctions, name)
 
 is_backend_fn = lambda k, v: type(v) in [types.FunctionType, types.BuiltinFunctionType] and not k.startswith('_') #TODO: Work in progress
-brancher_fns = {name: BrancherFunction(v) for name, v in fn_set.items() if is_backend_fn(name, v)}
+brancher_fns = {name: BrancherFunction(v, name) for name, v in fn_set.items() if is_backend_fn(name, v)}
 globals().update(brancher_fns)
 
 ## Custom functions ##
