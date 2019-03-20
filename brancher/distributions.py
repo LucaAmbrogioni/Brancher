@@ -77,21 +77,21 @@ class Distribution(ABC):
     def get_mean(self, **parameters):
         self.check_parameters(**parameters)
         parameters, shape = self._preprocess_parameters_for_sampling(**parameters)
-        pre_mean = self._get_sample(**parameters)
+        pre_mean = self._get_mean(**parameters)
         mean = self._postprocess_sample(pre_mean, shape)
         return mean
 
     def get_variance(self, **parameters):
         self.check_parameters(**parameters)
         parameters, shape = self._preprocess_parameters_for_sampling(**parameters)
-        pre_variance = self._get_sample(**parameters)
+        pre_variance = self._get_variance(**parameters)
         variance = self._postprocess_sample(pre_variance, shape)
         return variance
 
     def get_entropy(self, **parameters):
         self.check_parameters(**parameters)
         parameters, shape = self._preprocess_parameters_for_sampling(**parameters)
-        pre_entropy = self._get_sample(**parameters)
+        pre_entropy = self._get_entropy(**parameters)
         entropy = self._postprocess_sample(pre_entropy, shape)
         return entropy
 
@@ -134,7 +134,7 @@ class Distribution(ABC):
         -------
         """
         if self.has_analytic_mean:
-            return self._get_statistic(lambda x: x.mean(), **parameters)
+            return self._get_statistic(lambda x: x.mean, **parameters)
         else:
             raise ValueError("The mean of the distribution cannot be computed analytically")
 
@@ -149,7 +149,7 @@ class Distribution(ABC):
         -------
         """
         if self.has_analytic_var:
-            return self._get_statistic(lambda x: x.variance(), **parameters)
+            return self._get_statistic(lambda x: x.variance, **parameters)
         raise ValueError("The variance of the distribution cannot be computed analytically")
 
     def _get_entropy(self, **parameters):
@@ -162,7 +162,7 @@ class Distribution(ABC):
         Returns
         -------
         """
-        if self.has_analytic_var:
+        if self.has_analytic_entropy:
             return self._get_statistic(lambda x: x.entropy(), **parameters)
         raise ValueError("The entropy of the distribution cannot be computed analytically")
 
@@ -375,7 +375,7 @@ class DeterministicDistribution(ImplicitDistribution):
         Returns
         -------
         """
-        return 0.
+        return torch.tensor(np.zeros((1, 1, 1))).float().to(device)
 
     def _get_entropy(self, **parameters):
         """
@@ -386,7 +386,7 @@ class DeterministicDistribution(ImplicitDistribution):
         Returns
         -------
         """
-        return 0.
+        return torch.tensor(np.zeros((1, 1, 1))).float().to(device)
 
 
 class EmpiricalDistribution(ImplicitDistribution): #TODO: It needs to be reworked.

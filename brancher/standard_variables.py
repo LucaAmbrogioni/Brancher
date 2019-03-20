@@ -58,11 +58,11 @@ class VariableConstructor(RandomVariable):
         for parameter_name, value in kwargs.items():
             if not isinstance(value, (Variable, PartialLink)):
                 if isinstance(value, np.ndarray):
-                    dim = value.shape[0] #TODO: This is probably not general enough
+                    dim = value.shape[0]
                 elif isinstance(value, numbers.Number):
                     dim = 1
                 else:
-                    dim = [] #TODO: You should consider the other possible cases individually
+                    dim = []
                 deterministic_parent = RootVariable(ranges[parameter_name].inverse_transform(value, dim),
                                                     self.name + "_" + parameter_name, learnable, is_observed=self._observed)
                 kwargs.update({parameter_name: ranges[parameter_name].forward_transform(deterministic_parent, dim)})
@@ -144,13 +144,13 @@ class NormalVariable(VariableConstructor):
         super().__init__(name, loc=loc, scale=scale, learnable=learnable, ranges=ranges, is_observed=is_observed)
         self.distribution = distributions.NormalDistribution()
 
-    def __add__(self, other):
-        if isinstance(other, NormalVariable):
-            return NormalVariable(self.partial_links["loc"] + other.partial_links["loc"],
-                                  scale=BF.sqrt(self.partial_links["scale"]**2 + other.partial_links["scale"]**2),
-                                  name=self.name + " + " + other.name, learnable=False)
-        else:
-            return super().__add__(other)
+    #def __add__(self, other):
+    #    if isinstance(other, NormalVariable):
+    #        return NormalVariable(self.partial_links["loc"] + other.partial_links["loc"],
+    #                              scale=BF.sqrt(self.partial_links["scale"]**2 + other.partial_links["scale"]**2),
+    #                              name=self.name + " + " + other.name, learnable=False)
+    #    else:
+    #        return super().__add__(other)
 
 
 class CauchyVariable(VariableConstructor):

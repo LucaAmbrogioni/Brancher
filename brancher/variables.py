@@ -17,6 +17,8 @@ import torch
 
 import warnings
 
+from brancher import distributions
+
 from brancher.utilities import join_dicts_list, join_sets_list
 from brancher.utilities import flatten_list
 from brancher.utilities import partial_broadcast
@@ -51,6 +53,13 @@ class BrancherClass(ABC):
         """
         pass
 
+    @abstractmethod
+    def _get_statistic(self, query, input_values):
+        """
+        Abstract method.
+        """
+        pass
+
     def flatten(self):
         return set(self._flatten())
 
@@ -70,6 +79,15 @@ class BrancherClass(ABC):
             return {var.name: var for var in flat_list}[var_name]
         except ValueError:
             raise ValueError("The variable {} is not present in the model".format(var_name))
+
+    def _get_mean(self, input_values={}):
+        return self._get_statistic(query=lambda dist, parameters: dist.get_mean(**parameters), input_values=input_values)
+
+    def _get_variance(self, input_values={}):
+        return self._get_statistic(query=lambda dist, parameters: dist.get_variance(**parameters), input_values=input_values)
+
+    def _get_entropy(self, input_values={}):
+        return self._get_statistic(query=lambda dist, parameters: dist.get_entropy(**parameters), input_values=input_values)
 
 
 class Variable(BrancherClass):
@@ -134,6 +152,27 @@ class Variable(BrancherClass):
         self.reset()
         return sample
 
+    def get_mean(self, input_values={}):
+        reformatted_input_values = reformat_sampler_input(pandas_frame2dict(input_values),
+                                                          number_samples=1)
+        raw_mean = {self: self._get_mean(reformatted_input_values)}
+        mean = reformat_sample_to_pandas(raw_mean, number_samples=1)
+        return mean
+
+    def get_variance(self, input_values={}):
+        reformatted_input_values = reformat_sampler_input(pandas_frame2dict(input_values),
+                                                          number_samples=1)
+        raw_variance = {self: self._get_variance(reformatted_input_values)}
+        variance = reformat_sample_to_pandas(raw_variance, number_samples=1)
+        return variance
+
+    def get_entropy(self, input_values={}):
+        reformatted_input_values = reformat_sampler_input(pandas_frame2dict(input_values),
+                                                          number_samples=1)
+        raw_ent = {self: self._get_entropy(reformatted_input_values)}
+        ent = reformat_sample_to_pandas(raw_ent, number_samples=1)
+        return ent
+
     @abstractmethod
     def reset(self):
         """
@@ -182,24 +221,6 @@ class Variable(BrancherClass):
 
         Returns: PartialLink
         """
-        #if isinstance(other, PartialLink):
-        #    vars = other.vars
-        #    vars.add(self)
-        #    fn = lambda values: op(values[self], other.fn(values))
-        #    links = other.links
-        #elif isinstance(other, Variable):
-        #    vars = {self, other}
-        #    fn = lambda values: op(values[self], values[other])
-        #    links = set()
-        #elif isinstance(other, (numbers.Number, np.ndarray)):
-        #    vars = {self}
-        #    fn = lambda values: op(values[self], other)
-        #    links = set()
-        #else:
-        #    return other*self
-        #
-        #return PartialLink(vars=vars, fn=fn, links=links)
-
         return var2link(self)._apply_operator(other, op)
 
     def __neg__(self):
@@ -272,6 +293,7 @@ class RootVariable(Variable):
     """
     def __init__(self, data, name, learnable=False, is_observed=False):
         self.name = name
+        self.distribution = distributions.DeterministicDistribution()
         self._evaluated = False
         self._observed = is_observed
         self.parents = set()
@@ -316,6 +338,11 @@ class RootVariable(Variable):
     @property
     def is_observed(self):
         return self._observed
+
+    def _get_statistic(self, query, input_values):
+        parameters_dict = {"value": self.value}
+        statistic = query(self.distribution, parameters_dict)
+        return statistic
 
     def _get_sample(self, number_samples, resample=False, observed=False, input_values={}):
         if self in input_values:
@@ -401,6 +428,41 @@ class RandomVariable(Variable):
                   for key, val in reshaped_output.items()}
         return output
 
+    def _get_parameters_from_input_values(self, input_values):
+        """
+        Method.
+
+        Args:
+
+        Returns:
+        """
+        if input_values:
+            number_samples, _ = get_number_samples_and_datapoints(input_values)
+        else:
+            number_samples = 1
+        deterministic_parents_values = {parent: parent._get_sample(number_samples, input_values=input_values)[parent] for parent in self.parents
+                                        if isinstance(parent, RootVariable) or parent._type == "Deterministic node"}
+        parents_input_values = {parent: parent_input for parent, parent_input in input_values.items() if parent in self.parents}
+        parents_values = {**parents_input_values, **deterministic_parents_values}
+        parameters_dict = self._apply_link(parents_values)
+        return parameters_dict
+
+    def _get_its_own_value_from_input(self, input_values, reevaluate):
+        """
+        Method.
+
+        Args:
+
+        Returns:
+        """
+        if self in input_values:
+            value = input_values[self]
+        elif self._type == "deterministic node":
+            value = self._get_sample(1, input_values=input_values)[self]
+        else:
+            value = self.value
+        return value
+
     def calculate_log_probability(self, input_values, reevaluate=True, for_gradient=False,
                                   include_parents=True, normalized=True):
         """
@@ -421,22 +483,9 @@ class RandomVariable(Variable):
         """
         if self._evaluated and not reevaluate:
             return 0.
-        if self in input_values:
-            value = input_values[self]
-        elif self._type == "deterministic node":
-            value = self._get_sample(1, input_values=input_values)[self]
-        else:
-            value = self.value
-
+        value = self._get_its_own_value_from_input(input_values, reevaluate)
         self._evaluated = True
-        number_samples, _ = get_number_samples_and_datapoints(input_values)
-        deterministic_parents_values = {parent: parent._get_sample(number_samples, input_values=input_values)[parent] for parent in self.parents
-                                        if isinstance(parent, RootVariable) or parent._type == "Deterministic node"}
-        #deterministic_parents_values = {parent: parent.value for parent in self.parents
-        #                                if (type(parent) is RootVariable)}
-        parents_input_values = {parent: parent_input for parent, parent_input in input_values.items() if parent in self.parents}
-        parents_values = {**parents_input_values, **deterministic_parents_values}
-        parameters_dict = self._apply_link(parents_values)
+        parameters_dict = self._get_parameters_from_input_values(input_values)
         log_probability = self.distribution.calculate_log_probability(value, **parameters_dict)
         parents_log_probability = sum([parent.calculate_log_probability(input_values, reevaluate, for_gradient,
                                                                         normalized=normalized)
@@ -449,6 +498,11 @@ class RandomVariable(Variable):
             return log_probability + parents_log_probability
         else:
             return log_probability
+
+    def _get_statistic(self, query, input_values):
+        parameters_dict = self._get_parameters_from_input_values(input_values)
+        statistic = query(self.distribution, parameters_dict)
+        return statistic
 
     def _get_sample(self, number_samples=1, resample=True, observed=False, input_values={}):
         """
@@ -556,13 +610,14 @@ class ProbabilisticModel(BrancherClass):
     variables: List(brancher.Variable). A list of random and deterministic variables.
     """
     def __init__(self, variables):
-        self.variables = self._validate_variables(variables)
+        self._input_variables = self._validate_variables(variables)
         self._set_summary()
+        self.variables = self.flatten()
         self.posterior_model = None
         self.posterior_sampler = None
         self.observed_submodel = None
         self.diagnostics = {}
-        if not all([var.is_observed for var in self.variables]):
+        if not all([var.is_observed for var in self._input_variables]):
             self.update_observed_submodel()
         else:
             self.observed_submodel = self
@@ -645,9 +700,12 @@ class ProbabilisticModel(BrancherClass):
         log_probability = sum([var.calculate_log_probability(rv_values, reevaluate=False,
                                                              for_gradient=for_gradient,
                                                              normalized=normalized)
-                               for var in self.variables])
+                               for var in self._input_variables])
         self.reset()
         return log_probability
+
+    def _get_statistic(self, query, input_values):
+        return {var: var._get_statistic(query, input_values) for var in self.variables}
 
     def _get_sample(self, number_samples, observed=False, input_values={}):
         """
@@ -655,7 +713,7 @@ class ProbabilisticModel(BrancherClass):
         """
         joint_sample = join_dicts_list([var._get_sample(number_samples=number_samples, resample=False,
                                                         observed=observed, input_values=input_values)
-                                        for var in self.variables])
+                                        for var in self._input_variables])
         joint_sample.update(input_values)
         self.reset()
         return joint_sample
@@ -667,14 +725,42 @@ class ProbabilisticModel(BrancherClass):
         sample = reformat_sample_to_pandas(raw_sample, number_samples=number_samples)
         return sample
 
+    def get_mean(self, input_values={}):
+        reformatted_input_values = reformat_sampler_input(pandas_frame2dict(input_values),
+                                                          number_samples=1)
+        raw_mean = self._get_mean(reformatted_input_values)
+        mean = reformat_sample_to_pandas(raw_mean, number_samples=1)
+        return mean
+
+    def get_variance(self, input_values={}):
+        reformatted_input_values = reformat_sampler_input(pandas_frame2dict(input_values),
+                                                          number_samples=1)
+        raw_variance = self._get_variance(reformatted_input_values)
+        variance = reformat_sample_to_pandas(raw_variance, number_samples=1)
+        return variance
+
+    def get_entropy(self, input_values={}):
+        reformatted_input_values = reformat_sampler_input(pandas_frame2dict(input_values),
+                                                          number_samples=1)
+        raw_ent = self._get_entropy(reformatted_input_values)
+        ent = reformat_sample_to_pandas(raw_ent, number_samples=1)
+        return ent
+
     def check_posterior_model(self):
         """
         Summary
         """
         if not self.posterior_model:
             raise AttributeError("The posterior model has not been initialized.")
-#        elif self.posterior_model._is_trained is False:
-#            raise AttributeError("The posterior model needs to be trained before sampling.")
+
+    def get_posterior_mean(self, query, input_values):
+        return self.posterior_model.get_mean(input_values)
+
+    def get_posterior_variance(self, query, input_values):
+        return self.posterior_model.get_variance(input_values)
+
+    def get_posterior_entropy(self, query, input_values):
+        return self.posterior_model.get_entropy(input_values)
 
     def _get_posterior_sample(self, number_samples, input_values={}):
         """
@@ -747,7 +833,7 @@ class ProbabilisticModel(BrancherClass):
             var.reset(recursive=False)
 
     def _flatten(self):
-        variables = list(join_sets_list([var.ancestors.union({var}) for var in self.variables]))
+        variables = list(join_sets_list([var.ancestors.union({var}) for var in self._input_variables]))
         return sorted(variables, key=lambda v: v.name)
 
 
@@ -910,3 +996,15 @@ class PartialLink(BrancherClass):
 
     def _flatten(self):
         return flatten_list([var._flatten() for var in self.vars]) + [self]
+
+    def _get_statistic(self, query, input_values):
+        raise NotImplemented
+
+    def _get_mean(self, input_values):
+        raise NotImplemented
+
+    def _get_variance(self, input_values):
+        raise NotImplemented
+
+    def _get_entropy(self, input_values):
+        raise NotImplemented

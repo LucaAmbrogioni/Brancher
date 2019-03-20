@@ -66,7 +66,6 @@ class ProbabilisticOptimizer(ABC):
             self.optimizer = None
         self.module.to(device)
 
-
     def update(self):
         self.optimizer.step()
 
