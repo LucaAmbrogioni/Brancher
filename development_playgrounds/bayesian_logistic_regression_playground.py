@@ -21,7 +21,7 @@ labels = np.concatenate((x1_labels, x2_labels), axis=0)
 weights = NormalVariable(np.zeros((1, number_regressors)), 0.5*np.ones((1, number_regressors)), "weights")
 x = RootVariable(input_variable, "x", is_observed=True)
 logit_p = BF.matmul(weights, x)
-k = BinomialVariable(1, logit_p=logit_p, name="k")
+k = BinomialVariable(1, logits=logit_p, name="k")
 model = ProbabilisticModel([k])
 
 samples = model._get_sample(300)
@@ -30,8 +30,6 @@ samples = model._get_sample(300)
 k.observe(labels)
 
 # Variational Model
-#Qweights = NormalVariable(np.zeros((1, number_regressors)),
-#                          np.ones((1, number_regressors)), "weights", learnable=True)
 Qweights = MultivariateNormalVariable(loc=np.zeros((1, number_regressors)),
                                       covariance_matrix=np.identity(number_regressors),
                                       name="weights", learnable=True)

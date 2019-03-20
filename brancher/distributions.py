@@ -30,19 +30,19 @@ class Distribution(ABC):
     Summary
     """
     def __init__(self):
+        self.torchdist = None
+        self.required_parameters = {}
+        self.has_differentiable_samples = None
+        self.is_finite = None
+        self.is_discrete = None
+        self.has_analytic_entropy = None
+        self.has_analytic_mean = None
+        self.has_analytic_var = None
         pass
 
     def check_parameters(self, **parameters):
         assert all([any([param in parameters for param in parameters_tuple]) if isinstance(parameters_tuple, tuple) else parameters_tuple in parameters
                     for parameters_tuple in self.required_parameters])
-
-    @abstractmethod
-    def _calculate_log_probability(self, x, **parameters):
-        pass
-
-    @abstractmethod
-    def _get_sample(self, **parameters):
-        pass
 
     @abstractmethod
     def _preprocess_parameters_for_log_prob(self, x, **parameters):
@@ -73,6 +73,111 @@ class Distribution(ABC):
         pre_sample = self._get_sample(**parameters)
         sample = self._postprocess_sample(pre_sample, shape)
         return sample
+
+    def get_mean(self, **parameters):
+        self.check_parameters(**parameters)
+        parameters, shape = self._preprocess_parameters_for_sampling(**parameters)
+        pre_mean = self._get_sample(**parameters)
+        mean = self._postprocess_sample(pre_mean, shape)
+        return mean
+
+    def get_variance(self, **parameters):
+        self.check_parameters(**parameters)
+        parameters, shape = self._preprocess_parameters_for_sampling(**parameters)
+        pre_variance = self._get_sample(**parameters)
+        variance = self._postprocess_sample(pre_variance, shape)
+        return variance
+
+    def get_entropy(self, **parameters):
+        self.check_parameters(**parameters)
+        parameters, shape = self._preprocess_parameters_for_sampling(**parameters)
+        pre_entropy = self._get_sample(**parameters)
+        entropy = self._postprocess_sample(pre_entropy, shape)
+        return entropy
+
+    def _get_statistic(self, query, **parameters):
+        """
+        One line description
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        """
+        out_stat = query(self.torchdist(**parameters))
+        return out_stat
+
+    def _get_sample(self, **parameters):
+        """
+        One line description
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        """
+        if self.has_differentiable_samples:
+            return self._get_statistic(lambda x: x.rsample(), **parameters)
+        else:
+            return self._get_statistic(lambda x: x.sample(), **parameters)
+
+    def _get_mean(self, **parameters):
+        """
+        One line description
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        """
+        if self.has_analytic_mean:
+            return self._get_statistic(lambda x: x.mean(), **parameters)
+        else:
+            raise ValueError("The mean of the distribution cannot be computed analytically")
+
+    def _get_variance(self, **parameters):
+        """
+        One line description
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        """
+        if self.has_analytic_var:
+            return self._get_statistic(lambda x: x.variance(), **parameters)
+        raise ValueError("The variance of the distribution cannot be computed analytically")
+
+    def _get_entropy(self, **parameters):
+        """
+        One line description
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        """
+        if self.has_analytic_var:
+            return self._get_statistic(lambda x: x.entropy(), **parameters)
+        raise ValueError("The entropy of the distribution cannot be computed analytically")
+
+    def _calculate_log_probability(self, x, **parameters):
+        """
+        One line description
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        """
+        log_prob = self.torchdist(**parameters).log_prob(x)
+        return log_prob
 
 
 class ContinuousDistribution(Distribution):
@@ -123,6 +228,9 @@ class ImplicitDistribution(Distribution):
     def _postprocess_log_prob(self, log_pro, number_samples, number_datapoints):
         return log_pro
 
+    def _get_statistic(self, query, **parameters):
+        raise NotImplemented
+
 
 class VectorDistribution(Distribution):
     """
@@ -141,7 +249,6 @@ class VectorDistribution(Distribution):
     def _preprocess_parameters_for_sampling(self, **parameters):
         number_samples, number_datapoints = get_number_samples_and_datapoints(parameters)
         parameters = map_iterable(lambda x: broadcast_and_reshape_parent_value(x, number_samples, number_datapoints), parameters)
-        #parameters, number_samples, number_datapoints = broadcast_parent_values(parameters)
         reshaped_parameters, tensor_shape = self._preproces_vector_input(parameters, self.vector_parameters)
         shape = tuple([number_samples, number_datapoints] + tensor_shape)
         return reshaped_parameters, shape
@@ -151,7 +258,6 @@ class VectorDistribution(Distribution):
         parameters_and_data.update({"x_data": x})
         number_samples, number_datapoints = get_number_samples_and_datapoints(parameters_and_data)
         parameters_and_data = map_iterable(lambda y: broadcast_and_reshape_parent_value(y, number_samples, number_datapoints), parameters_and_data)
-        #parameters_and_data, number_samples, number_datapoints = broadcast_parent_values(parameters_and_data)
         vector_names = self.vector_parameters
         vector_names.add("x_data")
         reshaped_parameters_and_data, _ = self._preproces_vector_input(parameters_and_data, vector_names)
@@ -170,12 +276,19 @@ class CategoricalDistribution(VectorDistribution):
     Summary
     """
     def __init__(self):
-        self.required_parameters = {("p", "softmax_p")}
+        super().__init__()
+        self.torchdist = distributions.one_hot_categorical.OneHotCategorical
+        self.required_parameters = {("probs", "logits")}
         self.optional_parameters = {}
-        self.vector_parameters = {"p", "softmax_p"}
+        self.vector_parameters = {"probs", "logits"}
         self.matrix_parameters = {}
         self.scalar_parameters = {}
-        super().__init__()
+        self.differentiable_samples = False
+        self.finite = True
+        self.discrete = True
+        self.analytic_entropy = True
+        self.analytic_mean = True
+        self.analytic_var = True
 
     def _calculate_log_probability(self, x, **parameters):
         """
@@ -187,41 +300,14 @@ class CategoricalDistribution(VectorDistribution):
         Returns
         -------
         """
-        vector_shape = parameters["p"].shape if "p" in parameters else parameters["softmax_p"].shape
+        vector_shape = parameters["probs"].shape if "probs" in parameters else parameters["logits"].shape
         if x.shape == vector_shape and tensor_range(x) == {0, 1}:
-            dist = distributions.one_hot_categorical.OneHotCategorical
+            dist = self.torchdist
         else:
             dist = distributions.categorical.Categorical
 
-        if "p" in parameters:
-            log_prob = dist(probs=parameters["p"]).log_prob(x[:, 0])
-
-        elif "softmax_p" in parameters:
-            log_prob = dist(logits=parameters["softmax_p"]).log_prob(x[:, 0])
-
-        else:
-            raise ValueError("Either p or " +
-                             "softmax_p needs to be provided as input")
+        log_prob = dist(**parameters).log_prob(x[:, 0])
         return log_prob
-
-    def _get_sample(self, **parameters):
-        """
-        One line description
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        """
-        if "p" in parameters:
-            sample = distributions.one_hot_categorical.OneHotCategorical(probs=parameters["p"]).sample()
-        elif "softmax_p" in parameters:
-            sample = distributions.one_hot_categorical.OneHotCategorical(logits=parameters["softmax_p"]).sample()
-        else:
-            raise ValueError("Either p or " +
-                             "softmax_p needs to be provided as input")
-        return sample
 
 
 class MultivariateNormalDistribution(VectorDistribution):
@@ -229,60 +315,19 @@ class MultivariateNormalDistribution(VectorDistribution):
     Summary
     """
     def __init__(self):
-        self.required_parameters = {"loc", ("covariance_matrix", "precision_matrix", "cholesky_factor")}
+        super().__init__()
+        self.torchdist = torch.distributions.multivariate_normal.MultivariateNormal
+        self.required_parameters = {"loc", ("covariance_matrix", "precision_matrix", "scale_tril")}
         self.optional_parameters = {}
         self.vector_parameters = {"loc"}
         self.matrix_parameters = {}
         self.scalar_parameters = {}
-        super().__init__()
-
-    def _calculate_log_probability(self, x, **parameters):
-        """
-        One line description
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        """
-        if "covariance_matrix" in parameters:
-            log_prob = torch.distributions.multivariate_normal.MultivariateNormal(loc=parameters["loc"],
-                                                                                  covariance_matrix=parameters["covariance_matrix"]).log_prob(x)
-        elif "precision_matrix" in parameters:
-            log_prob = torch.distributions.multivariate_normal.MultivariateNormal(loc=parameters["loc"],
-                                                                                  precision_matrix=parameters["precision_matrix"]).log_prob(x)
-        elif "cholesky_factor" in parameters:
-            log_prob = torch.distributions.multivariate_normal.MultivariateNormal(loc=parameters["loc"],
-                                                                                  scale_tril=parameters["cholesky_factor"]).log_prob(x)
-        else:
-            raise ValueError("Either covariance_matrix or precision_matrix or" +
-                             "cholesky_factor needs to be provided as input")
-        return log_prob
-
-    def _get_sample(self, **parameters):
-        """
-        One line description
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        """
-        if "covariance_matrix" in parameters:
-            sample = torch.distributions.multivariate_normal.MultivariateNormal(loc=parameters["loc"],
-                                                                                covariance_matrix=parameters["covariance_matrix"]).rsample()
-        elif "precision_matrix" in parameters:
-            sample = torch.distributions.multivariate_normal.MultivariateNormal(loc=parameters["loc"],
-                                                                                precision_matrix=parameters["precision_matrix"]).rsample()
-        elif "cholesky_factor" in parameters:
-            sample = torch.distributions.multivariate_normal.MultivariateNormal(loc=parameters["loc"],
-                                                                                scale_tril=parameters["cholesky_factor"]).rsample()
-        else:
-            raise ValueError("Either covariance_matrix or precision_matrix or" +
-                             "cholesky_factor needs to be provided as input")
-        return sample
+        self.has_differentiable_samples = True
+        self.is_finite = False
+        self.is_discrete = False
+        self.has_analytic_entropy = True
+        self.has_analytic_mean = True
+        self.has_analytic_var = True
 
 
 class DeterministicDistribution(ImplicitDistribution):
@@ -290,8 +335,14 @@ class DeterministicDistribution(ImplicitDistribution):
     Summary
     """
     def __init__(self):
-        self.required_parameters = {"value"}
         super().__init__()
+        self.required_parameters = {"value"}
+        self.has_differentiable_samples = True
+        self.is_finite = True
+        self.is_discrete = True
+        self.has_analytic_entropy = True
+        self.has_analytic_mean = True
+        self.has_analytic_var = True
 
     def _get_sample(self, **parameters):
         """
@@ -304,17 +355,56 @@ class DeterministicDistribution(ImplicitDistribution):
         """
         return parameters["value"]
 
+    def _get_mean(self, **parameters):
+        """
+        One line description
+
+        Parameters
+        ----------
+        Returns
+        -------
+        """
+        return parameters["value"]
+
+    def _get_variance(self, **parameters):
+        """
+        One line description
+
+        Parameters
+        ----------
+        Returns
+        -------
+        """
+        return 0.
+
+    def _get_entropy(self, **parameters):
+        """
+        One line description
+
+        Parameters
+        ----------
+        Returns
+        -------
+        """
+        return 0.
+
 
 class EmpiricalDistribution(ImplicitDistribution): #TODO: It needs to be reworked.
     """
     Summary
     """
     def __init__(self, batch_size, is_observed):
+        super().__init__()
         self.required_parameters = {"dataset"}
         self.optional_parameters = {"indices", "weights"}
         self.batch_size = batch_size
         self.is_observed = is_observed
-        super().__init__()
+        self.has_differentiable_samples = False
+        self.is_finite = True
+        self.is_discrete = True
+        self.has_analytic_entropy = False #TODO: this can be implemented
+        self.has_analytic_mean = False
+        self.has_analytic_var = False
 
     def _get_sample(self, **parameters):
         """
@@ -376,36 +466,16 @@ class NormalDistribution(ContinuousDistribution, UnivariateDistribution):
     Summary
     """
     def __init__(self):
+        super().__init__()
+        self.torchdist = distributions.normal.Normal
         self.required_parameters = {"loc", "scale"}
         self.optional_parameters = {}
-        super().__init__()
-
-    def _calculate_log_probability(self, x, **parameters):
-        """
-        One line description
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        """
-        log_prob = distributions.normal.Normal(loc=parameters["loc"],
-                                               scale=parameters["scale"]).log_prob(x)
-        return log_prob
-
-    def _get_sample(self, **parameters):
-        """
-        One line description
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        """
-        return distributions.normal.Normal(loc=parameters["loc"],
-                                           scale=parameters["scale"]).rsample()
+        self.has_differentiable_samples = True
+        self.is_finite = False
+        self.is_discrete = False
+        self.has_analytic_entropy = True
+        self.has_analytic_mean = True
+        self.has_analytic_var = True
 
 
 class LogNormalDistribution(ContinuousDistribution, UnivariateDistribution):
@@ -413,36 +483,16 @@ class LogNormalDistribution(ContinuousDistribution, UnivariateDistribution):
     Summary
     """
     def __init__(self):
+        super().__init__()
+        self.torchdist = distributions.log_normal.LogNormal
         self.required_parameters = {"loc", "scale"}
         self.optional_parameters = {}
-        super().__init__()
-
-    def _calculate_log_probability(self, x, **parameters):
-        """
-        One line description
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        """
-        log_prob = distributions.log_normal.LogNormal(loc=parameters["loc"],
-                                                      scale=parameters["scale"]).log_prob(x)
-        return log_prob
-
-    def _get_sample(self, **parameters):
-        """
-        One line description
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        """
-        return distributions.log_normal.LogNormal(loc=parameters["loc"],
-                                                  scale=parameters["scale"]).rsample()
+        self.has_differentiable_samples = True
+        self.is_finite = False
+        self.is_discrete = False
+        self.has_analytic_entropy = True
+        self.has_analytic_mean = True
+        self.has_analytic_var = True
 
 
 class CauchyDistribution(ContinuousDistribution, UnivariateDistribution):
@@ -450,36 +500,16 @@ class CauchyDistribution(ContinuousDistribution, UnivariateDistribution):
     Summary
     """
     def __init__(self):
+        super().__init__()
+        self.torchdist = distributions.cauchy.Cauchy
         self.required_parameters = {"loc", "scale"}
         self.optional_parameters = {}
-        super().__init__()
-
-    def _calculate_log_probability(self, x, **parameters):
-        """
-        One line description
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        """
-        log_prob = distributions.cauchy.Cauchy(loc=parameters["loc"],
-                                               scale=parameters["scale"]).log_prob(x)
-        return log_prob
-
-    def _get_sample(self, **parameters):
-        """
-        One line description
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        """
-        return distributions.cauchy.Cauchy(loc=parameters["loc"],
-                                           scale=parameters["scale"]).rsample()
+        self.has_differentiable_samples = True
+        self.is_finite = False
+        self.is_discrete = False
+        self.has_analytic_entropy = True
+        self.has_analytic_mean = True
+        self.has_analytic_var = False
 
 
 class LaplaceDistribution(ContinuousDistribution, UnivariateDistribution):
@@ -487,36 +517,16 @@ class LaplaceDistribution(ContinuousDistribution, UnivariateDistribution):
     Summary
     """
     def __init__(self):
+        super().__init__()
+        self.torchdist = distributions.laplace.Laplace
         self.required_parameters = {"loc", "scale"}
         self.optional_parameters = {}
-        super().__init__()
-
-    def _calculate_log_probability(self, x, **parameters):
-        """
-        One line description
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        """
-        log_prob = distributions.laplace.Laplace(loc=parameters["loc"],
-                                                 scale=parameters["scale"]).log_prob(x)
-        return log_prob
-
-    def _get_sample(self, **parameters):
-        """
-        One line description
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        """
-        return distributions.laplace.Laplace(loc=parameters["loc"],
-                                             scale=parameters["scale"]).rsample()
+        self.has_differentiable_samples = True
+        self.is_finite = False
+        self.is_discrete = False
+        self.has_analytic_entropy = True
+        self.has_analytic_mean = True
+        self.has_analytic_var = True
 
 
 class BetaDistribution(ContinuousDistribution, UnivariateDistribution):
@@ -524,36 +534,16 @@ class BetaDistribution(ContinuousDistribution, UnivariateDistribution):
     Summary
     """
     def __init__(self):
-        self.required_parameters = {"alpha", "beta"}
-        self.optional_parameters = {}
         super().__init__()
-
-    def _calculate_log_probability(self, x, **parameters):
-        """
-        One line description
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        """
-        log_prob = distributions.beta.Beta(concentration0=parameters["alpha"],
-                                           concentration1=parameters["beta"]).log_prob(x)
-        return log_prob
-
-    def _get_sample(self, **parameters):
-        """
-        One line description
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        """
-        return distributions.beta.Beta(concentration0=parameters["alpha"],
-                                       concentration1=parameters["beta"]).rsample()
+        self.torchdist = distributions.beta.Beta
+        self.required_parameters = {"concentration1", "concentration0"}
+        self.optional_parameters = {}
+        self.has_differentiable_samples = True
+        self.is_finite = False
+        self.is_discrete = False
+        self.has_analytic_entropy = True
+        self.has_analytic_mean = True
+        self.has_analytic_var = True
 
 
 class BinomialDistribution(UnivariateDistribution, DiscreteDistribution):
@@ -561,50 +551,16 @@ class BinomialDistribution(UnivariateDistribution, DiscreteDistribution):
     Summary
     """
     def __init__(self):
-        self.required_parameters = {"n", ("p", "logit_p")}
-        self.optional_parameters = {}
         super().__init__()
+        self.torchdist = distributions.binomial.Binomial
+        self.required_parameters = {"total_count", ("probs", "logits")}
+        self.optional_parameters = {}
+        self.has_differentiable_samples = False
+        self.is_finite = True
+        self.is_discrete = True
+        self.has_analytic_entropy = True
+        self.has_analytic_mean = True
+        self.has_analytic_var = True
 
-    def _calculate_log_probability(self, x, **parameters):
-        """
-        One line description
 
-        Parameters
-        ----------
-
-        Returns
-        -------
-        """
-        if "p" in parameters:
-            log_prob = distributions.binomial.Binomial(total_count=parameters["n"],
-                                                       probs=parameters["p"]).log_prob(x)
-
-        elif "logit_p" in parameters:
-            log_prob = distributions.binomial.Binomial(total_count=parameters["n"],
-                                                       logits=parameters["logit_p"]).log_prob(x)
-        else:
-            raise ValueError("Either p or " +
-                             "logit_p needs to be provided as input")
-        return log_prob
-
-    def _get_sample(self, **parameters):
-        """
-        One line description
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        """
-        if "p" in parameters:
-            sample = distributions.binomial.Binomial(total_count=parameters["n"],
-                                                      probs=parameters["p"]).sample()
-        elif "logit_p" in parameters:
-            sample = distributions.binomial.Binomial(total_count=parameters["n"],
-                                                      logits=parameters["logit_p"]).sample()
-        else:
-            raise ValueError("Either p or " +
-                             "logit_p needs to be provided as input")
-        return sample
 

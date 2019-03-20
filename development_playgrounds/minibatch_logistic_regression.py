@@ -26,7 +26,7 @@ x = EmpiricalVariable(input_variable, indices=minibatch_indices, name="x", is_ob
 labels = EmpiricalVariable(output_labels, indices=minibatch_indices, name="labels", is_observed=True)
 weights = NormalVariable(np.zeros((1, number_regressors)), 0.5*np.ones((1, number_regressors)), "weights")
 logit_p = BF.matmul(weights, x)
-k = BinomialVariable(1, logit_p=logit_p, name="k")
+k = BinomialVariable(1, logits=logit_p, name="k")
 model = ProbabilisticModel([k])
 
 #samples = model._get_sample(300)

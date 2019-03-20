@@ -198,19 +198,19 @@ class LogNormalVariable(VariableConstructor):
         self.distribution = distributions.LogNormalDistribution()
 
 
-class LogitNormalVariable(VariableConstructor):
-    """
-    Summary
-
-    Parameters
-    ----------
-    """
-    def __init__(self, loc, scale, name, learnable=False, is_observed=False):
-        self._type = "Logit Normal"
-        ranges = {"loc": geometric_ranges.UnboundedRange(),
-                  "scale": geometric_ranges.RightHalfLine(0.)}
-        super().__init__(name, loc=loc, scale=scale, learnable=learnable, ranges=ranges, is_observed=is_observed)
-        self.distribution = distributions.LogitNormalDistribution()
+#class LogitNormalVariable(VariableConstructor):
+#    """
+#    Summary
+#
+#    Parameters
+#    ----------
+#    """
+#    def __init__(self, loc, scale, name, learnable=False, is_observed=False):
+#        self._type = "Logit Normal"
+#        ranges = {"loc": geometric_ranges.UnboundedRange(),
+#                  "scale": geometric_ranges.RightHalfLine(0.)}
+#        super().__init__(name, loc=loc, scale=scale, learnable=learnable, ranges=ranges, is_observed=is_observed)
+#        self.distribution = distributions.LogitNormalDistribution()
 
 
 class BetaVariable(VariableConstructor):
@@ -222,9 +222,12 @@ class BetaVariable(VariableConstructor):
     """
     def __init__(self, alpha, beta, name, learnable=False, is_observed=False):
         self._type = "Logit Normal"
-        ranges = {"alpha": geometric_ranges.RightHalfLine(0.),
-                  "beta": geometric_ranges.RightHalfLine(0.)}
-        super().__init__(name, alpha=alpha, beta=beta, learnable=learnable, ranges=ranges, is_observed=is_observed)
+        concentration1 = alpha
+        concentration0 = beta
+        ranges = {"concentration1": geometric_ranges.RightHalfLine(0.),
+                  "concentration0": geometric_ranges.RightHalfLine(0.)}
+        super().__init__(name, concentration1=concentration1, concentration0=concentration0,
+                         learnable=learnable, ranges=ranges, is_observed=is_observed)
         self.distribution = distributions.BetaDistribution()
 
 
@@ -235,21 +238,21 @@ class BinomialVariable(VariableConstructor):
     Parameters
     ----------
     """
-    def __init__(self, n, p=None, logit_p=None, name="Binomial", learnable=False, is_observed=False):
+    def __init__(self, total_count, probs=None, logits=None, name="Binomial", learnable=False, is_observed=False):
         self._type = "Binomial"
-        if p is not None and logit_p is None:
-            ranges = {"n": geometric_ranges.UnboundedRange(),
-                      "p": geometric_ranges.Interval(0., 1.)}
-            super().__init__(name, n=n, p=p, learnable=learnable, ranges=ranges, is_observed=is_observed)
+        if probs is not None and logits is None:
+            ranges = {"total_count": geometric_ranges.UnboundedRange(),
+                      "probs": geometric_ranges.Interval(0., 1.)}
+            super().__init__(name, total_count=total_count, probs=probs, learnable=learnable, ranges=ranges, is_observed=is_observed)
             self.distribution = distributions.BinomialDistribution()
-        elif logit_p is not None and p is None:
-            ranges = {"n": geometric_ranges.UnboundedRange(),
-                      "logit_p": geometric_ranges.UnboundedRange()}
-            super().__init__(name, n=n, logit_p=logit_p, learnable=learnable, ranges=ranges)
+        elif logits is not None and probs is None:
+            ranges = {"total_count": geometric_ranges.UnboundedRange(),
+                      "logits": geometric_ranges.UnboundedRange()}
+            super().__init__(name, total_count=total_count, logits=logits, learnable=learnable, ranges=ranges)
             self.distribution = distributions.BinomialDistribution()
         else:
-            raise ValueError("Either p or " +
-                             "logit_p needs to be provided as input")
+            raise ValueError("Either probs or " +
+                             "logits needs to be provided as input")
 
 
 class CategoricalVariable(VariableConstructor): #TODO: Work in progress
@@ -259,34 +262,34 @@ class CategoricalVariable(VariableConstructor): #TODO: Work in progress
     Parameters
     ----------
     """
-    def __init__(self, p=None, softmax_p=None, name="Categorical", learnable=False, is_observed=False):
+    def __init__(self, probs=None, logits=None, name="Categorical", learnable=False, is_observed=False):
         self._type = "Categorical"
-        if p is not None and softmax_p is None:
+        if probs is not None and logits is None:
             ranges = {"p": geometric_ranges.Simplex()}
-            super().__init__(name, p=p, learnable=learnable, ranges=ranges, is_observed=is_observed)
+            super().__init__(name, probs=probs, learnable=learnable, ranges=ranges, is_observed=is_observed)
             self.distribution = distributions.CategoricalDistribution()
-        elif softmax_p is not None and p is None:
-            ranges = {"softmax_p": geometric_ranges.UnboundedRange()}
-            super().__init__(name, softmax_p=softmax_p, learnable=learnable, ranges=ranges, is_observed=is_observed)
+        elif logits is not None and probs is None:
+            ranges = {"logits": geometric_ranges.UnboundedRange()}
+            super().__init__(name, logits=logits, learnable=learnable, ranges=ranges, is_observed=is_observed)
             self.distribution = distributions.CategoricalDistribution()
         else:
-            raise ValueError("Either p or " +
-                             "softmax_p needs to be provided as input")
+            raise ValueError("Either probs or " +
+                             "logits needs to be provided as input")
 
 
-class ConcreteVariable(VariableConstructor):
-    """
-    Summary
-
-    Parameters
-    ----------
-    """
-    def __init__(self, tau, p, name, learnable=False, is_observed=False):
-        self._type = "Concrete"
-        ranges = {"tau": geometric_ranges.RightHalfLine(0.),
-                  "p": geometric_ranges.Simplex()}
-        super().__init__(name, tau=tau, p=p, learnable=learnable, ranges=ranges, is_observed=is_observed)
-        self.distribution = distributions.ConcreteDistribution()
+#class ConcreteVariable(VariableConstructor):
+#    """
+#    Summary
+#
+#    Parameters
+#    ----------
+#    """
+#    def __init__(self, tau, probs, name, learnable=False, is_observed=False):
+#        self._type = "Concrete"
+#        ranges = {"tau": geometric_ranges.RightHalfLine(0.),
+#                  "p": geometric_ranges.Simplex()}
+#        super().__init__(name, tau=tau, probs=probs, learnable=learnable, ranges=ranges, is_observed=is_observed)
+#        self.distribution = distributions.ConcreteDistribution()
 
 
 class MultivariateNormalVariable(VariableConstructor):
@@ -297,21 +300,21 @@ class MultivariateNormalVariable(VariableConstructor):
     ----------
     """
     def __init__(self, loc, covariance_matrix=None, precision_matrix=None,
-                 cholesky_factor=None, name="Multivariate Normal", learnable=False, is_observed=False):
+                 scale_tril=None, name="Multivariate Normal", learnable=False, is_observed=False):
         self._type = "Multivariate Normal"
-        if cholesky_factor is not None and covariance_matrix is None and precision_matrix is None:
+        if scale_tril is not None and covariance_matrix is None and precision_matrix is None:
             ranges = {"loc": geometric_ranges.UnboundedRange(),
-                      "cholesky_factor": geometric_ranges.UnboundedRange()}
-            super().__init__(name, loc=loc, cholesky_factor=cholesky_factor, learnable=learnable, ranges=ranges, is_observed=is_observed)
+                      "scale_tril": geometric_ranges.UnboundedRange()}
+            super().__init__(name, loc=loc, scale_tril=scale_tril, learnable=learnable, ranges=ranges, is_observed=is_observed)
             self.distribution = distributions.MultivariateNormalDistribution()
 
-        elif cholesky_factor is None and covariance_matrix is not None and precision_matrix is None:
+        elif scale_tril is None and covariance_matrix is not None and precision_matrix is None:
             ranges = {"loc": geometric_ranges.UnboundedRange(),
                       "covariance_matrix": geometric_ranges.PositiveDefiniteMatrix()}
             super().__init__(name, loc=loc, covariance_matrix=covariance_matrix, learnable=learnable, ranges=ranges, is_observed=is_observed)
             self.distribution = distributions.MultivariateNormalDistribution()
 
-        elif cholesky_factor is None and covariance_matrix is None and precision_matrix is not None:
+        elif scale_tril is None and covariance_matrix is None and precision_matrix is not None:
             ranges = {"loc": geometric_ranges.UnboundedRange(),
                       "precision_matrix": geometric_ranges.UnboundedRange()}
             super().__init__(name, loc=loc, precision_matrix=precision_matrix, learnable=learnable, ranges=ranges, is_observed=is_observed)
@@ -319,4 +322,4 @@ class MultivariateNormalVariable(VariableConstructor):
 
         else:
             raise ValueError("Either covariance_matrix or precision_matrix or"+
-                             "cholesky_factor needs to be provided as input")
+                             "scale_tril needs to be provided as input")

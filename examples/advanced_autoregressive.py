@@ -8,12 +8,12 @@ from brancher import inference
 import brancher.functions as BF
 
 # Probabilistic model #
-T = 20
+T = 30
 driving_noise = 1.
 measure_noise = 0.5
 x0 = NormalVariable(0., driving_noise, 'x0')
 y0 = NormalVariable(x0, measure_noise, 'x0')
-b = BetaVariable(0.5, 1., 'b')
+b = BetaVariable(1., 1., 'b')
 
 x = [x0]
 y = [y0]
@@ -37,7 +37,7 @@ print("The true coefficient is: {}".format(float(true_b)))
 [yt.observe(data[yt][:, 0, :]) for yt in y]
 
 # Autoregressive variational distribution #
-Qb = BetaVariable(0.5, 0.5, "b", learnable=True)
+Qb = BetaVariable(1., 1., "b", learnable=True)
 logit_b_post = RootVariable(0., 'logit_b_post', learnable=True)
 Qx = [NormalVariable(0., 1., 'x0', learnable=True)]
 Qx_mean = [RootVariable(0., 'x0_mean', learnable=True)]
@@ -52,7 +52,7 @@ inference.perform_inference(AR_model,
                             number_iterations=200,
                             number_samples=100,
                             optimizer='Adam',
-                            lr=0.05)
+                            lr=0.01)
 
 loss_list = AR_model.diagnostics["loss curve"]
 

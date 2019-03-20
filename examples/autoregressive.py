@@ -7,7 +7,7 @@ from brancher import inference
 import brancher.functions as BF
 
 # Probabilistic model #
-T = 100
+T = 200
 
 nu = LogNormalVariable(0.3, 1., 'nu')
 x0 = NormalVariable(0., 1., 'x0')

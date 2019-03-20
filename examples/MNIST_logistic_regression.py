@@ -18,7 +18,7 @@ input_variable = np.reshape(train.train_data.numpy(), newshape=(dataset_size, nu
 output_labels = train.train_labels.numpy()
 
 # Data sampling model
-minibatch_size = 50
+minibatch_size = 15
 minibatch_indices = RandomIndices(dataset_size=dataset_size, batch_size=minibatch_size, name="indices", is_observed=True)
 x = EmpiricalVariable(input_variable, indices=minibatch_indices, name="x", is_observed=True)
 labels = EmpiricalVariable(output_labels, indices=minibatch_indices, name="labels", is_observed=True)
@@ -29,7 +29,7 @@ weights = NormalVariable(np.zeros((number_output_classes, number_pixels)),
 
 # Forward pass
 final_activations = BF.matmul(weights, x)
-k = CategoricalVariable(softmax_p=final_activations, name="k")
+k = CategoricalVariable(logits=final_activations, name="k")
 
 # Probabilistic model
 model = ProbabilisticModel([k])
@@ -45,8 +45,8 @@ model.set_posterior_model(variational_model)
 
 # Inference
 inference.perform_inference(model,
-                            number_iterations=100,
-                            number_samples=1,
+                            number_iterations=500,
+                            number_samples=3,
                             optimizer="Adam",
                             lr=0.005)
 

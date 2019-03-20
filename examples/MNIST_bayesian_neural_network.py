@@ -37,7 +37,7 @@ weights2 = NormalVariable(np.zeros((number_output_classes, number_hidden_units))
 # Forward pass
 hidden_units = BF.tanh(BF.matmul(weights1, x) + b1)
 final_activations = BF.matmul(weights2, hidden_units) + b2
-k = CategoricalVariable(softmax_p=final_activations, name="k")
+k = CategoricalVariable(logits=final_activations, name="k")
 
 # Probabilistic model
 model = ProbabilisticModel([k])
@@ -59,7 +59,6 @@ model.set_posterior_model(variational_model)
 
 # Inference
 inference.perform_inference(model,
-                            inference_method=inference.MAP(),
                             number_iterations=200,
                             number_samples=1,
                             optimizer='Adam', lr=0.001)

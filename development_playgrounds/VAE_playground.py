@@ -68,7 +68,7 @@ decoder = BF.BrancherFunction(DecoderArchitecture(latent_size=latent_size, image
 # Generative model
 z = NormalVariable(np.zeros((latent_size,)), np.ones((latent_size,)), name="z")
 decoder_output = DeterministicVariable(decoder(z), name="decoder_output")
-x = BinomialVariable(n=1, logit_p=decoder_output["mean"], name="x")
+x = BinomialVariable(total_count=1, logits=decoder_output["mean"], name="x")
 model = ProbabilisticModel([x, z])
 
 # Amortized variational distribution

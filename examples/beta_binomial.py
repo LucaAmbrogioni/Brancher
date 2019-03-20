@@ -10,7 +10,7 @@ from brancher.visualizations import plot_posterior
 # betaNormal/Binomial model
 number_tosses = 1
 p = BetaVariable(1., 1., "p")
-k = BinomialVariable(number_tosses, p=p, name="k")
+k = BinomialVariable(number_tosses, probs=p, name="k")
 model = ProbabilisticModel([k])
 
 # Generate data
