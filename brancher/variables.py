@@ -33,6 +33,7 @@ from brancher.utilities import is_discrete, is_tensor, contains_tensors
 from brancher.utilities import concatenate_samples
 from brancher.utilities import get_number_samples_and_datapoints
 from brancher.utilities import map_iterable
+from brancher.utilities import sum_from_dim
 
 from brancher.pandas_interface import reformat_sample_to_pandas
 from brancher.pandas_interface import reformat_model_summary
@@ -42,7 +43,7 @@ from brancher.pandas_interface import pandas_frame2value
 from brancher.config import device
 
 
-class BrancherClass(ABC):
+class BrancherClass(ABC): #This requires some refactoring, it should become a superclass of Variables and probabilistic models and Partial Links should be out
     """
     BrancherClass is the abstract superclass of all Brancher variables and models.
     """
@@ -86,8 +87,16 @@ class BrancherClass(ABC):
     def _get_variance(self, input_values={}):
         return self._get_statistic(query=lambda dist, parameters: dist.get_variance(**parameters), input_values=input_values)
 
-    def _get_entropy(self, input_values={}):
-        return self._get_statistic(query=lambda dist, parameters: dist.get_entropy(**parameters), input_values=input_values)
+    #def _get_entropy(self, input_values={}):
+    #    if isinstance(self, ProbabilisticModel) or self.distribution.has_analytic_entropy:
+    #        entropy_array = self._get_statistic(query=lambda dist, parameters: dist.get_entropy(**parameters),
+    #                                            input_values=input_values)
+    #        if isinstance(self, ProbabilisticModel):
+    #            return sum([sum_from_dim(var_ent, 2) for var_ent in entropy_array.values()])
+    #        else:
+    #            return sum_from_dim(entropy_array, 2)
+    #    else:
+    #        return -self.calculate_log_probability(self, input_values, include_parents=False)
 
 
 class Variable(BrancherClass):
@@ -96,7 +105,7 @@ class Variable(BrancherClass):
     all probabilistic models in Brancher.
     """
     @abstractmethod
-    def calculate_log_probability(self, values, reevaluate):
+    def calculate_log_probability(self, values, reevaluate, include_parents):
         """
         Abstract method. It returns the log probability of the values given the model.
 
@@ -142,6 +151,14 @@ class Variable(BrancherClass):
 
         """
         pass
+
+    def _get_entropy(self, input_values={}):
+        if self.distribution.has_analytic_entropy:
+            entropy_array = self._get_statistic(query=lambda dist, parameters: dist.get_entropy(**parameters),
+                                                input_values=input_values)
+            return sum_from_dim(entropy_array, 2)
+        else:
+            return -self.calculate_log_probability(self, input_values, include_parents=False)
 
     def get_sample(self, number_samples, input_values={}):
         reformatted_input_values = reformat_sampler_input(pandas_frame2dict(input_values),
@@ -310,7 +327,7 @@ class RootVariable(Variable):
                 self.learnable = False
                 warnings.warn('Currently discrete parameters are not learnable. Learnable set to False')
 
-    def calculate_log_probability(self, values, reevaluate=True, for_gradient=False, normalized=True):
+    def calculate_log_probability(self, values, reevaluate=True, for_gradient=False, normalized=True, include_parents=False):
         """
         Method. It returns the log probability of the values given the model. This value is always 0 since the probability
         of a deterministic variable having its value is always 1.
@@ -327,7 +344,7 @@ class RootVariable(Variable):
             torch.Tensor. The log probability of the input values given the model.
         """
 
-        return torch.tensor(np.zeros((1, 1))).float().to(device)
+        return torch.Tensor(np.zeros((1, 1))).float().to(device)
 
     @property
     def value(self):
@@ -718,6 +735,10 @@ class ProbabilisticModel(BrancherClass):
         self.reset()
         return joint_sample
 
+    def _get_entropy(self, input_values={}):
+        entropy_array = {var: var._get_entropy(input_values) for var in self.variables}
+        return sum([sum_from_dim(var_ent, 2) for var_ent in entropy_array.values()])
+
     def get_sample(self, number_samples, input_values={}):
         reformatted_input_values = reformat_sampler_input(pandas_frame2dict(input_values),
                                                                             number_samples=number_samples)
@@ -779,24 +800,24 @@ class ProbabilisticModel(BrancherClass):
         sample = reformat_sample_to_pandas(raw_sample, number_samples=number_samples)
         return sample
 
-    def get_p_and_q_log_probabilities(self, q_samples, q_model, empirical_samples={},
-                                      for_gradient=False, normalized=True):  #TODO: Work in progress
-        q_log_prob = q_model.calculate_log_probability(q_samples,
-                                                       for_gradient=for_gradient, normalized=normalized)
+    def get_p_log_probabilities_from_q_samples(self, q_samples, q_model, empirical_samples={},
+                                               for_gradient=False, normalized=True):
         p_samples = reassign_samples(q_samples, source_model=q_model, target_model=self)
         p_samples.update(empirical_samples)
         p_log_prob = self.calculate_log_probability(p_samples, for_gradient=for_gradient, normalized=normalized)
-        return q_log_prob, p_log_prob
+        return p_log_prob
 
     def get_importance_weights(self, q_samples, q_model, empirical_samples={},
                                for_gradient=False, give_normalization=False):
         if not empirical_samples:
             empirical_samples = self.observed_submodel._get_sample(1, observed=True)
-        q_log_prob, p_log_prob = self.get_p_and_q_log_probabilities(q_samples=q_samples,
-                                                                    q_model=q_model,
-                                                                    empirical_samples=empirical_samples,
-                                                                    for_gradient=for_gradient,
-                                                                    normalized=False)
+        q_log_prob = q_model.calculate_log_probability(q_samples,
+                                                       for_gradient=for_gradient, normalized=True)
+        p_log_prob = self.get_p_log_probabilities_from_q_samples(q_samples=q_samples,
+                                                                 q_model=q_model,
+                                                                 empirical_samples=empirical_samples,
+                                                                 for_gradient=for_gradient,
+                                                                 normalized=False)
         log_weights = (p_log_prob - q_log_prob).detach().numpy()
         alpha = np.max(log_weights)
         norm_log_weights = log_weights - alpha
@@ -816,11 +837,12 @@ class ProbabilisticModel(BrancherClass):
             empirical_samples = self.observed_submodel._get_sample(1, observed=True) #TODO Important!!: You need to correct for subsampling
             posterior_samples = posterior_model._get_sample(number_samples=number_samples,
                                                             observed=False, input_values=input_values)
-            posterior_log_prob, joint_log_prob = self.get_p_and_q_log_probabilities(q_samples=posterior_samples,
-                                                                                    empirical_samples=empirical_samples,
-                                                                                    for_gradient=for_gradient,
-                                                                                    q_model=posterior_model)
-            log_model_evidence = torch.mean(joint_log_prob - posterior_log_prob)
+            joint_log_prob = self.get_p_log_probabilities_from_q_samples(q_samples=posterior_samples,
+                                                                         empirical_samples=empirical_samples,
+                                                                         for_gradient=for_gradient,
+                                                                         q_model=posterior_model)
+            posterior_entropy = posterior_model._get_entropy(posterior_samples)
+            log_model_evidence = torch.mean(joint_log_prob + posterior_entropy)
             return log_model_evidence
         else:
             raise NotImplementedError("The requested estimation method is currently not implemented.")
@@ -1004,7 +1026,4 @@ class PartialLink(BrancherClass):
         raise NotImplemented
 
     def _get_variance(self, input_values):
-        raise NotImplemented
-
-    def _get_entropy(self, input_values):
         raise NotImplemented

@@ -164,7 +164,8 @@ class Distribution(ABC):
         """
         if self.has_analytic_entropy:
             return self._get_statistic(lambda x: x.entropy(), **parameters)
-        raise ValueError("The entropy of the distribution cannot be computed analytically")
+        else:
+            raise ValueError("The entropy of the distribution cannot be computed analytically")
 
     def _calculate_log_probability(self, x, **parameters):
         """
@@ -402,7 +403,7 @@ class EmpiricalDistribution(ImplicitDistribution): #TODO: It needs to be reworke
         self.has_differentiable_samples = False
         self.is_finite = True
         self.is_discrete = True
-        self.has_analytic_entropy = False #TODO: this can be implemented
+        self.has_analytic_entropy = True #TODO: this can be implemented
         self.has_analytic_mean = False
         self.has_analytic_var = False
 
@@ -459,6 +460,17 @@ class EmpiricalDistribution(ImplicitDistribution): #TODO: It needs to be reworke
         else:
             sample = list(np.array(dataset)[indices])
         return sample
+
+    def _get_entropy(self, **parameters):
+        if "weights" in parameters:
+            probs = parameters["weights"]
+        else:
+            if is_tensor(parameters["dataset"]):
+                n = int(parameters["dataset"].shape[0])
+            else:
+                n = len(parameters["dataset"])
+            probs = torch.Tensor(np.ones((n,))).float().to(device)
+        return distributions.categorical.Categorical(probs=probs).entropy()
 
 
 class NormalDistribution(ContinuousDistribution, UnivariateDistribution):
