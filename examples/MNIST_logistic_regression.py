@@ -6,6 +6,8 @@ import torchvision
 from brancher.variables import RootVariable, ProbabilisticModel
 from brancher.standard_variables import NormalVariable, CategoricalVariable, EmpiricalVariable, RandomIndices
 from brancher import inference
+from brancher.inference import ReverseKL
+from brancher.gradient_estimators import Taylor1Estimator, PathwiseDerivativeEstimator
 import brancher.functions as BF
 
 # Data
@@ -45,8 +47,9 @@ model.set_posterior_model(variational_model)
 
 # Inference
 inference.perform_inference(model,
+                            inference_method=ReverseKL(gradient_estimator=PathwiseDerivativeEstimator),
                             number_iterations=500,
-                            number_samples=3,
+                            number_samples=1,
                             optimizer="Adam",
                             lr=0.005)
 

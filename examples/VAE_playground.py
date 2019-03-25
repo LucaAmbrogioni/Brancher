@@ -8,6 +8,8 @@ import numpy as np
 from brancher.variables import RootVariable, ProbabilisticModel
 from brancher.standard_variables import NormalVariable, EmpiricalVariable, BinomialVariable, DeterministicVariable, LogNormalVariable
 from brancher import inference
+from brancher.inference import ReverseKL
+from brancher.gradient_estimators import Taylor1Estimator, PathwiseDerivativeEstimator
 import brancher.functions as BF
 
 from brancher.config import device
@@ -79,6 +81,7 @@ model.set_posterior_model(ProbabilisticModel([Qx, Qz]))
 
 # Joint-contrastive inference
 inference.perform_inference(model,
+inference_method=ReverseKL(gradient_estimator=PathwiseDerivativeEstimator),
                             number_iterations=500,
                             number_samples=1,
                             optimizer="Adam",
