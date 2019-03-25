@@ -16,6 +16,7 @@ from brancher.optimizers import ProbabilisticOptimizer
 from brancher.variables import Variable, ProbabilisticModel
 from brancher.transformations import truncate_model
 from brancher.variables import RootVariable
+from brancher import gradient_estimators
 
 from brancher.utilities import reassign_samples
 from brancher.utilities import zip_dict
@@ -50,7 +51,8 @@ def perform_inference(joint_model, number_iterations, number_samples = 1,
                       optimizer='Adam', input_values={},
                       inference_method=None,
                       posterior_model=None, sampler_model=None,
-                      pretraining_iterations=0, **opt_params): #TODO: input values
+                      pretraining_iterations=0,
+                      **opt_params): #TODO: input values
     """
     Summary
 
@@ -126,20 +128,23 @@ class InferenceMethod(ABC):
 
 class ReverseKL(InferenceMethod):
 
-    def __init__(self):
+    def __init__(self, gradient_estimator=gradient_estimators.PathwiseDerivativeEstimator):
         self.learnable_model = True
         self.needs_sampler = False
         self.learnable_sampler = False
+        self.gradient_estimator = gradient_estimator
 
     def check_model_compatibility(self, joint_model, posterior_model, sampler_model):
         pass #TODO: Check differentiability of the model
 
     def compute_loss(self, joint_model, posterior_model, sampler_model, number_samples, input_values={}):
         loss = -joint_model.estimate_log_model_evidence(number_samples=number_samples,
-                                                        method="ELBO", input_values=input_values, for_gradient=True)
+                                                        method="ELBO", input_values=input_values,
+                                                        for_gradient=True, gradient_estimator=self.gradient_estimator)
         return loss
 
-    def correct_gradient(self, joint_model, posterior_model, sampler_model, number_samples, input_values={}):
+    def correct_gradient(self, joint_model, posterior_model, sampler_model,
+                         number_samples, input_values={}):
         pass
 
     def post_process(self, joint_model):
@@ -151,7 +156,9 @@ class WassersteinVariationalGradientDescent(InferenceMethod):
                  cost_function=None,
                  deviation_statistics=None,
                  biased=False,
-                 number_post_samples=8000):
+                 number_post_samples=8000,
+                 gradient_estimator=gradient_estimators.PathwiseDerivativeEstimator):
+        self.gradient_estimator = gradient_estimator
         self.learnable_model = False #TODO: to implement later
         self.needs_sampler = True
         self.learnable_sampler = True
@@ -192,7 +199,8 @@ class WassersteinVariationalGradientDescent(InferenceMethod):
 
     def compute_loss(self, joint_model, posterior_model, sampler_model, number_samples, input_values={}):
         sampler_loss = sum([-joint_model.estimate_log_model_evidence(number_samples=number_samples, posterior_model=subsampler,
-                                                                      method="ELBO", input_values=input_values, for_gradient=True)
+                                                                     method="ELBO", input_values=input_values,
+                                                                     for_gradient=True, gradient_estimator=self.gradient_estimator)
                              for subsampler in sampler_model])
         particle_loss = self.get_particle_loss(joint_model, posterior_model, sampler_model, number_samples,
                                                input_values)

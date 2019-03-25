@@ -67,10 +67,10 @@ class Distribution(ABC):
         log_prob = self._postprocess_log_prob(log_prob, number_samples, number_datapoints)
         return sum_data_dimensions(log_prob)
 
-    def get_sample(self, **parameters):
+    def get_sample(self, differentiable=True, **parameters):
         self.check_parameters(**parameters)
         parameters, shape = self._preprocess_parameters_for_sampling(**parameters)
-        pre_sample = self._get_sample(**parameters)
+        pre_sample = self._get_sample(differentiable=differentiable, **parameters)
         sample = self._postprocess_sample(pre_sample, shape)
         return sample
 
@@ -108,7 +108,7 @@ class Distribution(ABC):
         out_stat = query(self.torchdist(**parameters))
         return out_stat
 
-    def _get_sample(self, **parameters):
+    def _get_sample(self, differentiable, **parameters):
         """
         One line description
 
@@ -118,7 +118,7 @@ class Distribution(ABC):
         Returns
         -------
         """
-        if self.has_differentiable_samples:
+        if self.has_differentiable_samples and differentiable:
             return self._get_statistic(lambda x: x.rsample(), **parameters)
         else:
             return self._get_statistic(lambda x: x.sample(), **parameters)
@@ -345,7 +345,7 @@ class DeterministicDistribution(ImplicitDistribution):
         self.has_analytic_mean = True
         self.has_analytic_var = True
 
-    def _get_sample(self, **parameters):
+    def _get_sample(self, differentiable, **parameters):
         """
         One line description
 
@@ -407,7 +407,7 @@ class EmpiricalDistribution(ImplicitDistribution): #TODO: It needs to be reworke
         self.has_analytic_mean = False
         self.has_analytic_var = False
 
-    def _get_sample(self, **parameters):
+    def _get_sample(self, differentiable, **parameters):
         """
         One line description
 
@@ -570,7 +570,7 @@ class BinomialDistribution(UnivariateDistribution, DiscreteDistribution):
         self.has_differentiable_samples = False
         self.is_finite = True
         self.is_discrete = True
-        self.has_analytic_entropy = True
+        self.has_analytic_entropy = False
         self.has_analytic_mean = True
         self.has_analytic_var = True
 

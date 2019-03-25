@@ -27,7 +27,7 @@ model.set_posterior_model(ProbabilisticModel([Qp]))
 # Inference
 inference.perform_inference(model,
                             number_iterations=1000,
-                            number_samples=300,
+                            number_samples=500,
                             lr=0.1,
                             optimizer='SGD')
 loss_list = model.diagnostics["loss curve"]

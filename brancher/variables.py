@@ -18,6 +18,7 @@ import torch
 import warnings
 
 from brancher import distributions
+from brancher import gradient_estimators
 
 from brancher.utilities import join_dicts_list, join_sets_list
 from brancher.utilities import flatten_list
@@ -124,7 +125,7 @@ class Variable(BrancherClass):
         pass
 
     @abstractmethod
-    def _get_sample(self, number_samples, resample, observed, input_values):
+    def _get_sample(self, number_samples, resample, observed, input_values, differentiable):
         """
         Abstract private method. It returns samples from the joint distribution specified by the model. If an input is provided
         it only samples the variables that are not contained in the input.
@@ -164,7 +165,9 @@ class Variable(BrancherClass):
         reformatted_input_values = reformat_sampler_input(pandas_frame2dict(input_values),
                                                           number_samples=number_samples)
         raw_sample = {self: self._get_sample(number_samples, resample=False,
-                                             observed=self.is_observed, input_values=reformatted_input_values)[self]}
+                                             observed=self.is_observed,
+                                             differentiable=False,
+                                             input_values=reformatted_input_values)[self]}
         sample = reformat_sample_to_pandas(raw_sample, number_samples)
         self.reset()
         return sample
@@ -361,7 +364,7 @@ class RootVariable(Variable):
         statistic = query(self.distribution, parameters_dict)
         return statistic
 
-    def _get_sample(self, number_samples, resample=False, observed=False, input_values={}):
+    def _get_sample(self, number_samples, resample=False, observed=False, input_values={}, differentiable=True):
         if self in input_values:
             value = input_values[self]
         else:
@@ -521,7 +524,7 @@ class RandomVariable(Variable):
         statistic = query(self.distribution, parameters_dict)
         return statistic
 
-    def _get_sample(self, number_samples=1, resample=True, observed=False, input_values={}):
+    def _get_sample(self, number_samples=1, resample=True, observed=False, input_values={}, differentiable=True):
         """
         Method. Used internally. It returns samples from the random variable and all its parents.
 
@@ -556,7 +559,8 @@ class RandomVariable(Variable):
                 var_to_sample = self.dataset
             else:
                 var_to_sample = self
-        parents_samples_dict = join_dicts_list([parent._get_sample(number_samples, resample, observed, input_values)
+        parents_samples_dict = join_dicts_list([parent._get_sample(number_samples, resample, observed,
+                                                                   input_values, differentiable=differentiable)
                                                 for parent in var_to_sample.parents])
         input_dict = {parent: parents_samples_dict[parent] for parent in var_to_sample.parents}
         parameters_dict = var_to_sample._apply_link(input_dict)
@@ -724,12 +728,13 @@ class ProbabilisticModel(BrancherClass):
     def _get_statistic(self, query, input_values):
         return {var: var._get_statistic(query, input_values) for var in self.variables}
 
-    def _get_sample(self, number_samples, observed=False, input_values={}):
+    def _get_sample(self, number_samples, observed=False, input_values={}, differentiable=True):
         """
         Summary
         """
         joint_sample = join_dicts_list([var._get_sample(number_samples=number_samples, resample=False,
-                                                        observed=observed, input_values=input_values)
+                                                        observed=observed, input_values=input_values,
+                                                        differentiable=differentiable)
                                         for var in self._input_variables])
         joint_sample.update(input_values)
         self.reset()
@@ -742,7 +747,8 @@ class ProbabilisticModel(BrancherClass):
     def get_sample(self, number_samples, input_values={}):
         reformatted_input_values = reformat_sampler_input(pandas_frame2dict(input_values),
                                                                             number_samples=number_samples)
-        raw_sample = self._get_sample(number_samples, observed=False, input_values=reformatted_input_values)
+        raw_sample = self._get_sample(number_samples, observed=False, input_values=reformatted_input_values,
+                                      differentiable=False)
         sample = reformat_sample_to_pandas(raw_sample, number_samples=number_samples)
         return sample
 
@@ -783,14 +789,15 @@ class ProbabilisticModel(BrancherClass):
     def get_posterior_entropy(self, query, input_values):
         return self.posterior_model.get_entropy(input_values)
 
-    def _get_posterior_sample(self, number_samples, input_values={}):
+    def _get_posterior_sample(self, number_samples, input_values={}, differentiable=True):
         """
         Summary
         """
         self.check_posterior_model()
         posterior_sample = self.posterior_model._get_posterior_sample(number_samples=number_samples,
-                                                                      input_values=input_values)
-        sample = self._get_sample(number_samples, input_values=posterior_sample)
+                                                                      input_values=input_values,
+                                                                      differentiable=differentiable)
+        sample = self._get_sample(number_samples, input_values=posterior_sample, differentiable=differentiable)
         return sample
 
     def get_posterior_sample(self, number_samples, input_values={}):
@@ -810,7 +817,7 @@ class ProbabilisticModel(BrancherClass):
     def get_importance_weights(self, q_samples, q_model, empirical_samples={},
                                for_gradient=False, give_normalization=False):
         if not empirical_samples:
-            empirical_samples = self.observed_submodel._get_sample(1, observed=True)
+            empirical_samples = self.observed_submodel._get_sample(1, observed=True, differentiable=False)
         q_log_prob = q_model.calculate_log_probability(q_samples,
                                                        for_gradient=for_gradient, normalized=True)
         p_log_prob = self.get_p_log_probabilities_from_q_samples(q_samples=q_samples,
@@ -829,20 +836,30 @@ class ProbabilisticModel(BrancherClass):
         else:
             return weights, np.log(norm) + alpha
 
-    def estimate_log_model_evidence(self, number_samples, method="ELBO", input_values={}, for_gradient=False, posterior_model=()):
+    def estimate_log_model_evidence(self, number_samples, method="ELBO", input_values={},
+                                    for_gradient=False, posterior_model=(), gradient_estimator=None):
         if not posterior_model:
             self.check_posterior_model()
             posterior_model = self.posterior_model
         if method is "ELBO":
-            empirical_samples = self.observed_submodel._get_sample(1, observed=True) #TODO Important!!: You need to correct for subsampling
-            posterior_samples = posterior_model._get_sample(number_samples=number_samples,
-                                                            observed=False, input_values=input_values)
-            joint_log_prob = self.get_p_log_probabilities_from_q_samples(q_samples=posterior_samples,
-                                                                         empirical_samples=empirical_samples,
-                                                                         for_gradient=for_gradient,
-                                                                         q_model=posterior_model)
-            posterior_entropy = posterior_model._get_entropy(posterior_samples)
-            log_model_evidence = torch.mean(joint_log_prob + posterior_entropy)
+            empirical_samples = self.observed_submodel._get_sample(1, observed=True, differentiable=False) #TODO Important!!: You need to correct for subsampling
+            if for_gradient:
+                function = lambda samples: self.get_p_log_probabilities_from_q_samples(q_samples=samples,
+                                                                                       empirical_samples=empirical_samples,
+                                                                                       for_gradient=for_gradient,
+                                                                                       q_model=posterior_model) + posterior_model._get_entropy(samples)
+                estimator = gradient_estimator(function, posterior_model, empirical_samples)
+                log_model_evidence = estimator(number_samples)
+            else:
+                posterior_samples = posterior_model._get_sample(number_samples=number_samples,
+                                                                observed=False, input_values=input_values,
+                                                                differentiable=False)
+                joint_log_prob = self.get_p_log_probabilities_from_q_samples(q_samples=posterior_samples,
+                                                                             empirical_samples=empirical_samples,
+                                                                             for_gradient=for_gradient,
+                                                                             q_model=posterior_model)
+                posterior_entropy = posterior_model._get_entropy(posterior_samples)
+                log_model_evidence = torch.mean(joint_log_prob + posterior_entropy)
             return log_model_evidence
         else:
             raise NotImplementedError("The requested estimation method is currently not implemented.")
@@ -878,8 +895,9 @@ class PosteriorModel(ProbabilisticModel):
     def posterior_sample2joint_sample(self, posterior_sample):
         return reassign_samples(posterior_sample, self.model_mapping)
 
-    def _get_posterior_sample(self, number_samples, observed=False, input_values={}):
-        sample = self.posterior_sample2joint_sample(self._get_sample(number_samples, observed, input_values))
+    def _get_posterior_sample(self, number_samples, observed=False, input_values={}, differentiable=True):
+        sample = self.posterior_sample2joint_sample(self._get_sample(number_samples, observed, input_values,
+                                                                     differentiable=differentiable))
         sample.update(input_values)
         return sample
 
@@ -910,9 +928,10 @@ class Ensemble(BrancherClass):
         else:
             self.weights = np.array(weights)
 
-    def _get_sample(self, number_samples, observed=False, input_values={}):
+    def _get_sample(self, number_samples, observed=False, input_values={}, differentiable=True):
         num_samples_list = np.random.multinomial(number_samples, self.weights)
-        samples_list = [model._get_sample(n) for n, model in zip(num_samples_list, self.model_list)]
+        samples_list = [model._get_sample(n, differentiable=differentiable)
+                        for n, model in zip(num_samples_list, self.model_list)]
         named_sample_list = [{var.name: value for var, value in sample.items()} for sample in samples_list]
         named_sample = concatenate_samples(named_sample_list)
         sample = {self.model_list[0].get_variable(name): value for name, value in named_sample.items()}
@@ -924,7 +943,8 @@ class Ensemble(BrancherClass):
     def get_sample(self, number_samples, input_values={}): #TODO: code duplication here
         reformatted_input_values = reformat_sampler_input(pandas_frame2dict(input_values),
                                                                             number_samples=number_samples)
-        raw_sample = self._get_sample(number_samples, observed=False, input_values=reformatted_input_values)
+        raw_sample = self._get_sample(number_samples, observed=False, input_values=reformatted_input_values,
+                                      differentiable=False)
         sample = reformat_sample_to_pandas(raw_sample, number_samples=number_samples)
         return sample
 

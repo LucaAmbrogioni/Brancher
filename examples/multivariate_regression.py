@@ -43,7 +43,7 @@ y.observe(data)
 
 # Inference
 inference.perform_inference(model,
-                            number_iterations=2000,
+                            number_iterations=3000,
                             number_samples=100,
                             optimizer='Adam')
 

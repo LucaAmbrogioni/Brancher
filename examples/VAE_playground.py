@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from brancher.variables import RootVariable, ProbabilisticModel
-from brancher.standard_variables import NormalVariable, EmpiricalVariable, BinomialVariable, DeterministicVariable
+from brancher.standard_variables import NormalVariable, EmpiricalVariable, BinomialVariable, DeterministicVariable, LogNormalVariable
 from brancher import inference
 import brancher.functions as BF
 
@@ -37,7 +37,7 @@ class EncoderArchitecture(nn.Module):
         self.softplus = nn.Softplus()
 
     def __call__(self, x):
-        h0 = self.f1(self.l1(x[:, :, 0])) #TODO: to be fixed
+        h0 = self.f1(self.l1(x.squeeze())) #TODO: to be fixed
         h1 = self.f2(self.l2(h0))
         output_mean = self.l3(h1)
         output_log_sd = self.l4(h1)
@@ -80,7 +80,7 @@ model.set_posterior_model(ProbabilisticModel([Qx, Qz]))
 # Joint-contrastive inference
 inference.perform_inference(model,
                             number_iterations=500,
-                            number_samples=3,
+                            number_samples=1,
                             optimizer="Adam",
                             lr=0.001)
 loss_list = model.diagnostics["loss curve"]
