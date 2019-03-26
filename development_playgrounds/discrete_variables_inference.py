@@ -8,12 +8,13 @@ from brancher.inference import ReverseKL
 from brancher.gradient_estimators import BlackBoxEstimator, Taylor1Estimator
 
 #Model
-z = BernulliVariable(logits=0., name="z")
-y = NormalVariable(2.*z, 2, name="y")
+z1 = BernulliVariable(logits=0., name="z1")
+z2 = BernulliVariable(logits=0., name="z2")
+y = NormalVariable(2*z1 + z2, 1., name="y")
 model = ProbabilisticModel([y])
 
 #Generate data
-data = y.get_sample(10, input_values={z: 0})
+data = y.get_sample(20, input_values={z1: 1, z2: 0})
 data.hist(bins=20)
 plt.show()
 
@@ -21,8 +22,9 @@ plt.show()
 y.observe(data)
 
 #Variational Model
-Qz = BernulliVariable(logits=0., name="z", learnable=True)
-variational_model = ProbabilisticModel([Qz])
+Qz1 = BernulliVariable(logits=0., name="z1", learnable=True)
+Qz2 = BernulliVariable(logits=0., name="z2", learnable=True)
+variational_model = ProbabilisticModel([Qz1, Qz2])
 model.set_posterior_model(variational_model)
 
 # Joint-contrastive inference
@@ -30,8 +32,8 @@ inference.perform_inference(model,
                             inference_method=ReverseKL(gradient_estimator=Taylor1Estimator),
                             number_iterations=600,
                             number_samples=20,
-                            optimizer="Adam",
-                            lr=0.1)
+                            optimizer="SGD",
+                            lr=0.001)
 loss_list = model.diagnostics["loss curve"]
 
 #Plot results

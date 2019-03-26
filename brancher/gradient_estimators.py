@@ -11,6 +11,7 @@ import torch
 
 from brancher.config import device
 from brancher.utilities import map_iterable
+from brancher.utilities import zip_dict_list
 
 
 class GradientEstimator(ABC):
@@ -46,7 +47,10 @@ class PathwiseDerivativeEstimator(GradientEstimator):
 class Taylor1Estimator(GradientEstimator):
 
     def __call__(self, n_samples):
-        observable_samples = self.empirical_samples
+        observable_samples = self.sampler._get_sample(n_samples, differentiable=False)
+        observable_samples.update(self.empirical_samples)
         means = {var: var._get_mean(input_values=observable_samples) for var in self.sampler.variables if not var.is_observed}
-        means.update(observable_samples)
+        for key, value in observable_samples.items():
+            if not key in means:
+                means[key] = value
         return self.function(means).mean()
