@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def plot_posterior_histogram(model, variables, number_samples=100): #TODO: fix code duplication
+def plot_posterior_histogram(model, variables, number_samples=300): #TODO: fix code duplication
 
     # Get samples
     sample = model.get_sample(number_samples)
@@ -28,7 +28,7 @@ def plot_posterior_histogram(model, variables, number_samples=100): #TODO: fix c
     warnings.filterwarnings('default')
 
 
-def plot_posterior(model, variables, number_samples=2000):
+def plot_posterior(model, variables, number_samples=500):
 
     # Get samples
     sample = model.get_sample(number_samples)

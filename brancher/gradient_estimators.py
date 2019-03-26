@@ -46,8 +46,7 @@ class PathwiseDerivativeEstimator(GradientEstimator):
 class Taylor1Estimator(GradientEstimator):
 
     def __call__(self, n_samples):
-        observable_samples = self.sampler._get_sample(1)
-        observable_samples.update(self.empirical_samples)
+        observable_samples = self.empirical_samples
         means = {var: var._get_mean(input_values=observable_samples) for var in self.sampler.variables if not var.is_observed}
         means.update(observable_samples)
         return self.function(means).mean()

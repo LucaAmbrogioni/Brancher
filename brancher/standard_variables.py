@@ -255,6 +255,28 @@ class BinomialVariable(VariableConstructor):
                              "logits needs to be provided as input")
 
 
+class BernulliVariable(VariableConstructor):
+    """
+    Summary
+
+    Parameters
+    ----------
+    """
+    def __init__(self, probs=None, logits=None, name="Bernulli", learnable=False, is_observed=False):
+        self._type = "Bernulli"
+        if probs is not None and logits is None:
+            ranges = {"probs": geometric_ranges.Interval(0., 1.)}
+            super().__init__(name, probs=probs, learnable=learnable, ranges=ranges, is_observed=is_observed)
+            self.distribution = distributions.BernulliDistribution()
+        elif logits is not None and probs is None:
+            ranges = {"logits": geometric_ranges.UnboundedRange()}
+            super().__init__(name, logits=logits, learnable=learnable, ranges=ranges)
+            self.distribution = distributions.BernulliDistribution()
+        else:
+            raise ValueError("Either probs or " +
+                             "logits needs to be provided as input")
+
+
 class CategoricalVariable(VariableConstructor): #TODO: Work in progress
     """
     Summary

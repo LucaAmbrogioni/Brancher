@@ -95,7 +95,7 @@ def perform_inference(joint_model, number_iterations, number_samples = 1,
     for iteration in tqdm(range(number_iterations)):
         loss = inference_method.compute_loss(joint_model, posterior_model, sampler_model, number_samples)
 
-        if torch.isfinite(loss.detach()).all().item(): #np.isfinite(loss.detach().numpy()).all(): #TODO: numpy()
+        if torch.isfinite(loss.detach()).all().item():
             [opt.zero_grad() for opt in optimizers_list]
             loss.backward()
             inference_method.correct_gradient(joint_model, posterior_model, sampler_model, number_samples)

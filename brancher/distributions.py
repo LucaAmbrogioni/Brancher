@@ -575,4 +575,21 @@ class BinomialDistribution(UnivariateDistribution, DiscreteDistribution):
         self.has_analytic_var = True
 
 
+class BernulliDistribution(UnivariateDistribution, DiscreteDistribution):
+    """
+    Summary
+    """
+    def __init__(self):
+        super().__init__()
+        self.torchdist = distributions.bernoulli.Bernoulli
+        self.required_parameters = {("probs", "logits")}
+        self.optional_parameters = {}
+        self.has_differentiable_samples = False
+        self.is_finite = True
+        self.is_discrete = True
+        self.has_analytic_entropy = True
+        self.has_analytic_mean = True
+        self.has_analytic_var = True
+
+
 

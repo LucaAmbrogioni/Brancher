@@ -159,7 +159,7 @@ class Variable(BrancherClass):
                                                 input_values=input_values)
             return sum_from_dim(entropy_array, 2)
         else:
-            return -self.calculate_log_probability(self, input_values, include_parents=False)
+            return -self.calculate_log_probability(input_values, include_parents=False)
 
     def get_sample(self, number_samples, input_values={}):
         reformatted_input_values = reformat_sampler_input(pandas_frame2dict(input_values),
