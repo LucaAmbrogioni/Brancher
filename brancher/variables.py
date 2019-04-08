@@ -948,6 +948,15 @@ class Ensemble(BrancherClass):
         sample = reformat_sample_to_pandas(raw_sample, number_samples=number_samples)
         return sample
 
+    def _get_statistic(self, query, input_values):
+        raise NotImplemented
+
+    def _get_mean(self, input_values):
+        raise NotImplemented
+
+    def _get_variance(self, input_values):
+        raise NotImplemented
+
 
 
 class PartialLink(BrancherClass):
@@ -1022,7 +1031,7 @@ class PartialLink(BrancherClass):
 
         vars = self.vars
         fn = lambda values: self.fn(values)[variable_slice] if is_tensor(self.fn(values)) \
-            else self.fn(values)[key] #TODO: this should be a def not a lambda
+            else self.fn(values)[key]
         links = set()
         return PartialLink(vars=vars,
                            fn=fn,

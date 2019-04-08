@@ -11,7 +11,7 @@ from brancher.visualizations import plot_posterior
 number_tosses = 1
 p = BetaVariable(1., 1., "p")
 k = BinomialVariable(number_tosses, probs=p, name="k")
-model = ProbabilisticModel([k])
+model = ProbabilisticModel([k, p])
 
 # Generate data
 p_real = 0.8

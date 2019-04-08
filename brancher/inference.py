@@ -214,7 +214,7 @@ class WassersteinVariationalGradientDescent(InferenceMethod):
         else:
             importance_weights = [joint_model.get_importance_weights(q_samples=samples,
                                                                        q_model=sampler,
-                                                                       for_gradient=False).flatten()
+                                                                       for_gradient=True).flatten()
                                   for samples, sampler in zip(samples_list, sampler_model)]
         reassigned_samples_list = [reassign_samples(samples, source_model=sampler, target_model=particle)
                                    for samples, sampler, particle in zip(samples_list, sampler_model, particle_list)]
@@ -237,7 +237,7 @@ class WassersteinVariationalGradientDescent(InferenceMethod):
             a = sampler.get_acceptance_probability(number_samples=self.number_post_samples)
             _, logZ = joint_model.get_importance_weights(q_samples=s,
                                                          q_model=sampler,
-                                                         for_gradient=False,
+                                                         for_gradient=True,
                                                          give_normalization=True)
             log_weights.append(np.log(a) + logZ)
         log_weights = np.array(log_weights)

@@ -16,12 +16,11 @@ from brancher.config import device
 
 # Data
 image_size = 28*28
-latent_size = 20
+latent_size = 10
 
 train = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=None)
 test = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=None)
 dataset_size = len(train)
-#dataset = torch.Tensor(np.reshape(train.train_data.numpy(), newshape=(dataset_size, image_size, 1))).double().to(device)
 dataset = np.reshape(train.train_data.numpy(), newshape=(dataset_size, image_size, 1))
 data_mean = np.mean(dataset)
 dataset = (dataset > data_mean).astype("int32")
@@ -82,10 +81,10 @@ model.set_posterior_model(ProbabilisticModel([Qx, Qz]))
 # Joint-contrastive inference
 inference.perform_inference(model,
 inference_method=ReverseKL(gradient_estimator=Taylor1Estimator),
-                           number_iterations=5000,
+                           number_iterations=12000,
                            number_samples=1,
                            optimizer="SGD",
-                           lr=0.001)
+                           lr=0.01)
 loss_list = model.diagnostics["loss curve"]
 
 #Plot results
@@ -97,7 +96,6 @@ image_grid = []
 num_images = 30
 z_values = [np.random.binomial(1, 0.5*np.ones(latent_size,)) for _ in range(num_images)]
 for z_val in z_values:
-    print(z_val)
     sample = model.get_sample(1, input_values={z: z_val})
     image = sigmoid(np.reshape(sample["decoder_output"].values[0]["mean"], newshape=(28, 28)))
     image_grid += [image]

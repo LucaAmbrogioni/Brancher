@@ -43,7 +43,7 @@ for N in particle_numbers:
 
         # Forward pass
         final_activations = BF.matmul(weights, x)
-        k = CategoricalVariable(softmax_p=final_activations, name="k")
+        k = CategoricalVariable(logits=final_activations, name="k")
 
         # Probabilistic model
         model = ProbabilisticModel([k])

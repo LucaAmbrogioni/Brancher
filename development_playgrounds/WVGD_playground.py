@@ -12,8 +12,8 @@ from brancher.visualizations import ensemble_histogram
 
 # Model
 dimensionality = 1
-theta = NormalVariable(mu=0., sigma=1., name="theta")
-x = NormalVariable(mu=theta, sigma=0.4, name="x")
+theta = NormalVariable(loc=0., scale=1., name="theta")
+x = NormalVariable(loc=theta, scale=0.4, name="x")
 model = ProbabilisticModel([x, theta])
 
 # Generate data
