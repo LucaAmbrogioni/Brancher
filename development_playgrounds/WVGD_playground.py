@@ -28,7 +28,7 @@ x.observe(data[x_real][:, 0, :])
 num_particles = 2
 #initial_locations = [np.random.normal(0., 0.1)
  #                    for _ in range(num_particles)]
-initial_locations = [0, 0.1]
+initial_locations = [-0.1, 0.1]
 particles = [ProbabilisticModel([RootVariable(p, name="theta", learnable=True)])
              for p in initial_locations]
 
@@ -41,10 +41,10 @@ variational_samplers = [ProbabilisticModel([NormalVariable(loc=location, scale=0
 inference_method = WVGD(variational_samplers=variational_samplers,
                         particles=particles,
                         biased=False,
-                        number_post_samples=20000)
+                        number_post_samples=30000)
 inference.perform_inference(model,
                             inference_method=inference_method,
-                            number_iterations=200,
+                            number_iterations=250,
                             number_samples=50,
                             optimizer="SGD",
                             lr=0.0001,

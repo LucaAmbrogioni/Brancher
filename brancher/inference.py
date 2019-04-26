@@ -157,7 +157,7 @@ class WassersteinVariationalGradientDescent(InferenceMethod):
                  cost_function=None,
                  deviation_statistics=None,
                  biased=False,
-                 number_post_samples=8000,
+                 number_post_samples=20000,
                  gradient_estimator=gradient_estimators.PathwiseDerivativeEstimator):
         self.gradient_estimator = gradient_estimator
         self.learnable_model = False #TODO: to implement later
@@ -215,7 +215,7 @@ class WassersteinVariationalGradientDescent(InferenceMethod):
         else:
             importance_weights = [joint_model.get_importance_weights(q_samples=samples,
                                                                      q_model=sampler,
-                                                                     for_gradient=True).flatten()
+                                                                     for_gradient=False).flatten()
                                   for samples, sampler in zip(samples_list, sampler_model)]
         reassigned_samples_list = [reassign_samples(samples, source_model=sampler, target_model=particle)
                                    for samples, sampler, particle in zip(samples_list, sampler_model, particle_list)]
