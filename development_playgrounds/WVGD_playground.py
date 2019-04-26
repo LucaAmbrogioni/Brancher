@@ -12,12 +12,12 @@ from brancher.visualizations import ensemble_histogram
 # Model
 dimensionality = 1
 theta = NormalVariable(loc=0., scale=1., name="theta")
-x = NormalVariable(loc=theta, scale=0.4, name="x")
+x = NormalVariable(theta, scale=0.4, name="x")
 model = ProbabilisticModel([x, theta])
 
 # Generate data
 N = 15
-theta_real = 0.
+theta_real = -0.2
 x_real = NormalVariable(theta_real, 0.4, "x")
 data = x_real._get_sample(number_samples=N)
 
@@ -25,10 +25,10 @@ data = x_real._get_sample(number_samples=N)
 x.observe(data[x_real][:, 0, :])
 
 # Variational model
-num_particles = 2
-#initial_locations = [np.random.normal(0., 0.1)
- #                    for _ in range(num_particles)]
-initial_locations = [-0.1, 0.1]
+num_particles = 3
+initial_locations = [np.random.normal(0., 0.1)
+                     for _ in range(num_particles)]
+#initial_locations = [0, 0.1]
 particles = [ProbabilisticModel([RootVariable(p, name="theta", learnable=True)])
              for p in initial_locations]
 
@@ -44,10 +44,10 @@ inference_method = WVGD(variational_samplers=variational_samplers,
                         number_post_samples=30000)
 inference.perform_inference(model,
                             inference_method=inference_method,
-                            number_iterations=250,
-                            number_samples=50,
-                            optimizer="SGD",
-                            lr=0.0001,
+                            number_iterations=2000,
+                            number_samples=30,
+                            optimizer="Adagrad",
+                            lr=0.0025,
                             posterior_model=particles,
                             pretraining_iterations=0)
 loss_list = model.diagnostics["loss curve"]

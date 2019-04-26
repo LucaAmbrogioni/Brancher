@@ -637,6 +637,7 @@ class ProbabilisticModel(BrancherClass):
         self.posterior_model = None
         self.posterior_sampler = None
         self.observed_submodel = None
+        self.is_transformed = False
         self.diagnostics = {}
         if not all([var.is_observed for var in self._input_variables]):
             self.update_observed_submodel()
@@ -741,8 +742,11 @@ class ProbabilisticModel(BrancherClass):
         return joint_sample
 
     def _get_entropy(self, input_values={}):
-        entropy_array = {var: var._get_entropy(input_values) for var in self.variables}
-        return sum([sum_from_dim(var_ent, 2) for var_ent in entropy_array.values()])
+        if not self.is_transformed:
+            entropy_array = {var: var._get_entropy(input_values) for var in self.variables}
+            return sum([sum_from_dim(var_ent, 2) for var_ent in entropy_array.values()])
+        else:
+            return -self.calculate_log_probability(input_values, for_gradient=True)
 
     def get_sample(self, number_samples, input_values={}):
         reformatted_input_values = reformat_sampler_input(pandas_frame2dict(input_values),

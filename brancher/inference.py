@@ -205,7 +205,7 @@ class WassersteinVariationalGradientDescent(InferenceMethod):
                              for subsampler in sampler_model])
         particle_loss = self.get_particle_loss(joint_model, posterior_model, sampler_model, number_samples,
                                                input_values)
-        return sampler_loss + 0.*particle_loss #TODO: work in progress
+        return sampler_loss + particle_loss #TODO: work in progress
 
     def get_particle_loss(self, joint_model, particle_list, sampler_model, number_samples, input_values):
         samples_list = [sampler._get_sample(number_samples, input_values=input_values)

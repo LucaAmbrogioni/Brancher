@@ -22,19 +22,19 @@ def truncate_model(model, truncation_rule, model_statistics):
             else:
                 raise NotImplemented #TODO: Work in progress
 
-    def truncated_get_sample(number_samples, max_itr=np.inf, **kwargs):
+    def truncated_get_sample(number_samples, max_itr=100, **kwargs):
         batch_size = number_samples
         current_number_samples = 0
         sample_list = []
         itr = 0
-        while current_number_samples < number_samples and itr < max_itr:
+        while (current_number_samples < number_samples and itr < max_itr) or current_number_samples < 1:
             remaining_samples, n, p = reject_samples(model._get_sample(batch_size, **kwargs),
                                                      model_statistics=model_statistics,
                                                      truncation_rule=truncation_rule)
             if remaining_samples:
                 remaining_samples = {var: value[:number_samples - current_number_samples, :]
                                      for var, value in remaining_samples.items()}
-                current_number_samples += n
+                current_number_samples += np.min([n, number_samples - current_number_samples])
                 sample_list.append(remaining_samples)
             batch_size = int(np.ceil((number_samples - current_number_samples) / p))
             itr += 1
@@ -53,6 +53,7 @@ def truncate_model(model, truncation_rule, model_statistics):
     truncated_model = copy.copy(model)
 
     if isinstance(model, ProbabilisticModel):
+        truncated_model.is_transformed = True
         truncated_model._get_sample = truncated_get_sample
         truncated_model.calculate_log_probability = truncated_calculate_log_probability
         truncated_model.get_acceptance_probability = get_acceptance_probability
