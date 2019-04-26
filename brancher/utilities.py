@@ -313,7 +313,7 @@ def reject_samples(samples, model_statistics, truncation_rule):
     sample_indices = [index for index, value in enumerate(decision_variable) if truncation_rule(value)]
     num_accepted_samples = len(sample_indices)
     if num_accepted_samples == 0:
-        return None, 0, 0.1 #TODO: Improve
+        return None, 0, 0.001 #TODO: Improve
     else:
         remaining_samples = {var: value[sample_indices, :] for var, value in samples.items()}
 

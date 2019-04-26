@@ -22,11 +22,12 @@ def truncate_model(model, truncation_rule, model_statistics):
             else:
                 raise NotImplemented #TODO: Work in progress
 
-    def truncated_get_sample(number_samples, **kwargs):
+    def truncated_get_sample(number_samples, max_itr=np.inf, **kwargs):
         batch_size = number_samples
         current_number_samples = 0
         sample_list = []
-        while current_number_samples < number_samples:
+        itr = 0
+        while current_number_samples < number_samples and itr < max_itr:
             remaining_samples, n, p = reject_samples(model._get_sample(batch_size, **kwargs),
                                                      model_statistics=model_statistics,
                                                      truncation_rule=truncation_rule)
@@ -36,6 +37,7 @@ def truncate_model(model, truncation_rule, model_statistics):
                 current_number_samples += n
                 sample_list.append(remaining_samples)
             batch_size = int(np.ceil((number_samples - current_number_samples) / p))
+            itr += 1
         return concatenate_samples(sample_list)
 
     def get_acceptance_probability(samples=None, number_samples=None): #TODO: Warning if both arguments
