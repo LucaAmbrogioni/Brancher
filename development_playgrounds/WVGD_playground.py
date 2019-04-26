@@ -44,10 +44,10 @@ inference_method = WVGD(variational_samplers=variational_samplers,
                         number_post_samples=30000)
 inference.perform_inference(model,
                             inference_method=inference_method,
-                            number_iterations=2000,
-                            number_samples=30,
+                            number_iterations=1500,
+                            number_samples=10,
                             optimizer="Adagrad",
-                            lr=0.0025,
+                            lr=0.005,
                             posterior_model=particles,
                             pretraining_iterations=0)
 loss_list = model.diagnostics["loss curve"]
