@@ -22,7 +22,7 @@ def truncate_model(model, truncation_rule, model_statistics):
             else:
                 raise NotImplemented #TODO: Work in progress
 
-    def truncated_get_sample(number_samples, **kwargs):  # TODO: Work in progress
+    def truncated_get_sample(number_samples, **kwargs):
         batch_size = number_samples
         current_number_samples = 0
         sample_list = []
@@ -54,6 +54,10 @@ def truncate_model(model, truncation_rule, model_statistics):
         truncated_model._get_sample = truncated_get_sample
         truncated_model.calculate_log_probability = truncated_calculate_log_probability
         truncated_model.get_acceptance_probability = get_acceptance_probability
+        for var in model.variables:
+            var.distribution.has_analytic_entropy = False
+            var.distribution.has_analytic_mean = False
+            var.distribution.has_analytic_var = False
 
     elif isinstance(model, RandomVariable):
         pass #TODO: Work in progress

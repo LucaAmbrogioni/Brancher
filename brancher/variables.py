@@ -819,7 +819,7 @@ class ProbabilisticModel(BrancherClass):
         if not empirical_samples:
             empirical_samples = self.observed_submodel._get_sample(1, observed=True, differentiable=False)
         q_log_prob = q_model.calculate_log_probability(q_samples,
-                                                       for_gradient=for_gradient, normalized=True)
+                                                       for_gradient=for_gradient, normalized=False)
         p_log_prob = self.get_p_log_probabilities_from_q_samples(q_samples=q_samples,
                                                                  q_model=q_model,
                                                                  empirical_samples=empirical_samples,
@@ -829,12 +829,12 @@ class ProbabilisticModel(BrancherClass):
         alpha = np.max(log_weights)
         norm_log_weights = log_weights - alpha
         weights = np.exp(norm_log_weights)
-        norm = np.mean(weights)
+        norm = np.sum(weights)
         weights /= norm
         if not give_normalization:
             return weights
         else:
-            return weights, np.log(norm) + alpha
+            return weights, np.log(norm) - np.log(len(weights)) + alpha #TODO: Work in progress
 
     def estimate_log_model_evidence(self, number_samples, method="ELBO", input_values={},
                                     for_gradient=False, posterior_model=(), gradient_estimator=None):

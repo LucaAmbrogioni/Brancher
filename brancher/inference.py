@@ -150,6 +150,7 @@ class ReverseKL(InferenceMethod):
     def post_process(self, joint_model):
         pass
 
+
 class WassersteinVariationalGradientDescent(InferenceMethod):
 
     def __init__(self, variational_samplers, particles,
@@ -213,8 +214,8 @@ class WassersteinVariationalGradientDescent(InferenceMethod):
             importance_weights = [1./number_samples for _ in sampler_model]
         else:
             importance_weights = [joint_model.get_importance_weights(q_samples=samples,
-                                                                       q_model=sampler,
-                                                                       for_gradient=True).flatten()
+                                                                     q_model=sampler,
+                                                                     for_gradient=True).flatten()
                                   for samples, sampler in zip(samples_list, sampler_model)]
         reassigned_samples_list = [reassign_samples(samples, source_model=sampler, target_model=particle)
                                    for samples, sampler, particle in zip(samples_list, sampler_model, particle_list)]
