@@ -117,12 +117,13 @@ def join_sets_list(sets_list):
 
 
 def sum_from_dim(tensor, dim_index):
-    assert is_tensor(tensor), 'object is not torch tensor'
-    data_dim = len(tensor.shape)
-    for dim in reversed(range(dim_index, data_dim)):
-        tensor = tensor.sum(dim=dim)
-    return tensor
-
+    if is_tensor(tensor):
+        data_dim = len(tensor.shape)
+        for dim in reversed(range(dim_index, data_dim)):
+            tensor = tensor.sum(dim=dim)
+        return tensor
+    else:
+        return np.sum(tensor, axis=tuple(range(1, len(tensor.shape) - 1)), keepdims=False)[:, 0]
 
 def sum_data_dimensions(var):
     return sum_from_dim(var, dim_index=2)
@@ -309,7 +310,7 @@ def reassign_samples(samples, model_mapping=(), source_model=(), target_model=()
 
 
 def reject_samples(samples, model_statistics, truncation_rule):
-    decision_variable = model_statistics(samples) #samples -> tensor
+    decision_variable = model_statistics(samples)
     sample_indices = [index for index, value in enumerate(decision_variable) if truncation_rule(value)]
     num_accepted_samples = len(sample_indices)
     if num_accepted_samples == 0:

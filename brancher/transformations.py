@@ -15,14 +15,14 @@ def truncate_model(model, truncation_rule, model_statistics):
             return unnormalized_log_probability
         else:
             if for_gradient:
-                nondiff_values = {var: value.data for var, value in rv_values.items()}
+                nondiff_values = {var: value.detach() for var, value in rv_values.items()}
                 normalization = -model.calculate_log_probability(nondiff_values,
                                                                  for_gradient=False, normalized=True).mean()
                 return unnormalized_log_probability + normalization
             else:
                 raise NotImplemented #TODO: Work in progress
 
-    def truncated_get_sample(number_samples, max_itr=100, **kwargs):
+    def truncated_get_sample(number_samples, max_itr=1, **kwargs):
         batch_size = number_samples
         current_number_samples = 0
         sample_list = []
@@ -31,12 +31,13 @@ def truncate_model(model, truncation_rule, model_statistics):
             remaining_samples, n, p = reject_samples(model._get_sample(batch_size, **kwargs),
                                                      model_statistics=model_statistics,
                                                      truncation_rule=truncation_rule)
+            print(p)
             if remaining_samples:
                 remaining_samples = {var: value[:number_samples - current_number_samples, :]
                                      for var, value in remaining_samples.items()}
                 current_number_samples += np.min([n, number_samples - current_number_samples])
                 sample_list.append(remaining_samples)
-            batch_size = int(np.ceil((number_samples - current_number_samples) / p))
+            batch_size = int(np.ceil((number_samples - current_number_samples)))
             itr += 1
         return concatenate_samples(sample_list)
 
@@ -47,8 +48,6 @@ def truncate_model(model, truncation_rule, model_statistics):
                                  model_statistics=model_statistics,
                                  truncation_rule=truncation_rule)
         return p
-
-
 
     truncated_model = copy.copy(model)
 

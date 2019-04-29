@@ -168,7 +168,7 @@ class WassersteinVariationalGradientDescent(InferenceMethod):
         if cost_function:
             self.cost_function = cost_function
         else:
-            self.cost_function = lambda x, y: sum_from_dim((to_tensor(x) - to_tensor(y)) **2, dim_index=1)
+            self.cost_function = lambda x, y: sum_from_dim((x - y)**2, dim_index=1)
         if deviation_statistics:
             self.deviation_statistics = deviation_statistics
         else:
@@ -179,7 +179,8 @@ class WassersteinVariationalGradientDescent(InferenceMethod):
             reassigned_particles = [reassign_samples(p._get_sample(num_samples), source_model=p, target_model=dic)
                                     for p in particles]
 
-            statistics = [self.deviation_statistics([self.cost_function(value_pair[0], value_pair[1]).detach().numpy() #TODO: same as above + GPU
+            statistics = [self.deviation_statistics([self.cost_function(value_pair[0].detach().numpy(),
+                                                                        value_pair[1].detach().numpy())
                                                      for var, value_pair in zip_dict(dic, p).items()])
                           for p in reassigned_particles]
             return np.array(statistics).transpose()
@@ -205,11 +206,11 @@ class WassersteinVariationalGradientDescent(InferenceMethod):
                              for subsampler in sampler_model])
         particle_loss = self.get_particle_loss(joint_model, posterior_model, sampler_model, number_samples,
                                                input_values)
-        return sampler_loss + particle_loss #TODO: work in progress
+        return sampler_loss + 0.001*particle_loss
 
     def get_particle_loss(self, joint_model, particle_list, sampler_model, number_samples, input_values):
-        samples_list = [sampler._get_sample(number_samples, input_values=input_values)
-                         for sampler in sampler_model]
+        samples_list = [sampler._get_sample(number_samples, input_values=input_values, max_itr=1)
+                        for sampler in sampler_model]
         if self.biased:
             importance_weights = [1./number_samples for _ in sampler_model]
         else:
@@ -222,7 +223,7 @@ class WassersteinVariationalGradientDescent(InferenceMethod):
         pair_list = [zip_dict(particle._get_sample(1), samples)
                      for particle, samples in zip(particle_list, reassigned_samples_list)]
 
-        particle_loss = sum([torch.sum(to_tensor(w)*self.deviation_statistics([self.cost_function(value_pair[0], value_pair[1].detach().numpy()) #TODO: numpy()
+        particle_loss = sum([torch.sum(to_tensor(w)*self.deviation_statistics([self.cost_function(value_pair[0], value_pair[1].detach()) #TODO: numpy()
                                                                 for var, value_pair in particle.items()]))
                              for particle, w in zip(pair_list, importance_weights)])
         return particle_loss
@@ -231,16 +232,16 @@ class WassersteinVariationalGradientDescent(InferenceMethod):
         pass
 
     def post_process(self, joint_model):
-        sample_list = [sampler._get_sample(self.number_post_samples)
+        sample_list = [sampler._get_sample(self.number_post_samples, max_itr=1)
                         for sampler in self.sampler_model]
         log_weights = []
         for sampler, s in zip(self.sampler_model, sample_list):
-            a = sampler.get_acceptance_probability(number_samples=self.number_post_samples)
+            #a = sampler.get_acceptance_probability(number_samples=self.number_post_samples)
             _, logZ = joint_model.get_importance_weights(q_samples=s,
                                                          q_model=sampler,
                                                          for_gradient=False,
                                                          give_normalization=True)
-            log_weights.append(np.log(a) + logZ)
+            log_weights.append(logZ)
         log_weights = np.array(log_weights)
         alpha = np.max(log_weights)
         un_weights = np.exp(log_weights - alpha)

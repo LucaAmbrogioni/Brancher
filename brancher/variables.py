@@ -753,7 +753,7 @@ class ProbabilisticModel(BrancherClass):
                                                                             number_samples=number_samples)
         raw_sample = self._get_sample(number_samples, observed=False, input_values=reformatted_input_values,
                                       differentiable=False)
-        sample = reformat_sample_to_pandas(raw_sample, number_samples=number_samples)
+        sample = reformat_sample_to_pandas(raw_sample)
         return sample
 
     def get_mean(self, input_values={}):
@@ -838,7 +838,7 @@ class ProbabilisticModel(BrancherClass):
         if not give_normalization:
             return weights
         else:
-            return weights, np.log(norm) - np.log(len(weights)) + alpha #TODO: Work in progress
+            return weights, np.log(norm) + alpha #TODO: work in progress
 
     def estimate_log_model_evidence(self, number_samples, method="ELBO", input_values={},
                                     for_gradient=False, posterior_model=(), gradient_estimator=None):

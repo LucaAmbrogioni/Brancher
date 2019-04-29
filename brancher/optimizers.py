@@ -26,7 +26,7 @@ class ProbabilisticOptimizer(ABC):
         Summary
     """
     def __init__(self, model, optimizer='SGD', **kwargs):
-        assert isinstance(optimizer, str), 'Optimizer should be a name of available pytoch optimizers' #TODO: improve, list optim?
+        assert isinstance(optimizer, str), 'Optimizer should be a name of available pytoch optimizers'
         self.link_set = set()
         self.module = None
         self.setup(model, optimizer, **kwargs) #TODO: add asserts for checking the params dictionary
@@ -51,7 +51,7 @@ class ProbabilisticOptimizer(ABC):
                 [self.module.append(l) for l in link]
 
     def setup(self, model, optimizer, **kwargs):
-        self.module = EmptyModule() #TODO: better name: aggregation of all links in all variables of the model
+        self.module = EmptyModule()
         optimizer_class = getattr(torch.optim, optimizer)
         if isinstance(model, (Variable, ProbabilisticModel)):
             self.add_variable2module(model)

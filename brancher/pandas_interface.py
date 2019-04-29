@@ -43,7 +43,8 @@ def reformat_value(value, index):
 
 
 
-def reformat_sample_to_pandas(sample, number_samples): #TODO: Work in progress
+def reformat_sample_to_pandas(sample):
+    number_samples = list(sample.values())[0].shape[0]
     data = [[reformat_value(value, index)
              for index in range(number_samples)]
             for variable, value in sample.items()]
