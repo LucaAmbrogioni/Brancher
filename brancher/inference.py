@@ -203,10 +203,10 @@ class WassersteinVariationalGradientDescent(InferenceMethod):
         sampler_loss = sum([-joint_model.estimate_log_model_evidence(number_samples=number_samples, posterior_model=subsampler,
                                                                      method="ELBO", input_values=input_values,
                                                                      for_gradient=True, gradient_estimator=self.gradient_estimator)
-                             for subsampler in sampler_model])
+                            for subsampler in sampler_model])
         particle_loss = self.get_particle_loss(joint_model, posterior_model, sampler_model, number_samples,
                                                input_values)
-        return sampler_loss + 0.001*particle_loss
+        return sampler_loss + 0.01*particle_loss
 
     def get_particle_loss(self, joint_model, particle_list, sampler_model, number_samples, input_values):
         samples_list = [sampler._get_sample(number_samples, input_values=input_values, max_itr=1)

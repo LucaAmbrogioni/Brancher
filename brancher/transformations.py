@@ -22,7 +22,7 @@ def truncate_model(model, truncation_rule, model_statistics):
             else:
                 raise NotImplemented #TODO: Work in progress
 
-    def truncated_get_sample(number_samples, max_itr=1, **kwargs):
+    def truncated_get_sample(number_samples, max_itr=5, **kwargs):
         batch_size = number_samples
         current_number_samples = 0
         sample_list = []

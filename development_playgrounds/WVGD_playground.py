@@ -17,8 +17,8 @@ x = NormalVariable(theta**2, scale=0.2, name="x")
 model = ProbabilisticModel([x, theta])
 
 # Generate data
-N = 10
-theta_real = 0.2
+N = 3
+theta_real = 0.1
 x_real = NormalVariable(theta_real**2, 0.2, "x")
 data = x_real._get_sample(number_samples=N)
 
@@ -29,6 +29,7 @@ x.observe(data[x_real][:, 0, :])
 num_particles = 4
 initial_locations = [np.random.normal(0., 0.1)
                      for _ in range(num_particles)]
+
 #initial_locations = [0, 0.1]
 particles = [ProbabilisticModel([RootVariable(p, name="theta", learnable=True)])
              for p in initial_locations]
@@ -42,13 +43,13 @@ variational_samplers = [ProbabilisticModel([NormalVariable(loc=location, scale=0
 inference_method = WVGD(variational_samplers=variational_samplers,
                         particles=particles,
                         biased=False,
-                        number_post_samples=10000000)
+                        number_post_samples=8000000)
 inference.perform_inference(model,
                             inference_method=inference_method,
-                            number_iterations=500,
-                            number_samples=1000,
-                            optimizer="Adam",
-                            lr=0.0005,
+                            number_iterations=1000,
+                            number_samples=50,
+                            optimizer="SGD",
+                            lr=0.0001,
                             posterior_model=particles,
                             pretraining_iterations=0)
 loss_list = model.diagnostics["loss curve"]
