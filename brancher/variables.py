@@ -949,7 +949,7 @@ class Ensemble(BrancherClass):
                                                                             number_samples=number_samples)
         raw_sample = self._get_sample(number_samples, observed=False, input_values=reformatted_input_values,
                                       differentiable=False)
-        sample = reformat_sample_to_pandas(raw_sample, number_samples=number_samples)
+        sample = reformat_sample_to_pandas(raw_sample)
         return sample
 
     def _get_statistic(self, query, input_values):

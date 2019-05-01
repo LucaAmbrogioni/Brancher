@@ -37,7 +37,6 @@ def truncate_model(model, truncation_rule, model_statistics):
                                      for var, value in remaining_samples.items()}
                 current_number_samples += np.min([n, number_samples - current_number_samples])
                 sample_list.append(remaining_samples)
-            batch_size = int(np.ceil((number_samples - current_number_samples)))
             itr += 1
         return concatenate_samples(sample_list)
 
