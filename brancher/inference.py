@@ -13,7 +13,7 @@ from tqdm import tqdm
 import torch
 
 from brancher.optimizers import ProbabilisticOptimizer
-from brancher.variables import Variable, ProbabilisticModel
+from brancher.variables import Variable, ProbabilisticModel, Ensemble
 from brancher.transformations import truncate_model
 from brancher.variables import RootVariable
 from brancher import gradient_estimators
@@ -206,7 +206,7 @@ class WassersteinVariationalGradientDescent(InferenceMethod):
                             for subsampler in sampler_model])
         particle_loss = self.get_particle_loss(joint_model, posterior_model, sampler_model, number_samples,
                                                input_values)
-        return sampler_loss + 10*particle_loss
+        return sampler_loss + particle_loss #10
 
     def get_particle_loss(self, joint_model, particle_list, sampler_model, number_samples, input_values):
         samples_list = [sampler._get_sample(number_samples, input_values=input_values, max_itr=1)
@@ -236,7 +236,6 @@ class WassersteinVariationalGradientDescent(InferenceMethod):
                         for sampler in self.sampler_model]
         log_weights = []
         for sampler, s in zip(self.sampler_model, sample_list):
-            #a = sampler.get_acceptance_probability(number_samples=self.number_post_samples)
             _, logZ = joint_model.get_importance_weights(q_samples=s,
                                                          q_model=sampler,
                                                          for_gradient=False,
@@ -246,6 +245,7 @@ class WassersteinVariationalGradientDescent(InferenceMethod):
         alpha = np.max(log_weights)
         un_weights = np.exp(log_weights - alpha)
         self.weights = un_weights/np.sum(un_weights)
+        #joint_model.set_posterior_model(Ensemble(self.sampler_model, self.weights)) #TODO: Work in progress
 
 
 class MAP(InferenceMethod):

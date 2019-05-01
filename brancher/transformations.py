@@ -20,9 +20,11 @@ def truncate_model(model, truncation_rule, model_statistics):
                                                                  for_gradient=False, normalized=True).mean()
                 return unnormalized_log_probability + normalization
             else:
-                raise NotImplemented #TODO: Work in progress
+                number_samples = list(rv_values.values())[0].shape[0]
+                acceptance_ratio = get_acceptance_probability(number_samples=number_samples)
+                return unnormalized_log_probability - np.log(acceptance_ratio)
 
-    def truncated_get_sample(number_samples, max_itr=5, **kwargs):
+    def truncated_get_sample(number_samples, max_itr=1, **kwargs):
         batch_size = number_samples
         current_number_samples = 0
         sample_list = []
@@ -31,7 +33,6 @@ def truncate_model(model, truncation_rule, model_statistics):
             remaining_samples, n, p = reject_samples(model._get_sample(batch_size, **kwargs),
                                                      model_statistics=model_statistics,
                                                      truncation_rule=truncation_rule)
-            print(p)
             if remaining_samples:
                 remaining_samples = {var: value[:number_samples - current_number_samples, :]
                                      for var, value in remaining_samples.items()}
@@ -40,7 +41,7 @@ def truncate_model(model, truncation_rule, model_statistics):
             itr += 1
         return concatenate_samples(sample_list)
 
-    def get_acceptance_probability(samples=None, number_samples=None): #TODO: Warning if both arguments
+    def get_acceptance_probability(samples=None, number_samples=None):
         if not samples:
             samples = model._get_sample(number_samples)
         _, _, p = reject_samples(samples,

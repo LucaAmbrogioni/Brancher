@@ -741,12 +741,12 @@ class ProbabilisticModel(BrancherClass):
         self.reset()
         return joint_sample
 
-    def _get_entropy(self, input_values={}):
+    def _get_entropy(self, input_values={}, for_gradient=True):
         if not self.is_transformed:
             entropy_array = {var: var._get_entropy(input_values) for var in self.variables}
             return sum([sum_from_dim(var_ent, 2) for var_ent in entropy_array.values()])
         else:
-            return -self.calculate_log_probability(input_values, for_gradient=True)
+            return -self.calculate_log_probability(input_values, for_gradient=for_gradient)
 
     def get_sample(self, number_samples, input_values={}):
         reformatted_input_values = reformat_sampler_input(pandas_frame2dict(input_values),
@@ -851,7 +851,8 @@ class ProbabilisticModel(BrancherClass):
                 function = lambda samples: self.get_p_log_probabilities_from_q_samples(q_samples=samples,
                                                                                        empirical_samples=empirical_samples,
                                                                                        for_gradient=for_gradient,
-                                                                                       q_model=posterior_model) + posterior_model._get_entropy(samples)
+                                                                                       q_model=posterior_model) + posterior_model._get_entropy(samples,
+                                                                                                                                               for_gradient=for_gradient)
                 estimator = gradient_estimator(function, posterior_model, empirical_samples)
                 log_model_evidence = estimator(number_samples)
             else:
@@ -862,7 +863,7 @@ class ProbabilisticModel(BrancherClass):
                                                                              empirical_samples=empirical_samples,
                                                                              for_gradient=for_gradient,
                                                                              q_model=posterior_model)
-                posterior_entropy = posterior_model._get_entropy(posterior_samples)
+                posterior_entropy = posterior_model._get_entropy(posterior_samples, for_gradient=for_gradient)
                 log_model_evidence = torch.mean(joint_log_prob + posterior_entropy)
             return log_model_evidence
         else:
@@ -941,6 +942,17 @@ class Ensemble(BrancherClass):
         sample = {self.model_list[0].get_variable(name): value for name, value in named_sample.items()}
         return sample
 
+    # def calculate_log_probability(self, rv_values, for_gradient=False, normalized=True):
+    #     """
+    #     Summary
+    #     """
+    #     log_probabilities = [model.calculate_log_probability(rv_values, reevaluate=False,
+    #                                                          for_gradient=for_gradient,
+    #                                                          normalized=normalized)
+    #                          for model in self.model_list]
+    #     alpha = np.max(log_probabilities)
+
+
     def _flatten(self):
         return [model.flatten() for model in self.model_list]
 
@@ -960,7 +972,6 @@ class Ensemble(BrancherClass):
 
     def _get_variance(self, input_values):
         raise NotImplemented
-
 
 
 class PartialLink(BrancherClass):
