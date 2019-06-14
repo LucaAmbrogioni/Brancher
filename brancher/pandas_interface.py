@@ -4,6 +4,7 @@ from brancher.utilities import is_tensor
 from brancher.utilities import map_iterable
 from collections.abc import Iterable
 
+
 def pandas_dict2list(dic):
     indices, values = zip(*dic.items())
     sorted_indices = np.argsort(indices)
@@ -40,7 +41,6 @@ def reformat_value(value, index):
         return map_iterable(lambda x: reformat_value(x, index), value)
     else:
         return value
-
 
 
 def reformat_sample_to_pandas(sample):

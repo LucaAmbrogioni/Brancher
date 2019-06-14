@@ -99,7 +99,7 @@ for N in particle_numbers:
                 scores_0.append(1 if output_label == true_label else 0)
                 s += 1 if output_label == int(test_label.detach().numpy()) else 0
                 log_lk += np.log(float(model_output[true_label]) + 0.000001)
-            print("Accuracy {}: {}%, Log likelihood: {}".format(model_index, 100 * s / float(num_images), log_lk))
+            #print("Accuracy {}: {}%, Log likelihood: {}".format(model_index, 100 * s / float(num_images), log_lk))
 
         s = 0
         log_lk = 0
@@ -119,17 +119,25 @@ for N in particle_numbers:
             scores_ne.append(1 if output_label == int(test_label.detach().numpy()) else 0)
             s += 1 if output_label == true_label else 0
             log_lk += np.log(float(model_output[true_label]) + 0.000001)
-        print("Ensemble accuracy: {}%, Log likelihood: {}".format(100 * s / float(num_images), log_lk))
-        current_results.append(100 * s / float(num_images))
-    print( "Exp {}: {} +- {}".format(N, np.mean(current_results), np.sqrt(np.var(current_results) / num_repetitions)))
+            # print("Accuracy Ensemble: {} %".format(100*s/float(num_images)))
+
+            PELBO = sum([w * float(model.estimate_log_model_evidence(number_samples=50000, posterior_model=sampler,
+                                                                     for_gradient=False).detach().numpy())
+                         for sampler, w in zip(inference_method.sampler_model, inference_method.weights)])
+            entropy = -sum([w * np.log(w) if w > 0. else 0. for w in inference_method.weights])
+            print("ELBO: " + str(PELBO + entropy))
+            current_results.append(PELBO + entropy)
+
+            # current_results.append(100*s/float(num_images))
+    #print( "Exp {}: {} +- {}".format(N, np.mean(current_results), np.sqrt(np.var(current_results) / num_repetitions)))
     results.append(current_results)
     errors.append((np.mean(current_results), np.sqrt(np.var(current_results) / num_repetitions)))
 b = 1
 
-#mean, sem = zip(*errors)
-#mean, sem = np.array(mean), np.array(sem)
-#plt.scatter(particle_numbers, mean, color="k", lw=2)
-#plt.plot(particle_numbers, mean, color="k", lw=1)
-#plt.fill_between(particle_numbers, mean - sem, mean + sem, color="b", alpha=0.5)
-#plt.savefig("iris_results_SCGD.pdf")
-#plt.show()
+mean, sem = zip(*errors)
+mean, sem = np.array(mean), np.array(sem)
+plt.scatter(particle_numbers, mean, color="k", lw=2)
+plt.plot(particle_numbers, mean, color="k", lw=1)
+plt.fill_between(particle_numbers, mean - sem, mean + sem, color="b", alpha=0.5)
+plt.savefig("iris_results_SCGD.pdf")
+plt.show()

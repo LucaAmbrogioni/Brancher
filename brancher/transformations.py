@@ -4,6 +4,7 @@ import numpy as np
 
 from brancher.variables import RandomVariable, ProbabilisticModel
 from brancher.utilities import concatenate_samples, reject_samples
+from brancher.utilities import is_tensor
 
 
 def truncate_model(model, truncation_rule, model_statistics):
@@ -15,7 +16,7 @@ def truncate_model(model, truncation_rule, model_statistics):
             return unnormalized_log_probability
         else:
             if for_gradient:
-                nondiff_values = {var: value.detach() for var, value in rv_values.items()}
+                nondiff_values = {var: value.detach() if is_tensor(value) else value for var, value in rv_values.items()}
                 normalization = -model.calculate_log_probability(nondiff_values,
                                                                  for_gradient=False, normalized=True).mean()
                 return unnormalized_log_probability + normalization

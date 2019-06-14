@@ -13,8 +13,8 @@ from brancher.inference import WassersteinVariationalGradientDescent as WVGD
 
 #TODO: Number of particles interface: Work in progress
 
-num_repetitions = 10
-particle_numbers = [4, 1] #[10, 8, 6, 4, 2, 1]
+num_repetitions = 20
+particle_numbers = [1, 2, 3, 4, 5]
 results = []
 errors = []
 
@@ -22,14 +22,14 @@ for N in particle_numbers:
     current_results = []
     for R in range(num_repetitions):
         # Data
-        number_regressors = 30
+        number_regressors = 10
         number_output_classes = 2
         dataset_size = 50
-        dataset = datasets.load_breast_cancer()
+        dataset = datasets.load_diabetes()
         ind = list(range(dataset["target"].shape[0]))
         np.random.shuffle(ind)
         input_variable = dataset["data"][ind[:dataset_size], :].astype("float32")
-        output_labels = dataset["target"][ind[:dataset_size]].astype("int32")
+        output_labels = (dataset["target"][ind[:dataset_size]] > np.median(dataset["target"])).astype("int32")
 
         # Data sampling model
         minibatch_size = dataset_size
@@ -105,7 +105,7 @@ for N in particle_numbers:
                 output_label = int(np.argmax(model_output))
                 scores_0.append(1 if output_label == int(test_label.detach().numpy()) else 0)
                 s += 1 if output_label == int(test_label.detach().numpy()) else 0
-            print("Accuracy {}: {} %, weight: {}".format(model_index, 100*s/float(num_images), inference_method.weights[model_index]))
+            #print("Accuracy {}: {} %, weight: {}".format(model_index, 100*s/float(num_images), inference_method.weights[model_index]))
 
         s = 0
         scores_ne = []
@@ -120,9 +120,16 @@ for N in particle_numbers:
             output_label = int(np.argmax(model_output))
             scores_ne.append(1 if output_label == int(test_label.detach().numpy()) else 0)
             s += 1 if output_label == int(test_label.detach().numpy()) else 0
-        print("Accuracy Ensemble: {} %".format(100*s/float(num_images)))
+        #print("Accuracy Ensemble: {} %".format(100*s/float(num_images)))
 
-        current_results.append(100*s/float(num_images))
+        PELBO = sum([w * float(model.estimate_log_model_evidence(number_samples=50000, posterior_model=sampler,
+                                                                 for_gradient=False).detach().numpy())
+                     for sampler, w in zip(inference_method.sampler_model, inference_method.weights)])
+        entropy = -sum([w * np.log(w) if w > 0. else 0. for w in inference_method.weights])
+        print("ELBO: " + str(PELBO + entropy))
+
+        #current_results.append(100*s/float(num_images))
+        current_results.append(PELBO + entropy)
     print("Exp {}: {} +- {}".format(N, np.mean(current_results), np.sqrt(np.var(current_results) / num_repetitions)))
     results.append(current_results)
     errors.append((np.mean(current_results), np.sqrt(np.var(current_results)/num_repetitions)))
@@ -135,3 +142,6 @@ plt.plot(particle_numbers, mean, color="k", lw=1)
 plt.fill_between(particle_numbers, mean - sem, mean + sem, color="b", alpha=0.5)
 plt.savefig("diabetes_results_WCGD.pdf")
 plt.show()
+
+print(mean)
+print(sem)

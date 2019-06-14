@@ -11,8 +11,8 @@ from brancher.inference import WassersteinVariationalGradientDescent as WVGD
 
 #TODO: Number of particles interface: Work in progress
 
-num_repetitions = 50
-particle_numbers = [10, 8, 6, 4, 2, 1]
+num_repetitions = 20
+particle_numbers = [15, 12, 9, 6, 3, 1]
 results = []
 errors = []
 
@@ -44,7 +44,7 @@ for N in particle_numbers:
 
         # Forward pass
         final_activations = BF.matmul(weights2, BF.tanh(BF.matmul(weights1, x)))
-        k = CategoricalVariable(softmax_p=final_activations, name="k")
+        k = CategoricalVariable(logits=final_activations, name="k")
 
         # Probabilistic model
         model = ProbabilisticModel([k])
@@ -112,7 +112,7 @@ for N in particle_numbers:
                 output_label = int(np.argmax(model_output))
                 scores_0.append(1 if output_label == int(test_label.detach().numpy()) else 0)
                 s += 1 if output_label == int(test_label.detach().numpy()) else 0
-            print("Accuracy {}: {} %, weight: {}".format(model_index, 100*s/float(num_images), inference_method.weights[model_index]))
+            #print("Accuracy {}: {} %, weight: {}".format(model_index, 100*s/float(num_images), inference_method.weights[model_index]))
 
         s = 0
         scores_ne = []
@@ -127,9 +127,14 @@ for N in particle_numbers:
             output_label = int(np.argmax(model_output))
             scores_ne.append(1 if output_label == int(test_label.detach().numpy()) else 0)
             s += 1 if output_label == int(test_label.detach().numpy()) else 0
-        print("Accuracy Ensemble: {} %".format(100*s/float(num_images)))
+        PELBO = sum([w * float(model.estimate_log_model_evidence(number_samples=50000, posterior_model=sampler,
+                                                                 for_gradient=False).detach().numpy())
+                     for sampler, w in zip(inference_method.sampler_model, inference_method.weights)])
+        entropy = -sum([w * np.log(w) if w > 0. else 0. for w in inference_method.weights])
+        print("ELBO: " + str(PELBO + entropy))
 
-        current_results.append(100*s/float(num_images))
+        # current_results.append(100*s/float(num_images))
+        current_results.append(PELBO + entropy)
     print("Exp {}: {} +- {}".format(N, np.mean(current_results), np.sqrt(np.var(current_results) / num_repetitions)))
     results.append(current_results)
     errors.append((np.mean(current_results), np.sqrt(np.var(current_results)/num_repetitions)))

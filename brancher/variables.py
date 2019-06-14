@@ -168,7 +168,7 @@ class Variable(BrancherClass):
                                              observed=self.is_observed,
                                              differentiable=False,
                                              input_values=reformatted_input_values)[self]}
-        sample = reformat_sample_to_pandas(raw_sample, number_samples)
+        sample = reformat_sample_to_pandas(raw_sample)
         self.reset()
         return sample
 
@@ -808,7 +808,7 @@ class ProbabilisticModel(BrancherClass):
         reformatted_input_values = reformat_sampler_input(pandas_frame2dict(input_values),
                                                                             number_samples=number_samples)
         raw_sample = self._get_posterior_sample(number_samples, input_values=reformatted_input_values)
-        sample = reformat_sample_to_pandas(raw_sample, number_samples=number_samples)
+        sample = reformat_sample_to_pandas(raw_sample)
         return sample
 
     def get_p_log_probabilities_from_q_samples(self, q_samples, q_model, empirical_samples={},

@@ -11,11 +11,11 @@ from brancher.inference import WassersteinVariationalGradientDescent as WVGD
 
 #TODO: Number of particles interface: Work in progress
 
-num_repetitions = 10 #50
-particle_numbers = [3, 1] #[10, 8, 6, 4, 2, 1]
+num_repetitions = 20
+particle_numbers = [1, 2, 3, 4, 5]
 results = []
 errors = []
-post_sample_size = 300
+post_sample_size = 30
 
 for N in particle_numbers:
     current_results = []
@@ -68,9 +68,9 @@ for N in particle_numbers:
                                 biased=False)
         inference.perform_inference(model,
                                     inference_method=inference_method,
-                                    number_iterations=3000,
+                                    number_iterations=1000,
                                     number_samples=100,
-                                    optimizer="SGD",
+                                    optimizer="Adam",
                                     lr=0.0025,
                                     posterior_model=particles,
                                     pretraining_iterations=0)
@@ -107,7 +107,7 @@ for N in particle_numbers:
                 scores_0.append(1 if output_label == true_label else 0)
                 s += 1 if output_label == int(test_label.detach().numpy()) else 0
                 log_lk += np.log(float(model_output[true_label]) + 0.000001)
-            print("Accuracy {}: {}%, Log likelihood: {}, weight: {}".format(model_index, 100*s/float(num_images), log_lk, inference_method.weights[model_index]))
+            #print("Accuracy {}: {}%, Log likelihood: {}, weight: {}".format(model_index, 100*s/float(num_images), log_lk, inference_method.weights[model_index]))
 
         s = 0
         scores_ne = []
@@ -122,9 +122,14 @@ for N in particle_numbers:
             output_label = int(np.argmax(model_output))
             scores_ne.append(1 if output_label == int(test_label.detach().numpy()) else 0)
             s += 1 if output_label == int(test_label.detach().numpy()) else 0
-        print("Accuracy Ensemble: {} %".format(100*s/float(num_images)))
+            # print("Accuracy Ensemble: {} %".format(100*s/float(num_images)))
 
-        current_results.append(100*s/float(num_images))
+        PELBO = sum([w * float(model.estimate_log_model_evidence(number_samples=50000, posterior_model=sampler,
+                                                                     for_gradient=False).detach().numpy())
+                         for sampler, w in zip(inference_method.sampler_model, inference_method.weights)])
+        entropy = -sum([w * np.log(w) if w > 0. else 0. for w in inference_method.weights])
+        print("ELBO: " + str(PELBO + entropy))
+        current_results.append(PELBO + entropy)
     print("Exp {}: {} +- {}".format(N, np.mean(current_results), np.sqrt(np.var(current_results) / num_repetitions)))
     results.append(current_results)
     errors.append((np.mean(current_results), np.sqrt(np.var(current_results)/num_repetitions)))
@@ -135,5 +140,8 @@ mean, sem = np.array(mean), np.array(sem)
 plt.scatter(particle_numbers, mean, color="k", lw=2)
 plt.plot(particle_numbers, mean, color="k", lw=1)
 plt.fill_between(particle_numbers, mean - sem, mean + sem, color="b", alpha=0.5)
-plt.savefig("iris_results_WCGD.pdf")
+plt.savefig("iris_results_WVGD.pdf")
 plt.show()
+
+print(mean)
+print(sem)
